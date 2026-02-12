@@ -15,6 +15,7 @@
         :key="post.id"
         :post="post"
         :user="post.user"
+        :current-user-id="currentUserId"
       />
     </div>
     <div v-else class="text-center py-8 text-gray-500">
@@ -96,6 +97,10 @@ const { data, pending, error, refresh } = await useFetch<TimelineResponse>(apiUr
 
 const { fetchUsers } = useUsers()
 const { activeTab } = useFeedFilter()
+
+// TODO: Get current user ID from auth when available
+// For testing, set a user ID here (e.g., 1)
+const currentUserId = ref<number | undefined>(1)
 
 // Only show AddPost on client side and when community tab is active
 const showAddPost = ref(false)

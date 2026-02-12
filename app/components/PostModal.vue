@@ -8,7 +8,7 @@
   >
     <template #body>
       <div v-if="post">
-        <Post :post="post" :user="user" />
+        <Post :post="post" :user="user" :current-user-id="currentUserId" />
       </div>
     </template>
   </UModal>
@@ -72,6 +72,7 @@ const props = defineProps<{
   post: Post | null
   user: User | null
   open: boolean
+  currentUserId?: number
 }>()
 
 const emit = defineEmits<{
