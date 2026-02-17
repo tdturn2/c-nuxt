@@ -188,7 +188,8 @@ const accountMenuItems = ref<NavigationMenuItem[]>([
     icon: 'i-heroicons-user',
     children: [
       {
-        label: 'Profile'
+        label: 'Profile',
+        to: '/profile'
       },
       {
         label: 'Account Settings'
