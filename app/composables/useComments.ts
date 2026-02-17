@@ -1,0 +1,274 @@
+export interface CommentAuthor {
+  id: number
+  name: string
+  email: string
+  avatar: {
+    id: number
+    url: string
+    alt: string
+  } | null
+  bio: string | null
+}
+
+export interface Comment {
+  id: number
+  post: {
+    id: number
+  }
+  parent: number | null
+  author: CommentAuthor
+  content: {
+    root: {
+      type: string
+      version: number
+      children: Array<{
+        type: string
+        children?: Array<{
+          type: string
+          text?: string
+        }>
+        text?: string
+      }>
+    }
+  }
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CommentWithReplies extends Comment {
+  replies?: CommentWithReplies[]
+}
+
+/**
+ * Composable for managing comments
+ */
+export const useComments = () => {
+  /**
+   * Fetch comments for a post
+   */
+  const fetchComments = async (postId: number): Promise<Comment[]> => {
+    try {
+      const { data, error } = await useFetch<{ docs: Comment[] }>('/api/comments', {
+        query: {
+          postId: postId.toString()
+        }
+      })
+
+      if (error.value || !data.value) {
+        console.error('Error fetching comments:', error.value)
+        return []
+      }
+
+      return data.value.docs || []
+    } catch (err) {
+      console.error('Error fetching comments:', err)
+      return []
+    }
+  }
+
+  /**
+   * Organize comments into a tree structure (comments with replies)
+   */
+  const organizeComments = (comments: Comment[]): CommentWithReplies[] => {
+    // Separate top-level comments and replies
+    const topLevel: Comment[] = []
+    const repliesMap = new Map<number, Comment[]>()
+
+    console.log('Organizing comments:', comments.length, 'comments')
+    
+    comments.forEach(comment => {
+      // Handle parent as number, null, undefined, or object { id: number }
+      const parentId = typeof comment.parent === 'object' && comment.parent !== null 
+        ? (comment.parent as any).id 
+        : comment.parent
+      
+      console.log(`Comment ${comment.id}: parentId =`, parentId, 'type:', typeof parentId)
+      
+      if (parentId === null || parentId === undefined) {
+        topLevel.push(comment)
+        console.log(`  -> Added to top level`)
+      } else {
+        const parentIdNum = typeof parentId === 'number' ? parentId : parseInt(String(parentId), 10)
+        if (!repliesMap.has(parentIdNum)) {
+          repliesMap.set(parentIdNum, [])
+        }
+        repliesMap.get(parentIdNum)!.push(comment)
+        console.log(`  -> Added as reply to parent ${parentIdNum}`)
+      }
+    })
+
+    console.log('Top level comments:', topLevel.length)
+    console.log('Replies map:', Array.from(repliesMap.entries()).map(([k, v]) => `${k}: ${v.length}`))
+
+    // Build tree structure
+    const buildTree = (comment: Comment): CommentWithReplies => {
+      const commentWithReplies: CommentWithReplies = { ...comment }
+      const replies = repliesMap.get(comment.id) || []
+      if (replies.length > 0) {
+        commentWithReplies.replies = replies.map(buildTree)
+        console.log(`Comment ${comment.id} has ${replies.length} replies`)
+      }
+      return commentWithReplies
+    }
+
+    const result = topLevel.map(buildTree)
+    console.log('Final organized comments:', result.length)
+    return result
+  }
+
+  /**
+   * Create a new comment
+   */
+  const createComment = async (
+    postId: number,
+    content: any,
+    parentId?: number | null
+  ): Promise<Comment | null> => {
+    try {
+      const { data, error } = await useFetch<Comment>('/api/comments', {
+        method: 'POST',
+        body: {
+          post: postId,
+          parent: parentId || null,
+          content
+        }
+      })
+
+      if (error.value || !data.value) {
+        console.error('Error creating comment:', error.value)
+        return null
+      }
+
+      return data.value
+    } catch (err) {
+      console.error('Error creating comment:', err)
+      return null
+    }
+  }
+
+  /**
+   * Update an existing comment
+   */
+  const updateComment = async (
+    commentId: number,
+    content: any
+  ): Promise<Comment | null> => {
+    try {
+      const { data, error } = await useFetch<Comment>(`/api/comments/${commentId}`, {
+        method: 'PATCH',
+        body: {
+          content
+        }
+      })
+
+      if (error.value || !data.value) {
+        console.error('Error updating comment:', error.value)
+        return null
+      }
+
+      return data.value
+    } catch (err) {
+      console.error('Error updating comment:', err)
+      return null
+    }
+  }
+
+  /**
+   * Delete a comment
+   */
+  const deleteComment = async (commentId: number): Promise<boolean> => {
+    try {
+      const { error } = await useFetch(`/api/comments/${commentId}`, {
+        method: 'DELETE'
+      })
+
+      if (error.value) {
+        console.error('Error deleting comment:', error.value)
+        return false
+      }
+
+      return true
+    } catch (err) {
+      console.error('Error deleting comment:', err)
+      return false
+    }
+  }
+
+  /**
+   * Extract text content from Lexical JSON structure
+   * Preserves mentions as @Friendly Name
+   */
+  const extractTextFromContent = (content: Comment['content']): string => {
+    if (!content?.root?.children) return ''
+    
+    const extractText = (children: Array<{ 
+      type: string
+      children?: Array<{ type: string; text?: string }>
+      text?: string
+      format?: string
+    }>): string => {
+      return children
+        .map(child => {
+          if (child.type === 'text' && child.text) {
+            // Check if this is a mention (starts with @)
+            if (child.text.startsWith('@')) {
+              return child.text
+            }
+            return child.text
+          }
+          if (child.children) {
+            return extractText(child.children)
+          }
+          return ''
+        })
+        .filter(Boolean)
+        .join('')
+    }
+    
+    return extractText(content.root.children)
+  }
+
+  /**
+   * Extract mentions from Lexical content for display
+   * Returns HTML string with mentions styled
+   */
+  const extractContentWithMentions = (content: Comment['content']): string => {
+    if (!content?.root?.children) return ''
+    
+    const extractHTML = (children: Array<{ 
+      type: string
+      children?: Array<{ type: string; text?: string }>
+      text?: string
+      format?: string
+    }>): string => {
+      return children
+        .map(child => {
+          if (child.type === 'text' && child.text) {
+            // Check if this is a mention (starts with @)
+            if (child.text.startsWith('@')) {
+              return `<span class="text-blue-600 font-medium">${child.text}</span>`
+            }
+            return child.text.replace(/\n/g, '<br>')
+          }
+          if (child.children) {
+            return extractHTML(child.children)
+          }
+          return ''
+        })
+        .filter(Boolean)
+        .join('')
+    }
+    
+    return extractHTML(content.root.children)
+  }
+
+  return {
+    fetchComments,
+    organizeComments,
+    createComment,
+    updateComment,
+    deleteComment,
+    extractTextFromContent,
+    extractContentWithMentions
+  }
+}

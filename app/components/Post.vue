@@ -126,9 +126,13 @@
           </template>
         </UPopover>
         
-        <button class="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors">
+        <button 
+          @click="showComments = !showComments"
+          class="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+        >
           <UIcon name="i-heroicons-chat-bubble-left-right" class="w-5 h-5" />
           <span class="text-sm font-medium">Comment</span>
+          <span v-if="commentCount > 0" class="text-xs text-gray-500">({{ commentCount }})</span>
         </button>
       </div>
       
@@ -166,6 +170,59 @@
               {{ reaction.user?.name?.charAt(0)?.toUpperCase() || '?' }}
             </div>
           </template>
+        </div>
+      </div>
+
+      <!-- Comments Section -->
+      <div v-if="showComments" class="border-t border-gray-200 px-4 py-4 mt-3">
+        <!-- Comment Form -->
+        <div v-if="currentUserId" class="mb-4 relative">
+          <textarea
+            ref="commentTextareaRef"
+            v-model="newCommentText"
+            @input="handleCommentInput"
+            @keydown="handleCommentKeydown"
+            placeholder="Write a comment... Use @ to mention someone"
+            rows="3"
+            class="w-full px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+          />
+          <MentionAutocomplete
+            :is-visible="showMentionAutocomplete"
+            :users="mentionUsers"
+            :selected-index="mentionSelectedIndex"
+            :position="mentionPosition"
+            @select="handleMentionSelect"
+            @update-selected-index="mentionSelectedIndex = $event"
+          />
+          <div class="flex items-center justify-end gap-2 mt-2">
+            <button
+              @click="submitComment"
+              :disabled="!newCommentText.trim() || submittingComment"
+              class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {{ submittingComment ? 'Posting...' : 'Post Comment' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Comments List -->
+        <div v-if="loadingComments" class="text-center py-4 text-gray-500 text-sm">
+          Loading comments...
+        </div>
+        <div v-else-if="organizedComments.length > 0" class="space-y-4">
+          <Comment
+            v-for="comment in organizedComments"
+            :key="comment.id"
+            :comment="comment"
+            :post-id="post.id"
+            :current-user-id="currentUserId"
+            @reply-created="handleReplyCreated"
+            @comment-updated="handleCommentUpdated"
+            @comment-deleted="handleCommentDeleted"
+          />
+        </div>
+        <div v-else class="text-center py-4 text-gray-500 text-sm">
+          No comments yet. Be the first to comment!
         </div>
       </div>
     </div>
@@ -243,10 +300,28 @@ const props = defineProps<{
 }>()
 
 const { toggleReaction, getReactions, createReaction, deleteReaction, unreact } = useReactions()
+const { fetchComments, organizeComments, createComment, extractTextFromContent, updateComment } = useComments()
+const { searchUsers, createLexicalContentWithMentions } = useMentions()
 
 const reactions = ref<Reaction[]>([])
 const togglingReaction = ref(false)
 const showReactionPicker = ref(false)
+
+// Comments state
+const showComments = ref(false)
+const comments = ref<any[]>([])
+const loadingComments = ref(false)
+const newCommentText = ref('')
+const submittingComment = ref(false)
+
+// Mention autocomplete state
+const commentTextareaRef = ref<HTMLTextAreaElement | null>(null)
+const showMentionAutocomplete = ref(false)
+const mentionUsers = ref<Array<{ id: number; name: string; email: string; avatar: string | null }>>([])
+const mentionSelectedIndex = ref(0)
+const mentionPosition = ref({ top: 0, left: 0 })
+const mentionQuery = ref('')
+const mentionStartIndex = ref(-1)
 
 // Reaction types
 type ReactionType = 'like' | 'love' | 'laugh' | 'wow' | 'sad' | 'pray'
@@ -258,7 +333,7 @@ const reactionConfig: Record<ReactionType, { emoji: string; label: string; color
   laugh: { emoji: '😂', label: 'Haha', color: 'text-yellow-600' },
   wow: { emoji: '😮', label: 'Wow', color: 'text-yellow-600' },
   sad: { emoji: '😢', label: 'Sad', color: 'text-yellow-600' },
-  pray: { emoji: '🙏', label: 'Pray', color: 'text-purple-600' }
+  pray: { emoji: '🙏', label: 'Praying', color: 'text-purple-600' }
 }
 
 // Helper to safely get reaction config
@@ -282,12 +357,296 @@ const loadReactions = async () => {
   }
 }
 
-// Load reactions on mount
+// Load reactions and comments on mount
 onMounted(() => {
   if (import.meta.client) {
     loadReactions()
+    loadComments() // Load comments on mount so count is available immediately
   }
 })
+
+// Watch for comments section to open and reload comments if needed
+watch(showComments, async (isOpen) => {
+  if (isOpen && comments.value.length === 0) {
+    await loadComments()
+  }
+})
+
+// Load comments
+const loadComments = async () => {
+  loadingComments.value = true
+  try {
+    console.log('Loading comments for post:', props.post.id)
+    const fetchedComments = await fetchComments(props.post.id)
+    console.log('Fetched comments:', fetchedComments)
+    
+    // Ensure we have fresh data by replacing the entire array
+    // This ensures reactivity works properly
+    await nextTick()
+    comments.value = [...fetchedComments]
+    console.log('Set comments.value to:', comments.value.length, 'comments')
+  } catch (error) {
+    console.error('Error loading comments:', error)
+  } finally {
+    loadingComments.value = false
+  }
+}
+
+// Organize comments into tree structure
+const organizedComments = computed(() => {
+  // Force reactivity by creating a new array reference
+  const organized = organizeComments(comments.value)
+  console.log('Organized comments computed:', organized.length, 'top-level comments')
+  return organized
+})
+
+// Comment count
+const commentCount = computed(() => {
+  return comments.value.length
+})
+
+// Handle comment input for mention detection
+const handleCommentInput = async (e?: Event) => {
+  const textarea = commentTextareaRef.value
+  if (!textarea) return
+
+  // Use setTimeout to ensure cursor position is updated
+  await nextTick()
+  
+  const text = newCommentText.value
+  const cursorPos = textarea.selectionStart || text.length
+  
+  console.log('Input detected, cursor pos:', cursorPos, 'text:', text)
+  
+  // Find @ symbol before cursor
+  const textBeforeCursor = text.substring(0, cursorPos)
+  const lastAtIndex = textBeforeCursor.lastIndexOf('@')
+  
+  console.log('Last @ index:', lastAtIndex)
+  
+  if (lastAtIndex !== -1) {
+    // Check if there's a space after @ (meaning mention is complete or invalid)
+    const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1)
+    const spaceIndex = textAfterAt.indexOf(' ')
+    
+    console.log('Text after @:', textAfterAt, 'space index:', spaceIndex)
+    
+    // Only show autocomplete if we're actively typing a mention (no space yet)
+    if (spaceIndex === -1) {
+      // We're in a mention - extract query (everything after @ until cursor)
+      const query = textAfterAt.trim()
+      
+      console.log('Mention query:', query, 'length:', query.length)
+      
+      // Show autocomplete even if query is empty (just typed @)
+      // or if there's a query to search
+      mentionQuery.value = query
+      mentionStartIndex.value = lastAtIndex
+      
+      // Search for users (empty query will return empty array, but we can show all users)
+      console.log('Searching users for:', query || '(empty - showing all)')
+      const users = query.length > 0 
+        ? await searchUsers(query)
+        : await searchUsers('') // Search with empty string to get some users
+      
+      console.log('Found users:', users.length, users)
+      mentionUsers.value = users
+      
+      // Calculate position for autocomplete dropdown - simpler approach
+      const textareaRect = textarea.getBoundingClientRect()
+      
+      // Position dropdown below the textarea, aligned to left
+      mentionPosition.value = {
+        top: textareaRect.bottom + 5,
+        left: textareaRect.left + 10
+      }
+      
+      console.log('Autocomplete position:', mentionPosition.value, 'visible:', users.length > 0)
+      
+      showMentionAutocomplete.value = users.length > 0
+      mentionSelectedIndex.value = 0
+    } else {
+      // Space found after @, mention is complete
+      console.log('Space found, hiding autocomplete')
+      showMentionAutocomplete.value = false
+    }
+  } else {
+    // No @ found
+    showMentionAutocomplete.value = false
+  }
+}
+
+// Handle keyboard navigation in mention autocomplete
+const handleCommentKeydown = (e: KeyboardEvent) => {
+  if (showMentionAutocomplete.value && mentionUsers.value.length > 0) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      mentionSelectedIndex.value = Math.min(mentionSelectedIndex.value + 1, mentionUsers.value.length - 1)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      mentionSelectedIndex.value = Math.max(mentionSelectedIndex.value - 1, 0)
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault()
+      const selectedUser = mentionUsers.value[mentionSelectedIndex.value]
+      if (selectedUser) {
+        handleMentionSelect(selectedUser)
+      }
+    } else if (e.key === 'Escape') {
+      showMentionAutocomplete.value = false
+    }
+  }
+}
+
+// Handle mention selection
+const handleMentionSelect = (user: { id: number; name: string; email: string; avatar: string | null }) => {
+  const textarea = commentTextareaRef.value
+  if (!textarea || mentionStartIndex.value === -1) return
+
+  const text = newCommentText.value
+  const textBeforeMention = text.substring(0, mentionStartIndex.value)
+  const textAfterMention = text.substring(textarea.selectionStart)
+  
+  // Insert mention as "@Friendly Name "
+  newCommentText.value = textBeforeMention + `@${user.name} ` + textAfterMention
+  
+  // Move cursor after the mention
+  const newCursorPos = textBeforeMention.length + user.name.length + 2 // +2 for @ and space
+  setTimeout(() => {
+    textarea.focus()
+    textarea.setSelectionRange(newCursorPos, newCursorPos)
+  }, 0)
+  
+  showMentionAutocomplete.value = false
+  mentionStartIndex.value = -1
+}
+
+// Submit new comment
+const submitComment = async () => {
+  if (!newCommentText.value.trim() || submittingComment.value || !props.currentUserId) return
+
+  submittingComment.value = true
+  try {
+    // Create Lexical content structure with mentions
+    const content = createLexicalContentWithMentions(newCommentText.value.trim())
+
+    const newComment = await createComment(props.post.id, content)
+    
+    if (newComment) {
+      newCommentText.value = ''
+      
+      // Ensure comments section is visible
+      if (!showComments.value) {
+        showComments.value = true
+      }
+      
+      // Normalize parent field if it's an object
+      if (newComment.parent && typeof newComment.parent === 'object' && newComment.parent !== null && 'id' in newComment.parent) {
+        newComment.parent = (newComment.parent as any).id
+      }
+      
+      // Add the new comment to the list immediately
+      // Don't reload immediately - we already have the comment data from the create response
+      comments.value = [...comments.value, newComment]
+      
+      // Silently sync in the background after a delay, but preserve the new comment
+      // This ensures we have the latest data without removing the comment
+      setTimeout(async () => {
+        try {
+          const fetchedComments = await fetchComments(props.post.id)
+          const newCommentId = newComment.id
+          
+          // Check if our new comment is in the fetched list
+          const commentExists = fetchedComments.some(c => c.id === newCommentId)
+          
+          if (commentExists) {
+            // Comment is now in PayloadCMS, use the fetched version
+            comments.value = fetchedComments
+          } else {
+            // Comment not indexed yet, merge fetched with our new comment
+            const fetchedIds = new Set(fetchedComments.map(c => c.id))
+            const commentsToKeep = comments.value.filter(c => !fetchedIds.has(c.id))
+            comments.value = [...fetchedComments, ...commentsToKeep]
+          }
+        } catch (error) {
+          // If fetch fails, keep the optimistic comment
+          console.error('Background sync failed, keeping optimistic comment:', error)
+        }
+      }, 2000)
+    }
+  } catch (error) {
+    console.error('Error submitting comment:', error)
+  } finally {
+    submittingComment.value = false
+  }
+}
+
+// Handle reply created
+const handleReplyCreated = async () => {
+  // Reload comments to get the new reply
+  await loadComments()
+}
+
+// Handle comment updated
+const handleCommentUpdated = async (updatedComment?: CommentWithReplies) => {
+  console.log('Comment updated event received', updatedComment)
+  
+  // If we have the updated comment, update it in the array immediately
+  if (updatedComment) {
+    const index = comments.value.findIndex(c => c.id === updatedComment.id)
+    if (index !== -1) {
+      // Update the comment in place - create new object to ensure reactivity
+      comments.value[index] = { ...comments.value[index], ...updatedComment }
+      console.log('Updated comment in array at index:', index)
+      
+      // Force reactivity by replacing the entire array
+      comments.value = [...comments.value]
+    }
+  }
+  
+  // Don't reload immediately - the local update is already applied
+  // Only reload if user navigates away or after a longer delay
+  // This prevents the reload from overwriting our local update
+  // The update will persist when the page is refreshed or comments are reloaded naturally
+}
+
+// Handle comment deleted
+const handleCommentDeleted = async (commentId?: number) => {
+  console.log('Comment deleted event received', commentId)
+  
+  // Remove the comment from the array immediately
+  if (commentId) {
+    const index = comments.value.findIndex(c => c.id === commentId)
+    if (index !== -1) {
+      comments.value.splice(index, 1)
+      // Force reactivity by replacing the array
+      comments.value = [...comments.value]
+      console.log('Removed comment from array:', commentId)
+    }
+    
+    // Also check nested replies
+    const removeFromReplies = (commentList: CommentWithReplies[]): CommentWithReplies[] => {
+      return commentList
+        .filter(c => c.id !== commentId)
+        .map(c => {
+          if (c.replies && c.replies.length > 0) {
+            return {
+              ...c,
+              replies: removeFromReplies(c.replies)
+            }
+          }
+          return c
+        })
+    }
+    
+    // Update organized comments structure
+    const organized = organizeComments(comments.value)
+    // Force reactivity
+    comments.value = [...comments.value]
+  }
+  
+  // Don't reload immediately - the local removal is already applied
+  // The deletion will persist when the page is refreshed
+}
 
 const reactionCount = computed(() => reactions.value.length)
 

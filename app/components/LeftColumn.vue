@@ -50,100 +50,19 @@ const { getPodcasts, fetchLatestEpisode, fetchPodcastFeed } = usePodcasts()
 // Get all configured podcasts
 const podcasts = getPodcasts()
 
-// Pre-fetch and preload latest episodes when component mounts
-// This way audio is already buffering when user clicks
-const preloadedEpisodes = new Map<string, { audio: HTMLAudioElement; episode: any }>()
-
-onMounted(async () => {
-  // Pre-fetch all podcast episodes in the background
-  // This starts downloading audio immediately so it's ready when user clicks
-  console.log('Preloading podcast episodes...')
-  
-  for (const podcast of podcasts) {
-    try {
-      const episode = await fetchLatestEpisode(podcast.id)
-      if (episode?.audio) {
-        // Create and start loading audio element immediately
-        const audio = new Audio()
-        audio.preload = 'auto'
-        audio.crossOrigin = 'anonymous'
-        audio.src = episode.audio
-        audio.load() // Start downloading immediately
-        
-        // Store for later use
-        preloadedEpisodes.set(podcast.id, { audio, episode })
-        
-        console.log(`✅ Preloaded: ${podcast.name}`)
-        
-        // Also preload the 'chapel' podcast if it exists
-        if (podcast.id === 'chapel') {
-          preloadedEpisodes.set('chapel', { audio, episode })
-        }
-      }
-    } catch (err) {
-      console.error(`Failed to preload ${podcast.name}:`, err)
-    }
-  }
-  
-  // Also preload chapel separately if it's not in the podcasts list
-  try {
-    const chapelEpisode = await fetchLatestEpisode('chapel')
-    if (chapelEpisode?.audio && !preloadedEpisodes.has('chapel')) {
-      const audio = new Audio()
-      audio.preload = 'auto'
-      audio.crossOrigin = 'anonymous'
-      audio.src = chapelEpisode.audio
-      audio.load()
-      preloadedEpisodes.set('chapel', { audio, episode: chapelEpisode })
-      console.log('✅ Preloaded: Chapel')
-    }
-  } catch (err) {
-    console.error('Failed to preload Chapel:', err)
-  }
-})
-
 /**
  * Play the latest episode from a podcast
  */
 const playPodcastLatest = async (podcastId: string) => {
-  const startTime = performance.now()
   try {
-    console.log('Playing podcast latest:', podcastId)
-    
-    // Check if we have a preloaded episode (audio already buffering!)
-    const preloaded = preloadedEpisodes.get(podcastId)
-    
-    let episode
-    if (preloaded) {
-      // Use preloaded episode - audio is already buffering!
-      episode = preloaded.episode
-      const { audio } = preloaded
-      
-      // Check buffering status
-      if (audio.readyState >= 2) { // HAVE_CURRENT_DATA or higher
-        console.log(`✅ Audio already buffered (readyState: ${audio.readyState}) - should play instantly!`)
-      } else {
-        console.log(`⏳ Audio still loading (readyState: ${audio.readyState}) - will start soon`)
-      }
-    } else {
-      // Fallback: fetch if not preloaded (shouldn't happen normally)
-      console.log('⚠️ Episode not preloaded, fetching now...')
-      const fetchStart = performance.now()
-      episode = await fetchLatestEpisode(podcastId)
-      const fetchTime = performance.now() - fetchStart
-      console.log(`RSS fetch and parse took: ${fetchTime.toFixed(2)}ms`)
-    }
+    const episode = await fetchLatestEpisode(podcastId)
     
     if (!episode) {
-      console.error(`Failed to get episode for podcast: ${podcastId}`)
+      console.error(`Failed to fetch latest episode for podcast: ${podcastId}`)
       return
     }
 
-    console.log('Playing:', episode.title)
-    console.log('Audio URL:', episode.audio)
-
-    // Play immediately with Howler - should start playing as soon as buffered
-    const playStart = performance.now()
+    // Play the episode
     playTrack({
       id: episode.id,
       audio: episode.audio,
@@ -152,11 +71,6 @@ const playPodcastLatest = async (podcastId: string) => {
       artwork: episode.artwork,
       album: episode.album
     })
-    const playTime = performance.now() - playStart
-    console.log(`Track sent to Howler in: ${playTime.toFixed(2)}ms`)
-    
-    const totalTime = performance.now() - startTime
-    console.log(`Total time: ${totalTime.toFixed(2)}ms`)
   } catch (err) {
     console.error(`Error playing podcast ${podcastId}:`, err)
   }
