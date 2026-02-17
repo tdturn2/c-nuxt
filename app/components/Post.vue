@@ -85,10 +85,12 @@
               color="neutral"
               :class="[
                 'flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
-                userReaction ? getReactionConfig(userReaction).color : 'text-gray-600 hover:text-gray-900'
+                userReaction ? getReactionConfig(userReaction).color : '!text-gray-600 hover:!text-gray-900'
               ]"
             >
-              <span class="text-xl">{{ userReaction ? getReactionConfig(userReaction).emoji : reactionConfig.like.emoji }}</span>
+              <span class="text-xl" :class="userReaction ? '' : 'opacity-60'">
+                {{ userReaction ? getReactionConfig(userReaction).emoji : '👍' }}
+              </span>
               <span class="text-sm font-medium">
                 {{ userReaction ? getReactionConfig(userReaction).label : 'Like' }}
               </span>
@@ -240,7 +242,7 @@ const props = defineProps<{
   currentUserId?: number
 }>()
 
-const { toggleReaction, getReactions, createReaction, deleteReaction } = useReactions()
+const { toggleReaction, getReactions, createReaction, deleteReaction, unreact } = useReactions()
 
 const reactions = ref<Reaction[]>([])
 const togglingReaction = ref(false)
@@ -270,11 +272,11 @@ const getReactionConfig = (type: string | null): { emoji: string; label: string;
 // Fetch reactions for this post
 const loadReactions = async () => {
   try {
-    console.log('Loading reactions for post:', props.post.id)
+    //console.log('Loading reactions for post:', props.post.id)
     const response: any = await getReactions(props.post.id)
-    console.log('Reactions response for post', props.post.id, ':', response)
+    //console.log('Reactions response for post', props.post.id, ':', response)
     reactions.value = response?.docs || []
-    console.log('Set reactions to:', reactions.value)
+    //console.log('Set reactions to:', reactions.value)
   } catch (error) {
     console.error('Error loading reactions:', error)
   }
@@ -292,8 +294,8 @@ const reactionCount = computed(() => reactions.value.length)
 // Get user's current reaction
 const userReaction = computed(() => {
   if (!props.currentUserId) return null
-  const userReaction = reactions.value.find(r => r.user?.id === props.currentUserId)
-  return userReaction?.reactionType || null
+  const foundReaction = reactions.value.find(r => r.user?.id === props.currentUserId)
+  return foundReaction?.reactionType ?? null
 })
 
 // Group reactions by type
@@ -325,9 +327,9 @@ const handleReactionClick = async (reactionType: ReactionType) => {
     
     if (currentUserReaction) {
       if (currentUserReaction.reactionType === reactionType) {
-        // Remove reaction if clicking the same type
+        // Remove reaction if clicking the same type - use unreact endpoint
         try {
-          await deleteReaction(currentUserReaction.id)
+          await unreact(props.post.id)
         } catch (error: any) {
           // Handle 403/401 errors gracefully - if we can't delete, just reload
           if (error?.statusCode === 403 || error?.statusCode === 401 || error?.status === 403 || error?.status === 401) {
@@ -339,9 +341,9 @@ const handleReactionClick = async (reactionType: ReactionType) => {
         }
       } else {
         // Replace reaction with new type
-        // First remove the old one
+        // First remove the old one using unreact endpoint
         try {
-          await deleteReaction(currentUserReaction.id)
+          await unreact(props.post.id)
         } catch (error: any) {
           // Handle 403/401 errors gracefully - if we can't delete, try to add new one anyway
           if (error?.statusCode === 403 || error?.statusCode === 401 || error?.status === 403 || error?.status === 401) {
@@ -353,7 +355,6 @@ const handleReactionClick = async (reactionType: ReactionType) => {
         // Then add the new one
         await createReaction({
           post: props.post.id,
-          user: props.currentUserId,
           reactionType
         })
       }
@@ -361,7 +362,6 @@ const handleReactionClick = async (reactionType: ReactionType) => {
       // Add new reaction
       await createReaction({
         post: props.post.id,
-        user: props.currentUserId,
         reactionType
       })
     }
@@ -391,8 +391,8 @@ const handleRemoveReaction = async () => {
     
     if (currentUserReaction) {
       try {
-        // Remove reaction using deleteReaction
-        await deleteReaction(currentUserReaction.id)
+        // Remove reaction using unreact endpoint (includes email for SSO auth)
+        await unreact(props.post.id)
         // Reload reactions to get updated list
         await loadReactions()
       } catch (error: any) {

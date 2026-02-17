@@ -98,9 +98,9 @@ const { data, pending, error, refresh } = await useFetch<TimelineResponse>(apiUr
 const { fetchUsers } = useUsers()
 const { activeTab } = useFeedFilter()
 
-// TODO: Get current user ID from auth when available
-// For testing, set a user ID here (e.g., 1)
-const currentUserId = ref<number | undefined>(1)
+// Get current authenticated user's PayloadCMS ID
+const { currentPayloadUserId } = useCurrentUser()
+const currentUserId = computed(() => currentPayloadUserId.value)
 
 // Only show AddPost on client side and when community tab is active
 const showAddPost = ref(false)

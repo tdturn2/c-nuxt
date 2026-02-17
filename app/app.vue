@@ -1,13 +1,15 @@
 <template>
   <UApp>
-    <div class="flex min-h-screen flex-col">
+    <div class="flex min-h-screen flex-col relative z-10">
       <Header />
-      <main class="flex-1">
+      <main class="flex-1 relative z-10">
         <NuxtPage />
       </main>
       <Footer />
       <NuxtRouteAnnouncer />
     </div>
+    <!-- Audio Player using Howler -->
+    <AudioPlayer />
   </UApp>
 </template>
 

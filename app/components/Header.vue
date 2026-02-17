@@ -239,8 +239,7 @@ const openPostModal = async (postId: number) => {
 
 const tabs = [
   { id: 'latest', label: 'Latest' },
-  { id: 'community', label: 'Community' },
-  { id: 'profs', label: 'Profs' }
+  { id: 'community', label: 'Community' }
 ]
 
 // Extract text preview from Lexical content

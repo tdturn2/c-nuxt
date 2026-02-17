@@ -1,41 +1,49 @@
-import { defineEventHandler, readBody, createError, getHeader } from 'h3'
+import { defineEventHandler, readBody, createError } from 'h3'
+import { authenticateWithPayloadCMS } from '../../utils/payloadAuth'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   const payloadBaseUrl = config.public.payloadBaseUrl || 'http://localhost:3002'
-  const payloadApiUrl = `${payloadBaseUrl}/api/connect-post-reactions`
+  const payloadApiUrl = `${payloadBaseUrl}/api/connect-post-reactions/react`
   
   try {
-    const body = await readBody(event)
+    const body = await readBody(event) as { post: number; user?: number; reactionType: string }
     
-    // Get all cookies and authorization headers from the incoming request
-    const cookieHeader = getHeader(event, 'cookie')
-    const authHeader = getHeader(event, 'authorization')
+    // Authenticate with PayloadCMS using SSO email
+    const { token, email } = await authenticateWithPayloadCMS(event)
     
-    console.log('Reaction POST - Cookies:', cookieHeader ? 'Present' : 'Missing')
-    console.log('Reaction POST - Auth:', authHeader ? 'Present' : 'Missing')
+    if (!email) {
+      throw createError({
+        statusCode: 401,
+        statusMessage: 'Unauthorized - must be signed in to react'
+      })
+    }
     
-    // Build headers to forward to PayloadCMS
+    // Use /react endpoint format: { postId, reactionType, email }
+    // PayloadCMS will authenticate using email for SSO users
+    const reactBody: any = {
+      postId: body.post,
+      reactionType: body.reactionType
+    }
+    
+    // Include email for email-based authentication if no token
+    if (!token && email) {
+      reactBody.email = email
+    }
+    
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     }
     
-    // Forward authorization header if present
-    if (authHeader) {
-      headers['Authorization'] = authHeader
+    // Add auth token if available
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
     }
-    
-    // Forward all cookies if present
-    if (cookieHeader) {
-      headers['Cookie'] = cookieHeader
-    }
-    
-    console.log('Reaction POST - Forwarding headers:', Object.keys(headers))
     
     const response = await $fetch(payloadApiUrl, {
       method: 'POST',
       headers,
-      body: body
+      body: reactBody
     })
     
     return response

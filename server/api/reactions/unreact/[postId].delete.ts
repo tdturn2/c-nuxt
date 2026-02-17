@@ -1,4 +1,5 @@
-import { defineEventHandler, getRouterParam, createError, getHeader } from 'h3'
+import { defineEventHandler, getRouterParam, createError } from 'h3'
+import { authenticateWithPayloadCMS } from '../../../utils/payloadAuth'
 
 export default defineEventHandler(async (event) => {
   const postId = getRouterParam(event, 'postId')
@@ -6,28 +7,33 @@ export default defineEventHandler(async (event) => {
   const payloadApiUrl = `${config.public.payloadBaseUrl}/api/connect-post-reactions/unreact/${postId}`
   
   try {
-    // Get all cookies and authorization headers from the incoming request
-    const cookieHeader = getHeader(event, 'cookie')
-    const authHeader = getHeader(event, 'authorization')
+    // Authenticate with PayloadCMS using SSO email
+    const { token, email } = await authenticateWithPayloadCMS(event)
     
-    // Build headers to forward to PayloadCMS
+    if (!email) {
+      throw createError({
+        statusCode: 401,
+        statusMessage: 'Unauthorized - must be signed in to unreact'
+      })
+    }
+    
+    // Build headers with PayloadCMS authentication
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     }
     
-    // Forward authorization header if present
-    if (authHeader) {
-      headers['Authorization'] = authHeader
+    // Add auth token if available
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
     }
     
-    // Forward all cookies if present
-    if (cookieHeader) {
-      headers['Cookie'] = cookieHeader
-    }
+    // Include email in request body for email-based SSO authentication
+    const requestBody = email ? { email } : undefined
 
     const response = await $fetch(payloadApiUrl, {
       method: 'DELETE',
-      headers
+      headers,
+      body: requestBody
     })
     
     return response

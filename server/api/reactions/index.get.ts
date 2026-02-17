@@ -30,9 +30,9 @@ export default defineEventHandler(async (event) => {
     const queryString = new URLSearchParams(query as Record<string, string>).toString()
     const payloadApiUrl = `${payloadBaseUrl}/api/connect-post-reactions${queryString ? `?${queryString}` : ''}`
 
-    console.log('Fetching reactions from:', payloadApiUrl)
+    //console.log('Fetching reactions from:', payloadApiUrl)
     const response = await $fetch(payloadApiUrl, { headers }) as { docs: any[] }
-    console.log('Reactions response:', response)
+    //console.log('Reactions response:', response)
     
     // Normalize avatar URLs in reactions
     if (response?.docs) {

@@ -8,20 +8,20 @@
         ref="signInForm"
         method="POST" 
         action="/api/auth/signin/azure-ad"
-        style="display: none;"
       >
         <input type="hidden" name="callbackUrl" value="/" />
         <input type="hidden" name="csrfToken" :value="csrfToken" />
         <input type="hidden" name="redirect" value="true" />
+        <UButton 
+          type="submit"
+          color="primary"
+          size="lg"
+          :disabled="isRedirecting"
+          @click.prevent="handleSignIn"
+        >
+          Sign in with Microsoft Entra
+        </UButton>
       </form>
-      <UButton 
-        @click="handleSignIn"
-        color="primary"
-        size="lg"
-        :disabled="isRedirecting"
-      >
-        Sign in with Microsoft Entra
-      </UButton>
     </div>
   </div>
 </template>
@@ -39,49 +39,72 @@ const csrfToken = ref<string>('')
 
 // Get CSRF token on mount
 onMounted(async () => {
-  try {
-    csrfToken.value = await getCsrfToken() || ''
-  } catch (error) {
-    console.error('Error getting CSRF token:', error)
+  await fetchCsrfToken()
+  
+  // Check if already authenticated AFTER mount
+  if (status.value === 'authenticated') {
+    navigateTo('/')
   }
 })
 
-const handleSignIn = () => {
-  if (isRedirecting.value) return
-  isRedirecting.value = true
-  
-  // Submit the form directly - this should trigger the OAuth redirect via POST
-  if (signInForm.value) {
-    signInForm.value.submit()
-  } else {
-    // Fallback: create and submit form programmatically
-    const form = document.createElement('form')
-    form.method = 'POST'
-    form.action = '/api/auth/signin/azure-ad'
-    
-    const callbackInput = document.createElement('input')
-    callbackInput.type = 'hidden'
-    callbackInput.name = 'callbackUrl'
-    callbackInput.value = '/'
-    form.appendChild(callbackInput)
-    
-    if (csrfToken.value) {
-      const csrfInput = document.createElement('input')
-      csrfInput.type = 'hidden'
-      csrfInput.name = 'csrfToken'
-      csrfInput.value = csrfToken.value
-      form.appendChild(csrfInput)
+const fetchCsrfToken = async () => {
+  try {
+    // Try using the useAuth method first
+    const token = await getCsrfToken()
+    if (token) {
+      csrfToken.value = token
+      return
     }
     
-    document.body.appendChild(form)
-    form.submit()
+    // Fallback: fetch directly from the API
+    console.log('Fetching CSRF token from API...')
+    const response = await fetch('/api/auth/csrf')
+    const data = await response.json()
+    if (data.csrfToken) {
+      csrfToken.value = data.csrfToken
+      console.log('CSRF token fetched from API:', !!csrfToken.value)
+    } else {
+      console.error('No CSRF token in response:', data)
+    }
+  } catch (error) {
+    console.error('Error getting CSRF token:', error)
   }
 }
 
-// Check if already authenticated
-watch(status, (newStatus) => {
-  if (newStatus === 'authenticated') {
-    navigateTo('/')
+const handleSignIn = async (e: MouseEvent) => {
+  e.preventDefault()
+  console.log('Sign in button clicked, csrfToken:', !!csrfToken.value)
+  
+  if (isRedirecting.value) {
+    return
   }
-}, { immediate: true })
+  
+  isRedirecting.value = true
+  
+  // Always ensure CSRF token is set before submission
+  if (!csrfToken.value) {
+    console.log('CSRF token missing, fetching...')
+    await fetchCsrfToken()
+    if (!csrfToken.value) {
+      console.error('Failed to fetch CSRF token')
+      isRedirecting.value = false
+      return
+    }
+  }
+  
+  if (csrfToken.value && signInForm.value) {
+    // Update the CSRF token in the form
+    const csrfInput = signInForm.value.querySelector('input[name="csrfToken"]') as HTMLInputElement
+    if (csrfInput) {
+      csrfInput.value = csrfToken.value
+    }
+    
+    // Submit the form
+    console.log('Submitting form to:', signInForm.value.action)
+    signInForm.value.submit()
+  } else {
+    console.error('CSRF token missing or form not found')
+    isRedirecting.value = false
+  }
+}
 </script>

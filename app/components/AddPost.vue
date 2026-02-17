@@ -131,9 +131,18 @@ const handleSubmit = async () => {
   submitting.value = true
   error.value = null
 
+  // Get current authenticated user's PayloadCMS ID
+  const { currentPayloadUserId } = useCurrentUser()
+  
+  if (!currentPayloadUserId.value) {
+    error.value = 'You must be signed in to create a post'
+    submitting.value = false
+    return
+  }
+
   try {
     const payload = {
-      author: 1, // TODO: Replace with authenticated user ID
+      author: currentPayloadUserId.value,
       content: createLexicalContent(form.value.content),
       categories: form.value.category ? [form.value.category] : []
     }

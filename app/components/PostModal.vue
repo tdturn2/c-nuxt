@@ -79,6 +79,10 @@ const emit = defineEmits<{
   'update:open': [value: boolean]
 }>()
 
+// Get current authenticated user's PayloadCMS ID if not provided
+const { currentPayloadUserId } = useCurrentUser()
+const currentUserId = computed(() => props.currentUserId ?? currentPayloadUserId.value)
+
 const isOpen = computed({
   get: () => props.open,
   set: (value) => emit('update:open', value)

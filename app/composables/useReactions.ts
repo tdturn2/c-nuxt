@@ -15,9 +15,9 @@ export const useReactions = () => {
 
   const createReaction = async (data: {
     post: number
-    user: number
     reactionType: string
   }) => {
+    // User ID is determined server-side from session
     return await $fetch('/api/reactions', {
       method: 'POST',
       headers: {
@@ -48,12 +48,14 @@ export const useReactions = () => {
     })
   }
 
-  const toggleReaction = async (postId: number, userId: number, reactionType: string = 'like') => {
+  const toggleReaction = async (postId: number, reactionType: string = 'like') => {
     try {
       // First, check if user already reacted
       const reactions: any = await getReactions(postId)
+      // Note: We can't filter by userId here since we don't have it client-side
+      // The server will handle ensuring only the authenticated user's reactions are returned
       const existingReaction = reactions?.docs?.find((r: any) => 
-        r.user?.id === userId && r.reactionType === reactionType
+        r.reactionType === reactionType
       )
 
       if (existingReaction) {
@@ -61,10 +63,9 @@ export const useReactions = () => {
         await deleteReaction(existingReaction.id)
         return { action: 'removed', reaction: null }
       } else {
-        // Create new reaction
+        // Create new reaction (user ID determined server-side from session)
         const reaction = await createReaction({
           post: postId,
-          user: userId,
           reactionType
         })
         return { action: 'added', reaction }
