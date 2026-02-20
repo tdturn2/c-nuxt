@@ -16,6 +16,11 @@
 <script setup lang="ts">
 import '../assets/css/main.css'
 
+// Force light mode for NuxtUI components
+const colorMode = useColorMode()
+colorMode.preference = 'light'
+colorMode.value = 'light'
+
 useHead({
   link: [
     { rel: 'icon', type: 'image/webp', href: '/connect-icon.webp' }

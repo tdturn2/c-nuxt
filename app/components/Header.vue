@@ -59,7 +59,12 @@
         />
         
         <!-- Account Avatar Icon Dropdown -->
-        <UNavigationMenu :items="accountMenuItems" class="flex items-center [&>div>div]:min-w-[200px]" />
+        <UNavigationMenu 
+          :items="accountMenuItems" 
+          content-orientation="vertical"
+          class="flex items-center [&>div>div]:min-w-[200px]" 
+          :ui="{ content: 'min-w-[200px]' }"
+        />
       </div>
     </div>
   </header>
@@ -72,6 +77,13 @@ import PostModal from './PostModal.vue'
 const { activeTab } = useFeedFilter()
 const { notifications, unreadCount, fetchNotifications, markAsRead, markAllAsRead } = useNotifications()
 const { fetchUser } = useUsers()
+const { data: session } = useAuth()
+
+const profileUsername = computed(() => {
+  const email = session.value?.user?.email || ''
+  if (!email) return ''
+  return email.replace('@asburyseminary.edu', '').toLowerCase()
+})
 
 // Post modal state
 const selectedPostId = ref<number | null>(null)
@@ -182,28 +194,30 @@ const notificationMenuItems = computed<NavigationMenuItem[]>(() => [
 ])
 
 // Account menu items
-const accountMenuItems = ref<NavigationMenuItem[]>([
+const accountMenuItems = computed<NavigationMenuItem[]>(() => [
   {
     label: '',
     icon: 'i-heroicons-user',
     children: [
       {
-        label: 'Profile',
-        to: '/profile'
+        label: 'Update Profile',
+        to: '/profile/avatar'
       },
       {
-        label: 'Account Settings'
+        label: 'Employee Profile',
+        to: '/profile/employee'
       },
       {
-        type: 'label',
-        label: ''
+        label: 'Faculty Profile',
+        to: '/profile/faculty'
       },
       {
-        label: 'Help & Support'
+        label: 'Faculty Publications',
+        to: '/profile/faculty-pub'
       },
       {
-        type: 'label',
-        label: ''
+        label: 'Student Profile',
+        to: '/profile/student'
       },
       {
         label: 'Sign Out'
@@ -238,9 +252,9 @@ const openPostModal = async (postId: number) => {
   }
 }
 
-const tabs = [
-  { id: 'latest', label: 'Latest' },
-  { id: 'community', label: 'Community' }
+const tabs: Array<{ id: string; label: string }> = [
+  // { id: 'latest', label: 'Latest' }
+  // { id: 'community', label: 'Community' }
 ]
 
 // Extract text preview from Lexical content

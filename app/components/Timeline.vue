@@ -1,7 +1,18 @@
 <template>
   <div class="max-w-2xl mx-auto px-4 py-8">
-    <!-- Add Post Component - Only show for Community tab (client-side only) -->
-    <AddPost v-if="showAddPost" @post-created="handlePostCreated" />
+    <!-- Category Tabs -->
+    <UTabs
+      v-model="activeCategoryTab"
+      :items="categoryTabs"
+      class="mb-6"
+    />
+    
+    <!-- Add Post Component -->
+    <AddPost
+      :default-audience="activeCategoryTab as any"
+      @post-created="handlePostCreated"
+      class="mb-6"
+    />
     
     <div v-if="pending || loadingUsers" class="text-center py-8">
       <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
@@ -71,7 +82,7 @@ interface Post {
     }
   }
   images: Image[]
-  categories?: string[]
+  audience?: string[]
   createdAt: string
   updatedAt: string
 }
@@ -96,28 +107,38 @@ const apiUrl = props.apiUrl || '/api/posts'
 const { data, pending, error, refresh } = await useFetch<TimelineResponse>(apiUrl)
 
 const { fetchUsers } = useUsers()
-const { activeTab } = useFeedFilter()
 
 // Get current authenticated user's PayloadCMS ID
-const { currentPayloadUserId } = useCurrentUser()
-const currentUserId = computed(() => currentPayloadUserId.value)
+const { currentUserId } = useMe()
 
-// Only show AddPost on client side and when community tab is active
-const showAddPost = ref(false)
+// Category tabs for filtering
+const categoryTabs = [
+  { value: 'general', label: 'General' },
+  { value: 'students', label: 'Students' },
+  { value: 'employees', label: 'Employees' },
+  { value: 'staff', label: 'Staff' },
+  { value: 'faculty', label: 'Faculty' }
+]
+
+// Active category tab state
+const activeCategoryTab = ref('general')
 
 const handlePostCreated = async () => {
   // Refresh the timeline data after a new post is created
   await refresh()
   
-  // Refresh user data for the new posts
+  // Refresh user data from connect-users for the new posts
   if (data.value?.docs && data.value.docs.length > 0) {
     loadingUsers.value = true
     try {
       const docs = data.value.docs
-      const authorIds = docs.map(post => post.author.id)
+      // Extract unique author IDs from posts
+      const authorIds = [...new Set(docs.map(post => post.author.id))]
+      
+      // Fetch users from connect-users collection
       const usersMap = await fetchUsers(authorIds)
       
-      // Update with user data
+      // Update with user data from connect-users
       allPostsWithUsers.value = docs.map(post => ({
         ...post,
         user: usersMap.get(post.author.id) || null
@@ -126,7 +147,7 @@ const handlePostCreated = async () => {
       // Apply filtering after updating posts
       filterPosts()
     } catch (err) {
-      console.error('Error loading users:', err)
+      console.error('Error loading users from connect-users:', err)
     } finally {
       loadingUsers.value = false
     }
@@ -152,41 +173,62 @@ const displayedPosts = ref<PostWithUser[]>(
   })) as PostWithUser[] || []
 )
 
-// Filter posts based on active tab
+// Filter posts based on active category tab
 const filterPosts = () => {
   if (!allPostsWithUsers.value.length) {
     displayedPosts.value = []
     return
   }
   
-  if (activeTab.value === 'latest') {
-    // Latest: posts with "official" category
+  const category = activeCategoryTab.value
+  
+  if (category === 'general') {
+    // General: posts with audience "all" or null/undefined/empty array
     displayedPosts.value = allPostsWithUsers.value.filter(post => 
-      post.categories && post.categories.includes('official')
+      !post.audience || 
+      post.audience.length === 0 || 
+      post.audience.includes('all')
     )
-  } else if (activeTab.value === 'community') {
-    // Community: posts without "official" category
+  } else if (category === 'students') {
+    // Students: posts with audience "students"
     displayedPosts.value = allPostsWithUsers.value.filter(post => 
-      !post.categories || !post.categories.includes('official')
+      post.audience && post.audience.includes('students')
     )
-  } else if (activeTab.value === 'profs') {
-    // Profs: placeholder for now (return all or filter as needed)
-    displayedPosts.value = allPostsWithUsers.value
+  } else if (category === 'employees') {
+    // Employees: posts with audience "employees"
+    displayedPosts.value = allPostsWithUsers.value.filter(post => 
+      post.audience && post.audience.includes('employees')
+    )
+  } else if (category === 'staff') {
+    // Staff: posts with audience "staff" OR "employees"
+    displayedPosts.value = allPostsWithUsers.value.filter(post => 
+      post.audience && (
+        post.audience.includes('staff') || 
+        post.audience.includes('employees')
+      )
+    )
+  } else if (category === 'faculty') {
+    // Faculty: posts with audience "faculty" OR "employees"
+    displayedPosts.value = allPostsWithUsers.value.filter(post => 
+      post.audience && (
+        post.audience.includes('faculty') || 
+        post.audience.includes('employees')
+      )
+    )
   } else {
+    // Default: show all posts
     displayedPosts.value = allPostsWithUsers.value
   }
 }
 
-// Watch for tab changes and filter posts
-watch(activeTab, () => {
+// Watch for category tab changes and filter posts
+watch(activeCategoryTab, () => {
   filterPosts()
 }, { immediate: false })
 
 // Fetch user data after component mounts (client-side only)
+// This ensures we're pulling from connect-users collection, not just populated author data
 onMounted(async () => {
-  // Enable AddPost on client side
-  showAddPost.value = activeTab.value === 'community'
-  
   if (!data.value?.docs || data.value.docs.length === 0) {
     return
   }
@@ -194,28 +236,25 @@ onMounted(async () => {
   loadingUsers.value = true
   try {
     const docs = data.value.docs
-    const authorIds = docs.map(post => post.author.id)
+    // Extract unique author IDs from posts
+    const authorIds = [...new Set(docs.map(post => post.author.id))]
+    
+    // Fetch users from connect-users collection via useUsers composable
     const usersMap = await fetchUsers(authorIds)
     
-    // Update with user data
+    // Update posts with user data from connect-users
     allPostsWithUsers.value = docs.map(post => ({
       ...post,
+      // Use user data from connect-users, fallback to author data if user not found
       user: usersMap.get(post.author.id) || null
     })) as PostWithUser[]
     
     // Apply filtering after user data is loaded
     filterPosts()
   } catch (err) {
-    console.error('Error loading users:', err)
+    console.error('Error loading users from connect-users:', err)
   } finally {
     loadingUsers.value = false
-  }
-})
-
-// Watch activeTab to show/hide AddPost (only on client)
-watch(activeTab, (newTab) => {
-  if (import.meta.client) {
-    showAddPost.value = newTab === 'community'
   }
 })
 </script>

@@ -17,6 +17,11 @@ export interface Comment {
   }
   parent: number | null
   author: CommentAuthor
+  mentions?: Array<{
+    id: number
+    name: string
+    email: string
+  }>
   content: {
     root: {
       type: string
@@ -74,7 +79,7 @@ export const useComments = () => {
     const topLevel: Comment[] = []
     const repliesMap = new Map<number, Comment[]>()
 
-    console.log('Organizing comments:', comments.length, 'comments')
+    // console.log('Organizing comments:', comments.length, 'comments')
     
     comments.forEach(comment => {
       // Handle parent as number, null, undefined, or object { id: number }
@@ -82,7 +87,7 @@ export const useComments = () => {
         ? (comment.parent as any).id 
         : comment.parent
       
-      console.log(`Comment ${comment.id}: parentId =`, parentId, 'type:', typeof parentId)
+      // console.log(`Comment ${comment.id}: parentId =`, parentId, 'type:', typeof parentId)
       
       if (parentId === null || parentId === undefined) {
         topLevel.push(comment)
@@ -229,11 +234,28 @@ export const useComments = () => {
   }
 
   /**
-   * Extract mentions from Lexical content for display
-   * Returns HTML string with mentions styled
+   * Extract username from email (removes @asburyseminary.edu)
    */
-  const extractContentWithMentions = (content: Comment['content']): string => {
+  const getUsernameFromEmail = (email: string): string => {
+    if (!email) return ''
+    return email.replace('@asburyseminary.edu', '').toLowerCase()
+  }
+
+  /**
+   * Extract mentions from Lexical content for display
+   * Returns HTML string with mentions styled and linked
+   */
+  const extractContentWithMentions = (content: Comment['content'], mentions?: Comment['mentions']): string => {
     if (!content?.root?.children) return ''
+    
+    // Create a map of mention names to usernames from the mentions array
+    const mentionMap = new Map<string, string>()
+    if (mentions && Array.isArray(mentions)) {
+      mentions.forEach(mention => {
+        const username = getUsernameFromEmail(mention.email)
+        mentionMap.set(mention.name.toLowerCase(), username)
+      })
+    }
     
     const extractHTML = (children: Array<{ 
       type: string
@@ -246,7 +268,12 @@ export const useComments = () => {
           if (child.type === 'text' && child.text) {
             // Check if this is a mention (starts with @)
             if (child.text.startsWith('@')) {
-              return `<span class="text-blue-600 font-medium">${child.text}</span>`
+              // Extract the name from @Name
+              const mentionName = child.text.substring(1).trim()
+              // Try to find username from mentions array, otherwise convert name to username format
+              const username = mentionMap.get(mentionName.toLowerCase()) || 
+                              mentionName.toLowerCase().replace(/\s+/g, '.')
+              return `<a href="/user/${username}" class="text-blue-600 font-medium hover:text-blue-800 hover:underline">${child.text}</a>`
             }
             return child.text.replace(/\n/g, '<br>')
           }

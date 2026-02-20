@@ -4,6 +4,11 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   modules: ['@nuxt/ui', '@nuxt/content', '@sidebase/nuxt-auth'],
   ssr: false, // SPA mode - no SSR needed for intranet
+  colorMode: {
+    preference: 'light',
+    fallback: 'light',
+    classSuffix: ''
+  },
   nitro: {
     // Ensure API routes work in SPA mode
     experimental: {

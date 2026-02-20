@@ -34,7 +34,7 @@ export default defineEventHandler(async (event) => {
     // Convert postId to number if it's a relationship field
     const postIdNum = parseInt(postId, 10)
     
-    console.log('Fetching comments for post:', postId, 'as number:', postIdNum)
+    // console.log('Fetching comments for post:', postId, 'as number:', postIdNum)
     
     const response = await $fetch(`${payloadBaseUrl}/api/connect-comments`, {
       headers,
@@ -43,9 +43,12 @@ export default defineEventHandler(async (event) => {
         depth: 2, // Use depth instead of populate for nested relationships
         sort: 'createdAt' // Sort by creation date
       }
-    })
+    }) as { docs: Array<any> }
     
-    console.log('Comments response:', response)
+    // Ensure mentions are populated if they exist
+    // PayloadCMS should return mentions as an array of user objects
+    
+    // console.log('Comments response:', response)
     
     // Normalize avatar URLs and parent field if they're relative
     if (response?.docs && Array.isArray(response.docs)) {
@@ -66,7 +69,7 @@ export default defineEventHandler(async (event) => {
           comment.parent = comment.parent.id
         }
         
-        console.log(`Comment ${comment.id}: parent =`, comment.parent, typeof comment.parent)
+        // console.log(`Comment ${comment.id}: parent =`, comment.parent, typeof comment.parent)
         
         return comment
       })

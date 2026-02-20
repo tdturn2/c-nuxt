@@ -26,7 +26,7 @@
       </div>
       <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div class="flex flex-col items-center text-center mb-6">
-        <div class="w-[170px] overflow-hidden mb-4">
+        <div class="w-[140px] overflow-hidden mb-4">
           <img src="/estes-icon.png" alt="Estes Chapel" class="w-full h-full object-cover" />
         </div>
         <button 

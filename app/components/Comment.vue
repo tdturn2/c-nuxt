@@ -3,7 +3,10 @@
     <div class="flex gap-3">
       <!-- Avatar -->
       <div class="flex-shrink-0">
-        <div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden">
+        <NuxtLink
+          :to="`/user/${getUsernameFromEmail(comment.author.email)}`"
+          class="block w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden hover:opacity-80 transition-opacity"
+        >
           <img
             v-if="comment.author.avatar?.url"
             :src="comment.author.avatar.url"
@@ -13,7 +16,7 @@
           <span v-else class="text-gray-600 font-semibold text-xs">
             {{ comment.author.name.charAt(0).toUpperCase() }}
           </span>
-        </div>
+        </NuxtLink>
       </div>
 
       <!-- Comment Content -->
@@ -191,8 +194,14 @@ const commentText = computed(() => {
 })
 
 const commentTextHTML = computed(() => {
-  return extractContentWithMentions(props.comment.content)
+  return extractContentWithMentions(props.comment.content, props.comment.mentions)
 })
+
+// Helper function to extract username from email
+const getUsernameFromEmail = (email: string): string => {
+  if (!email) return ''
+  return email.replace('@asburyseminary.edu', '').toLowerCase()
+}
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString)

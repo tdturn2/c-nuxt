@@ -1,5 +1,6 @@
-import { defineEventHandler, readBody, createError, getHeader } from 'h3'
+import { defineEventHandler, readBody, createError } from 'h3'
 import { authenticateWithPayloadCMS } from '../../utils/payloadAuth'
+import { getUserIdFromEmail } from '../../utils/getUserIdFromEmail'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -37,30 +38,8 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Get PayloadCMS user ID from email
-    let authorId: number | undefined
-    try {
-      const userResponse = await $fetch(`${payloadBaseUrl}/api/connect-users?where[email][equals]=${encodeURIComponent(email)}`, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }) as { docs: Array<{ id: number }> }
-      
-      authorId = userResponse?.docs?.[0]?.id
-      
-      if (!authorId) {
-        throw createError({
-          statusCode: 404,
-          statusMessage: 'User not found in PayloadCMS'
-        })
-      }
-    } catch (error: any) {
-      console.error('Error fetching user ID:', error)
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Failed to resolve user ID'
-      })
-    }
+    // Get PayloadCMS user ID from email (shared utility)
+    const authorId = await getUserIdFromEmail(email, payloadBaseUrl)
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -88,7 +67,7 @@ export default defineEventHandler(async (event) => {
       commentData.email = email
     }
 
-    const response = await $fetch(payloadApiUrl, {
+    const response: any = await $fetch(payloadApiUrl, {
       method: 'POST',
       headers,
       body: commentData

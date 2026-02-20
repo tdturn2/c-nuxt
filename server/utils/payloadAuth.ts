@@ -19,18 +19,15 @@ export async function authenticateWithPayloadCMS(event: any): Promise<{ token: s
     const config = useRuntimeConfig()
     const payloadBaseUrl = config.public.payloadBaseUrl || 'http://localhost:3002'
     
-    // Authenticate with PayloadCMS using email (for SSO users)
-    // PayloadCMS /sync endpoint should handle authentication for existing users
-    // Or use a login endpoint that accepts email
+    // SSO only: call /sync with email (and name/avatar if we have them). Do not call /login (email+password only).
     try {
-      // Try to authenticate via sync endpoint (which may return auth token)
       const syncResponse: any = await $fetch(`${payloadBaseUrl}/api/connect-users/sync`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: {
-          email: session.user.email
+          email: session.user.email,
+          name: session.user.name ?? undefined,
+          avatar: session.user.image ?? undefined
         }
       })
       
@@ -39,25 +36,10 @@ export async function authenticateWithPayloadCMS(event: any): Promise<{ token: s
         return { token: syncResponse.token, email: session.user.email }
       }
       
-      // Otherwise, try login endpoint with email
-      const loginResponse: any = await $fetch(`${payloadBaseUrl}/api/connect-users/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: {
-          email: session.user.email
-        }
-      }).catch(() => null)
-      
-      if (loginResponse?.token) {
-        return { token: loginResponse.token, email: session.user.email }
-      }
-      
-      // If no token, return email for email-based auth
+      // No token (e.g. existing user): identify by email on survey and similar requests. Do not call /login for SSO.
       return { token: null, email: session.user.email }
     } catch (authError) {
-      console.error('Error authenticating with PayloadCMS:', authError)
+      console.error('Error syncing with PayloadCMS:', authError)
       return { token: null, email: session.user.email }
     }
   } catch (error) {

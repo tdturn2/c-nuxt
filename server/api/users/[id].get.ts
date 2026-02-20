@@ -1,9 +1,17 @@
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
-  const payloadBaseUrl = process.env.PAYLOAD_BASE_URL || 'http://localhost:3002'
+  const config = useRuntimeConfig()
+  const payloadBaseUrl = config.public.payloadBaseUrl || 'http://localhost:3002'
+  
+  if (!id) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'User ID is required'
+    })
+  }
   
   try {
-    // Use the API endpoint, not the admin endpoint
+    // Query connect-users collection explicitly
     const user = await $fetch(`${payloadBaseUrl}/api/connect-users/${id}`, {
       headers: {
         'Content-Type': 'application/json',
@@ -23,10 +31,16 @@ export default defineEventHandler(async (event) => {
     }
     
     return user
-  } catch (error) {
+  } catch (error: any) {
+    if (error.statusCode === 404) {
+      throw createError({
+        statusCode: 404,
+        statusMessage: `User ${id} not found in connect-users`
+      })
+    }
     throw createError({
       statusCode: 500,
-      statusMessage: `Failed to fetch user ${id} from PayloadCMS`,
+      statusMessage: `Failed to fetch user ${id} from connect-users: ${error.message || 'Unknown error'}`,
     })
   }
 })

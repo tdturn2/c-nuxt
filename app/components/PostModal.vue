@@ -80,8 +80,8 @@ const emit = defineEmits<{
 }>()
 
 // Get current authenticated user's PayloadCMS ID if not provided
-const { currentPayloadUserId } = useCurrentUser()
-const currentUserId = computed(() => props.currentUserId ?? currentPayloadUserId.value)
+const { currentUserId: meUserId } = useMe()
+const currentUserId = computed(() => props.currentUserId ?? meUserId.value)
 
 const isOpen = computed({
   get: () => props.open,

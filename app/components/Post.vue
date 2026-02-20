@@ -2,7 +2,10 @@
   <article class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
     <!-- Post Header -->
     <div class="p-4 flex items-center gap-3">
-      <div class="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden">
+      <NuxtLink
+        :to="`/user/${getUsernameFromEmail(displayUser.email)}`"
+        class="block w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden hover:opacity-80 transition-opacity"
+      >
         <img
           v-if="avatarUrl"
           :src="avatarUrl"
@@ -12,7 +15,7 @@
         <span v-else class="text-gray-600 font-semibold text-sm">
           {{ displayUser.name.charAt(0).toUpperCase() }}
         </span>
-      </div>
+      </NuxtLink>
       <div class="flex-1">
         <h3 class="font-semibold text-gray-900">{{ displayUser.name }}</h3>
         <p class="text-xs text-gray-500">{{ formatDate(post.createdAt) }}</p>
@@ -904,5 +907,11 @@ const formatDate = (dateString: string) => {
   } else {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined })
   }
+}
+
+// Helper function to extract username from email
+const getUsernameFromEmail = (email: string): string => {
+  if (!email) return ''
+  return email.replace('@asburyseminary.edu', '').toLowerCase()
 }
 </script>
