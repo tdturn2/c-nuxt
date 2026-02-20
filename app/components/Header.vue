@@ -4,7 +4,7 @@
       
       <div class="flex items-center gap-6">
         <NuxtLink to="/" class="flex items-center" noPrefetch>
-          <img src="/connect-icon.webp" alt="Logo" class="w-[50px] h-auto" />
+          <img src="/connect-icon.webp" alt="Logo" class="w-[50px] h-auto py-1" />
         </NuxtLink>
         <nav class="hidden md:flex items-center gap-6">
           <NuxtLink 
@@ -33,7 +33,7 @@
         </button>
       </div>
       
-      <div class="flex justify-center relative p-4 z-[1] rounded-t-md">
+      <div class="flex justify-center relative z-[1] rounded-t-md">
         <!-- Grid Icon Dropdown -->
         <UNavigationMenu 
           :items="gridMenuItems" 
