@@ -13,6 +13,12 @@
           >
             <UIcon name="i-heroicons-building-library" class="w-5 h-5" />
           </NuxtLink>
+          <UNavigationMenu
+            :items="directoryMenuItems"
+            content-orientation="vertical"
+            class="flex items-center [&>div>div]:min-w-[200px]"
+            :ui="{ content: 'min-w-[200px]' }"
+          />
         </nav>
       </div>
       
@@ -164,6 +170,18 @@ const gridMenuItems = ref<NavigationMenuItem[]>([
         icon: 'i-heroicons-users',
         to: '/employee-directory'
       }
+    ]
+  }
+])
+
+// Directory menu (Student + Employee) - vertical dropdown with people icon
+const directoryMenuItems = ref<NavigationMenuItem[]>([
+  {
+    label: '',
+    icon: 'i-heroicons-user-group',
+    children: [
+      { label: 'Student Directory', to: '/student-directory' },
+      { label: 'Employee Directory', to: '/employee-directory' }
     ]
   }
 ])
