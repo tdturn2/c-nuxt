@@ -144,6 +144,7 @@ const footerNavItems: NavigationMenuItem[] = [
         </div>
         <div class="flex flex-col flex-1 min-h-0 overflow-hidden gap-4 px-2 my-2">
           <UNavigationMenu
+            :key="`left-nav-${route.path}`"
             :items="filteredMainNavItems"
             orientation="vertical"
             class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden"

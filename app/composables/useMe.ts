@@ -16,7 +16,11 @@ export const useMe = () => {
     }
   }
 
-  watch(status, () => {
+  watch(status, (s) => {
+    if (s !== 'authenticated') {
+      user.value = null
+      return
+    }
     refresh()
   }, { immediate: true })
 
