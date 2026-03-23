@@ -53,6 +53,14 @@ export default defineEventHandler(async (event) => {
     // Normalize avatar URLs and parent field if they're relative
     if (response?.docs && Array.isArray(response.docs)) {
       response.docs = response.docs.map((comment: any) => {
+        // Prefer new avatar relation, fallback to legacy avatar.
+        if (comment.author) {
+          comment.author.avatar = comment.author.avatarConnectUserMedia || comment.author.avatar || null
+        }
+        if (comment.post?.author) {
+          comment.post.author.avatar = comment.post.author.avatarConnectUserMedia || comment.post.author.avatar || null
+        }
+
         // Normalize author avatar URL
         if (comment.author?.avatar?.url && !comment.author.avatar.url.startsWith('http')) {
           comment.author.avatar.url = `${payloadBaseUrl}${comment.author.avatar.url}`

@@ -188,12 +188,12 @@ const loadEmployee = async () => {
 
     const employee = await $fetch(`/api/users/${employeeId.value}`)
     
-    // Normalize image URLs in publications
+    // Normalize image URLs in publications (use runtime config so client gets correct base URL)
     if (employee.publications && Array.isArray(employee.publications)) {
+      const config = useRuntimeConfig()
+      const payloadBaseUrl = config.public.payloadBaseUrl || ''
       employee.publications = employee.publications.map((pub: any) => {
-        if (pub.image?.url && !pub.image.url.startsWith('http')) {
-          const config = useRuntimeConfig()
-          const payloadBaseUrl = config.public.payloadBaseUrl || 'http://localhost:3002'
+        if (pub.image?.url && !pub.image.url.startsWith('http') && payloadBaseUrl) {
           if (pub.image.url.startsWith('/')) {
             pub.image.url = `${payloadBaseUrl}${pub.image.url}`
           } else {

@@ -39,6 +39,9 @@ export default defineEventHandler(async (event) => {
         statusMessage: 'User not found'
       })
     }
+
+    // Prefer new avatar relation, fallback to legacy avatar to keep UI contract stable.
+    user.avatar = (user as any).avatarConnectUserMedia || user.avatar || null
     
     // Normalize avatar URL if it's relative
     if (user.avatar?.url && !user.avatar.url.startsWith('http')) {

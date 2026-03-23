@@ -8,7 +8,15 @@
   >
     <template #body>
       <div v-if="post">
-        <Post :post="post" :user="user" :current-user-id="currentUserId" />
+        <Post
+          :post="post"
+          :user="user"
+          :current-user-id="currentUserId"
+          :start-in-edit-mode="startInEditMode"
+          :start-with-comments-open="startWithCommentsOpen"
+          @post-updated="(p) => emit('postUpdated', p)"
+          @post-deleted="(id) => emit('postDeleted', id)"
+        />
       </div>
     </template>
   </UModal>
@@ -73,10 +81,14 @@ const props = defineProps<{
   user: User | null
   open: boolean
   currentUserId?: number
+  startInEditMode?: boolean
+  startWithCommentsOpen?: boolean
 }>()
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
+  postUpdated: [post: Post]
+  postDeleted: [postId: number]
 }>()
 
 // Get current authenticated user's PayloadCMS ID if not provided

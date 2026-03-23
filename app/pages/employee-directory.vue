@@ -1,6 +1,8 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
-    <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="flex min-h-0 bg-gray-50">
+    <LeftColumn />
+  <main class="flex-1 min-w-0 overflow-y-auto">
+      <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <h1 class="text-2xl font-bold text-gray-900 mb-6">Employee Directory</h1>
 
     <div v-if="loading" class="text-center py-12">
@@ -12,7 +14,7 @@
     </div>
 
     <div v-else-if="employees.length === 0" class="text-gray-500 py-8">
-      No employees found.
+      No staff or faculty found.
     </div>
 
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -21,7 +23,7 @@
         :key="emp.id"
         class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col items-center text-center"
       >
-        <div class="w-20 h-20 rounded-full bg-gray-200 flex-shrink-0 overflow-hidden flex items-center justify-center mb-3">
+        <div class="w-30 h-30 rounded-full bg-gray-200 flex-shrink-0 overflow-hidden flex items-center justify-center mb-3">
           <img
             v-if="emp.avatar?.url"
             :src="emp.avatar.url"
@@ -50,7 +52,8 @@
         </dl>
       </div>
     </div>
-  </div>
+    </div>
+    </main>
   </div>
 </template>
 

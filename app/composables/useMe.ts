@@ -5,10 +5,6 @@ export const useMe = () => {
   const loading = ref(false)
 
   const refresh = async () => {
-    if (status.value !== 'authenticated') {
-      user.value = null
-      return
-    }
     loading.value = true
     try {
       const data = await $fetch('/api/users/me', { credentials: 'include' })
@@ -20,9 +16,8 @@ export const useMe = () => {
     }
   }
 
-  watch(status, (s) => {
-    if (s !== 'authenticated') user.value = null
-    else refresh()
+  watch(status, () => {
+    refresh()
   }, { immediate: true })
 
   const currentUserId = computed(() => user.value?.id)

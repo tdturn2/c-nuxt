@@ -16,8 +16,11 @@ export default defineEventHandler(async (event) => {
       headers: {
         'Content-Type': 'application/json',
       },
-    })
+    }) as any
     
+    // Prefer new avatar relation, fallback to legacy avatar to keep UI contract stable.
+    user.avatar = user.avatarConnectUserMedia || user.avatar || null
+
     // Normalize avatar URL if it's relative
     if (user.avatar?.url) {
       const url = user.avatar.url
@@ -29,7 +32,19 @@ export default defineEventHandler(async (event) => {
         }
       }
     }
-    
+
+    // Normalize publication image URLs so client gets absolute URLs (avoids 404 when payloadBaseUrl missing on client)
+    if (user.publications && Array.isArray(user.publications)) {
+      user.publications = user.publications.map((pub: any) => {
+        if (pub?.image?.url && !pub.image.url.startsWith('http')) {
+          pub.image.url = pub.image.url.startsWith('/')
+            ? `${payloadBaseUrl}${pub.image.url}`
+            : `${payloadBaseUrl}/${pub.image.url}`
+        }
+        return pub
+      })
+    }
+
     return user
   } catch (error: any) {
     if (error.statusCode === 404) {

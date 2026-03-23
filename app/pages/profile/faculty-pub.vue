@@ -74,23 +74,6 @@
           </table>
         </div>
 
-        <div v-if="publications.length > 0 && hasChanges" class="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
-          <button
-            type="button"
-            @click="revertChanges"
-            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-          >
-            Revert
-          </button>
-          <button
-            type="button"
-            @click="save"
-            :disabled="saving"
-            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {{ saving ? 'Saving...' : 'Save all changes' }}
-          </button>
-        </div>
       </div>
     </div>
 
@@ -150,7 +133,7 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Link (optional)</label>
               <input
-                v-model="editingPub.purchaseLink"
+                v-model="editingPub.link"
                 type="url"
                 class="w-full px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="https://..."
@@ -216,10 +199,11 @@
 <script setup lang="ts">
 type EditablePublication = {
   id: string
+  apiId?: string | number | null
   type: string
   title: string
   description: string
-  purchaseLink: string | null
+  link: string | null
   releaseDate: string | null
   imageId: number | null
   imageUrl: string | null
@@ -244,7 +228,6 @@ const { user: meUser, loading: authLoading, refresh } = useMe()
 const config = useRuntimeConfig()
 const payloadBaseUrl = config.public.payloadBaseUrl || 'http://localhost:3002'
 
-const saving = ref(false)
 const savingEdit = ref(false)
 const error = ref<string | null>(null)
 const uploadingImageId = ref<string | null>(null)
@@ -254,10 +237,11 @@ const editModalOpen = ref(false)
 const editingIndex = ref<number | null>(null) // null = new publication
 const editingPub = ref<EditablePublication>({
   id: '',
+  apiId: null,
   type: 'book',
   title: '',
   description: '',
-  purchaseLink: null,
+  link: null,
   releaseDate: null,
   imageId: null,
   imageUrl: null
@@ -270,9 +254,6 @@ const normalizeUrl = (url: string) => {
 }
 
 const publications = ref<EditablePublication[]>([])
-const initialJson = ref<string>('')
-
-const hasChanges = computed(() => JSON.stringify(publications.value) !== initialJson.value)
 
 function typeLabel(type: string) {
   const opt = PUBLICATION_TYPE_OPTIONS.find(o => o.value === type)
@@ -289,19 +270,54 @@ function formatReleaseDate(date: string | null) {
   }
 }
 
+function lexicalToText(value: any): string {
+  if (!value?.root?.children) return typeof value === 'string' ? value : ''
+  const extract = (children: any[]): string =>
+    children
+      .map((child) => {
+        if (child?.type === 'text' && typeof child?.text === 'string') return child.text
+        if (Array.isArray(child?.children)) return extract(child.children)
+        return ''
+      })
+      .join('')
+  return extract(value.root.children)
+}
+
+function textToLexical(text: string) {
+  return {
+    root: {
+      type: 'root',
+      version: 1,
+      children: [
+        {
+          type: 'paragraph',
+          version: 1,
+          children: [
+            { type: 'text', text: text || '', version: 1 }
+          ]
+        }
+      ]
+    }
+  }
+}
+
+function mapPublicationFromApi(p: any): EditablePublication {
+  return {
+    id: String(p?.id || `${Date.now()}-${Math.random()}`),
+    apiId: p?.id ?? null,
+    type: p?.type || 'book',
+    title: p?.title || '',
+    description: lexicalToText(p?.description),
+    link: p?.link || null,
+    releaseDate: p?.releaseDate ? String(p.releaseDate).slice(0, 10) : null,
+    imageId: typeof p?.image === 'number' ? p.image : (p?.image?.id ?? null),
+    imageUrl: p?.image?.url ? normalizeUrl(p.image.url) : null
+  }
+}
+
 function applyUser(user: any) {
   const pubs: any[] = Array.isArray(user.publications) ? user.publications : []
-  publications.value = pubs.map((p: any) => ({
-    id: p.id || `${Date.now()}-${Math.random()}`,
-    type: p.type || 'book',
-    title: p.title || '',
-    description: p.description || '',
-    purchaseLink: p.purchaseLink || null,
-    releaseDate: p.releaseDate ? String(p.releaseDate).slice(0, 10) : null,
-    imageId: typeof p.image === 'number' ? p.image : (p.image?.id ?? null),
-    imageUrl: p.image?.url ? normalizeUrl(p.image.url) : null
-  }))
-  initialJson.value = JSON.stringify(publications.value)
+  publications.value = pubs.map(mapPublicationFromApi)
 }
 
 watch(meUser, (u) => {
@@ -313,10 +329,11 @@ function openEditModal(index: number | null) {
     editingIndex.value = null
     editingPub.value = {
       id: `${Date.now()}-${Math.random()}`,
+      apiId: null,
       type: 'book',
       title: '',
       description: '',
-      purchaseLink: null,
+      link: null,
       releaseDate: null,
       imageId: null,
       imageUrl: null
@@ -335,51 +352,41 @@ async function saveEditModal() {
   error.value = null
   try {
     const pub = { ...editingPub.value }
-    if (editingIndex.value === null) {
-      publications.value.unshift(pub)
+    const body: Record<string, any> = {
+      type: pub.type || 'book',
+      title: pub.title || '',
+      image: pub.imageId ?? null,
+      description: textToLexical(pub.description || ''),
+      link: pub.link || null,
+      releaseDate: pub.releaseDate || null
+    }
+
+    let saved: any
+    if (pub.apiId) {
+      saved = await $fetch(`/api/connect-user-publications/update/${pub.apiId}`, {
+        method: 'PATCH',
+        body
+      })
     } else {
-      publications.value[editingIndex.value] = pub
+      saved = await $fetch('/api/connect-user-publications/create', {
+        method: 'POST',
+        body
+      })
+    }
+
+    const mapped = mapPublicationFromApi(saved)
+    if (editingIndex.value === null) {
+      publications.value.unshift(mapped)
+    } else {
+      publications.value[editingIndex.value] = mapped
     }
     editModalOpen.value = false
-
-    const payloadPublications = publications.value.map(p => ({
-      id: p.id,
-      type: p.type || 'other',
-      title: p.title || '',
-      description: p.description || '',
-      purchaseLink: p.purchaseLink || null,
-      releaseDate: p.releaseDate ? new Date(p.releaseDate).toISOString() : null,
-      image: p.imageId || null
-    }))
-
-    const updated: any = await $fetch('/api/employees/profile', {
-      method: 'PATCH',
-      body: { publications: payloadPublications }
-    })
-
-    const pubs: any[] = Array.isArray(updated.publications) ? updated.publications : []
-    publications.value = pubs.map((p: any) => ({
-      id: p.id || `${Date.now()}-${Math.random()}`,
-      type: p.type || 'book',
-      title: p.title || '',
-      description: p.description || '',
-      purchaseLink: p.purchaseLink || null,
-      releaseDate: p.releaseDate ? String(p.releaseDate).slice(0, 10) : null,
-      imageId: typeof p.image === 'number' ? p.image : (p.image?.id ?? null),
-      imageUrl: p.image?.url ? normalizeUrl(p.image.url) : null
-    }))
-    initialJson.value = JSON.stringify(publications.value)
   } catch (err: any) {
     console.error('Error saving publications:', err)
     error.value = err.data?.message || 'Failed to save'
   } finally {
     savingEdit.value = false
   }
-}
-
-function revertChanges() {
-  if (!meUser.value) return
-  applyUser(meUser.value)
 }
 
 async function handleEditModalImageChange(e: Event) {
@@ -390,7 +397,8 @@ async function handleEditModalImageChange(e: Event) {
     uploadingImageId.value = 'modal'
     const form = new FormData()
     form.append('file', file)
-    const media: any = await $fetch('/api/media/upload', { method: 'POST', body: form })
+    form.append('kind', 'pubs-images')
+    const media: any = await $fetch('/api/connect-user-media/upload', { method: 'POST', body: form })
     editingPub.value.imageId = media.id
     editingPub.value.imageUrl = media.url ? normalizeUrl(media.url) : null
   } catch (err: any) {
@@ -402,45 +410,20 @@ async function handleEditModalImageChange(e: Event) {
   target.value = ''
 }
 
-function removePublication(idx: number) {
-  publications.value.splice(idx, 1)
-}
-
-async function save() {
-  if (!hasChanges.value || saving.value) return
+async function removePublication(idx: number) {
+  const pub = publications.value[idx]
+  if (!pub) return
   try {
-    saving.value = true
     error.value = null
-    const payloadPublications = publications.value.map(p => ({
-      id: p.id,
-      type: p.type || 'other',
-      title: p.title || '',
-      description: p.description || '',
-      purchaseLink: p.purchaseLink || null,
-      releaseDate: p.releaseDate ? new Date(p.releaseDate).toISOString() : null,
-      image: p.imageId || null
-    }))
-    const updated: any = await $fetch('/api/employees/profile', {
-      method: 'PATCH',
-      body: { publications: payloadPublications }
-    })
-    const pubs: any[] = Array.isArray(updated.publications) ? updated.publications : []
-    publications.value = pubs.map((p: any) => ({
-      id: p.id || `${Date.now()}-${Math.random()}`,
-      type: p.type || 'book',
-      title: p.title || '',
-      description: p.description || '',
-      purchaseLink: p.purchaseLink || null,
-      releaseDate: p.releaseDate ? String(p.releaseDate).slice(0, 10) : null,
-      imageId: typeof p.image === 'number' ? p.image : (p.image?.id ?? null),
-      imageUrl: p.image?.url ? normalizeUrl(p.image.url) : null
-    }))
-    initialJson.value = JSON.stringify(publications.value)
+    if (pub.apiId) {
+      await $fetch(`/api/connect-user-publications/delete/${pub.apiId}`, {
+        method: 'DELETE'
+      })
+    }
+    publications.value.splice(idx, 1)
   } catch (err: any) {
-    console.error('Error saving faculty profile:', err)
-    error.value = err.data?.message || 'Failed to save'
-  } finally {
-    saving.value = false
+    console.error('Error removing publication:', err)
+    error.value = err.data?.message || 'Failed to remove publication'
   }
 }
 

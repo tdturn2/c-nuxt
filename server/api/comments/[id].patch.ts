@@ -98,11 +98,16 @@ export default defineEventHandler(async (event) => {
     }
 
     // Use /update/:id endpoint for SSO users
-    const response = await $fetch(`${payloadBaseUrl}/api/connect-comments/update/${commentId}`, {
+    const response: any = await $fetch(`${payloadBaseUrl}/api/connect-comments/update/${commentId}`, {
       method: 'PATCH',
       headers,
       body: updateData
     })
+
+    // Prefer new avatar relation, fallback to legacy avatar.
+    if (response?.author) {
+      response.author.avatar = response.author.avatarConnectUserMedia || response.author.avatar || null
+    }
 
     // Normalize avatar URLs
     if (response?.author?.avatar?.url && !response.author.avatar.url.startsWith('http')) {

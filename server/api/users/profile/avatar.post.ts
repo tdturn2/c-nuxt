@@ -1,5 +1,6 @@
-import { defineEventHandler, readMultipartFormData, createError, getHeader } from 'h3'
+import { defineEventHandler, readMultipartFormData, createError } from 'h3'
 import { authenticateWithPayloadCMS } from '../../../utils/payloadAuth'
+import { getUserIdFromEmail } from '../../../utils/getUserIdFromEmail'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -18,19 +19,34 @@ export default defineEventHandler(async (event) => {
 
     // Read multipart form data
     const formData = await readMultipartFormData(event)
-    const file = formData?.find(field => field.name === 'avatar')
+    // Accept both legacy `avatar` and generic `file` field names.
+    const file = formData?.find(field => field.name === 'avatar') || formData?.find(field => field.name === 'file')
 
-    if (!file || !file.data) {
+    if (!file || !file.data || file.data.length === 0) {
       throw createError({
         statusCode: 400,
-        statusMessage: 'Avatar file is required'
+        statusMessage: 'Avatar file is required (multipart field name: avatar or file)'
       })
     }
 
-    // Upload file to PayloadCMS media endpoint
+    const ownerId = await getUserIdFromEmail(email, payloadBaseUrl)
+    const alt = formData?.find((field) => field.name === 'alt')?.data?.toString('utf-8')?.trim()
+
+    // Upload file to PayloadCMS connect-user-media endpoint
     const formDataToSend = new FormData()
-    const blob = new Blob([file.data], { type: file.type || 'image/jpeg' })
-    formDataToSend.append('file', blob, file.filename || 'avatar.jpg')
+    const uploadFile = new File(
+      [file.data],
+      file.filename || 'avatar.jpg',
+      { type: file.type || 'image/jpeg' }
+    )
+    formDataToSend.append('file', uploadFile)
+    // Payload upload endpoint expects doc data in `_payload` for multipart creates.
+    const payloadData: Record<string, unknown> = {
+      owner: ownerId,
+      kind: 'avatars',
+    }
+    if (alt) payloadData.alt = alt
+    formDataToSend.append('_payload', JSON.stringify(payloadData))
 
     const headers: Record<string, string> = {}
     
@@ -39,16 +55,36 @@ export default defineEventHandler(async (event) => {
       headers['Authorization'] = `Bearer ${token}`
     }
 
-    // Upload to PayloadCMS media endpoint
-    const mediaResponse = await $fetch(`${payloadBaseUrl}/api/media`, {
+    // Upload to PayloadCMS connect-user-media endpoint using native fetch for multipart reliability.
+    const mediaUploadResponse = await fetch(`${payloadBaseUrl}/api/connect-user-media`, {
       method: 'POST',
       headers,
       body: formDataToSend
-    }) as { id: number; url: string }
+    })
+    const mediaUploadJson = await mediaUploadResponse.json().catch(() => ({}))
+    if (!mediaUploadResponse.ok) {
+      throw createError({
+        statusCode: mediaUploadResponse.status,
+        statusMessage: mediaUploadResponse.statusText || 'Failed to upload avatar media',
+        data: mediaUploadJson
+      })
+    }
+    const mediaResponse = mediaUploadJson as { id?: number | string; doc?: { id?: number | string }; url?: string }
+    const uploadedIdRaw = mediaResponse.id ?? mediaResponse.doc?.id
+    const uploadedId =
+      typeof uploadedIdRaw === 'string' ? parseInt(uploadedIdRaw, 10) : uploadedIdRaw
+
+    if (!uploadedId || Number.isNaN(uploadedId)) {
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Upload succeeded but no media id was returned',
+        data: { mediaUploadJson }
+      })
+    }
 
     // Update user profile with new avatar ID using /profile endpoint
     const updateData: any = {
-      avatar: mediaResponse.id,
+      avatarConnectUserMedia: uploadedId,
       email // Include email for SSO authentication
     }
 
@@ -69,7 +105,13 @@ export default defineEventHandler(async (event) => {
 
     return userResponse
   } catch (error: any) {
-    console.error('PayloadCMS API Error:', error)
+    console.error('PayloadCMS API Error:', {
+      message: error?.message,
+      statusCode: error?.statusCode || error?.status,
+      statusMessage: error?.statusMessage,
+      data: error?.data,
+      errors: error?.data?.errors
+    })
     throw createError({
       statusCode: error.statusCode || 500,
       statusMessage: error.statusMessage || 'Failed to upload avatar to PayloadCMS',

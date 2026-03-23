@@ -37,8 +37,15 @@ export default defineEventHandler(async (event) => {
     // Normalize avatar URLs in reactions
     if (response?.docs) {
       response.docs.forEach(reaction => {
+        // Prefer new avatar relation, fallback to legacy avatar.
+        if (reaction.user) {
+          reaction.user.avatar = reaction.user.avatarConnectUserMedia || reaction.user.avatar || null
+        }
+
         if (reaction.user?.avatar?.url && !reaction.user.avatar.url.startsWith('http')) {
-          reaction.user.avatar.url = `${payloadBaseUrl}${reaction.user.avatar.url}`
+          reaction.user.avatar.url = reaction.user.avatar.url.startsWith('/')
+            ? `${payloadBaseUrl}${reaction.user.avatar.url}`
+            : `${payloadBaseUrl}/${reaction.user.avatar.url}`
         }
       })
     }

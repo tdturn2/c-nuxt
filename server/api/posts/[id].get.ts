@@ -1,3 +1,5 @@
+import { extractFirstPreviewUrlFromLexical, fetchAndCacheLinkPreview } from '../../utils/linkPreview'
+
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   const payloadBaseUrl = config.public.payloadBaseUrl || 'http://localhost:3002'
@@ -26,25 +28,53 @@ export default defineEventHandler(async (event) => {
       headers['Cookie'] = cookieHeader
     }
     
-    const response = await $fetch(`${payloadBaseUrl}/api/connect-posts/${id}`, {
-      headers
+    const response: any = await $fetch(`${payloadBaseUrl}/api/connect-posts/${id}`, {
+      headers,
+      query: {
+        populate: 'author.avatar,author.avatarConnectUserMedia,images.image,imagesConnectUserMedia.image'
+      }
     })
-    
-    // Normalize image URLs if they're relative
+
+    const toAbsoluteUrl = (url: string) => {
+      if (!url || url.startsWith('http://') || url.startsWith('https://')) return url
+      return url.startsWith('/') ? `${payloadBaseUrl}${url}` : `${payloadBaseUrl}/${url}`
+    }
+
+    // Backward compatibility: prefer legacy avatar, fallback to new avatarConnectUserMedia.
+    if (!response?.author?.avatar?.url && response?.author?.avatarConnectUserMedia?.url) {
+      response.author.avatar = response.author.avatarConnectUserMedia
+    }
+
+    if (response?.author?.avatar?.url) {
+      response.author.avatar.url = toAbsoluteUrl(response.author.avatar.url)
+    }
+
+    // Backward compatibility: if legacy images are empty/missing, fallback to new imagesConnectUserMedia.
+    if ((!response?.images || !Array.isArray(response.images) || response.images.length === 0) && Array.isArray(response?.imagesConnectUserMedia)) {
+      response.images = response.imagesConnectUserMedia.map((img: any) => ({
+        ...img,
+        image: img?.image || null
+      }))
+    }
+
     if (response?.images && Array.isArray(response.images)) {
       response.images = response.images.map((img: any) => {
-        if (img.image?.url) {
-          const url = img.image.url
-          if (!url.startsWith('http://') && !url.startsWith('https://')) {
-            if (url.startsWith('/')) {
-              img.image.url = `${payloadBaseUrl}${url}`
-            } else {
-              img.image.url = `${payloadBaseUrl}/${url}`
-            }
-          }
+        if (img?.image?.url) {
+          img.image.url = toAbsoluteUrl(img.image.url)
         }
         return img
       })
+    }
+
+    const previewUrl = extractFirstPreviewUrlFromLexical(response?.content)
+    if (previewUrl) {
+      try {
+        response.linkPreview = await fetchAndCacheLinkPreview(previewUrl)
+      } catch {
+        response.linkPreview = null
+      }
+    } else {
+      response.linkPreview = null
     }
     
     return response

@@ -1,38 +1,43 @@
+import { defineEventHandler, createError, getRouterParam } from 'h3'
+import { getSSOSession } from '../../utils/ssoAuth'
+
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
-  const payloadApiUrl = config.public.payloadApiUrl || 'http://localhost:3002/api/connect-posts'
+  const payloadBaseUrl = config.public.payloadBaseUrl || 'http://localhost:3002'
   const id = getRouterParam(event, 'id')
-  
+
   if (!id) {
     throw createError({
       statusCode: 400,
       statusMessage: 'Post ID is required'
     })
   }
-  
+
   try {
-    const cookieHeader = getHeader(event, 'cookie')
-    const authHeader = getHeader(event, 'authorization')
-    
+    const { email } = await getSSOSession(event)
+
+    if (!email) {
+      throw createError({
+        statusCode: 401,
+        statusMessage: 'Unauthorized - must be signed in to delete post'
+      })
+    }
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     }
-    
-    if (authHeader) {
-      headers['Authorization'] = authHeader
-    }
-    
-    if (cookieHeader) {
-      headers['Cookie'] = cookieHeader
-    }
-    
-    const response = await $fetch(`${payloadApiUrl}/${id}`, {
+
+    const response = await $fetch(`${payloadBaseUrl}/api/connect-posts/delete/${id}`, {
       method: 'DELETE',
-      headers
+      headers,
+      body: { email }
     })
-    
+
     return response
   } catch (error: any) {
+    if (error.statusCode === 401 || error.statusCode === 403) {
+      throw error
+    }
     console.error('PayloadCMS API Error:', error)
     throw createError({
       statusCode: error.statusCode || 500,

@@ -17,7 +17,13 @@ export async function authenticateWithPayloadCMS(event: any): Promise<{ token: s
     }
     
     const config = useRuntimeConfig()
-    const payloadBaseUrl = config.public.payloadBaseUrl || 'http://localhost:3002'
+    const payloadBaseUrl =
+      (config.payloadBaseUrl || config.public.payloadBaseUrl || '').trim() ||
+      (import.meta.dev ? 'http://localhost:3002' : '')
+    if (!payloadBaseUrl) {
+      // In production, avoid forcing localhost fallback and let callers continue with SSO email.
+      return { token: null, email: session.user.email }
+    }
     
     // SSO only: call /sync with email (and name/avatar if we have them). Do not call /login (email+password only).
     try {

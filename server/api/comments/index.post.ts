@@ -73,6 +73,11 @@ export default defineEventHandler(async (event) => {
       body: commentData
     })
 
+    // Prefer new avatar relation, fallback to legacy avatar.
+    if (response?.author) {
+      response.author.avatar = response.author.avatarConnectUserMedia || response.author.avatar || null
+    }
+
     // Normalize avatar URLs
     if (response?.author?.avatar?.url && !response.author.avatar.url.startsWith('http')) {
       response.author.avatar.url = `${payloadBaseUrl}${response.author.avatar.url}`

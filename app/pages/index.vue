@@ -1,13 +1,9 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
-    <div class="container mx-auto px-4 py-8">
-      <div class="flex gap-8">
-        <LeftColumn />
-        <RightColumn>
-          <Timeline api-url="/api/posts" />
-        </RightColumn>
-      </div>
-    </div>
+  <div class="h-full flex bg-gray-50 min-h-0">
+    <LeftColumn />
+    <RightColumn>
+      <Timeline api-url="/api/posts" />
+    </RightColumn>
   </div>
 </template>
 

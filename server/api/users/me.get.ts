@@ -12,7 +12,15 @@ export default defineEventHandler(async (event) => {
   }
 
   const config = useRuntimeConfig()
-  const payloadBaseUrl = config.public.payloadBaseUrl || 'http://localhost:3002'
+  const payloadBaseUrl =
+    (config.payloadBaseUrl || config.public.payloadBaseUrl || '').trim() ||
+    (import.meta.dev ? 'http://localhost:3002' : '')
+  if (!payloadBaseUrl) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Missing Payload base URL configuration'
+    })
+  }
 
   try {
     const response = await $fetch(`${payloadBaseUrl}/api/connect-users?where[email][equals]=${encodeURIComponent(email)}&limit=1`) as { docs: any[] }
@@ -23,6 +31,9 @@ export default defineEventHandler(async (event) => {
         statusMessage: 'User not found'
       })
     }
+
+    // Prefer new avatar relation, fallback to legacy avatar to keep UI contract stable.
+    user.avatar = user.avatarConnectUserMedia || user.avatar || null
     if (user.avatar?.url && !user.avatar.url.startsWith('http')) {
       user.avatar.url = user.avatar.url.startsWith('/')
         ? `${payloadBaseUrl}${user.avatar.url}`

@@ -28,7 +28,8 @@ export default defineEventHandler(async (event) => {
     
     // Return simplified user data for autocomplete
     const users = response.docs.map(user => {
-      let avatarUrl = user.avatar?.url || null
+      const avatar = (user as any).avatarConnectUserMedia || user.avatar || null
+      let avatarUrl = avatar?.url || null
       
       // Normalize avatar URL if it's relative
       if (avatarUrl && !avatarUrl.startsWith('http://') && !avatarUrl.startsWith('https://')) {

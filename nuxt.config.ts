@@ -23,7 +23,7 @@ export default defineNuxtConfig({
     provider: {
       type: 'authjs'
     },
-    baseURL: process.env.AUTH_URL || process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+    baseURL: process.env.AUTH_URL,
     globalAppMiddleware: {
       isEnabled: true, 
       addDefaultCallbackUrl: true
@@ -47,8 +47,8 @@ export default defineNuxtConfig({
     public: {
       authAzureAdClientId: process.env.AUTH_AZURE_AD_CLIENT_ID,
       authAzureAdTenantId: process.env.AUTH_AZURE_AD_TENANT_ID,
-      payloadBaseUrl: process.env.PAYLOAD_BASE_URL || 'http://localhost:3002',
-      payloadApiUrl: process.env.PAYLOAD_API_URL || 'http://localhost:3002/api/connect-posts',
+      payloadBaseUrl: process.env.PAYLOAD_BASE_URL,
+      payloadApiUrl: process.env.PAYLOAD_API_URL || `${process.env.PAYLOAD_BASE_URL}/api/connect-posts`,
       // Podcast feed configuration
       podcasts: [
         {
@@ -72,7 +72,7 @@ export default defineNuxtConfig({
       ]
     },
     // Legacy PayloadCMS config
-    payloadApiUrl: process.env.PAYLOAD_API_URL || 'http://localhost:3002/api/connect-posts',
-    payloadBaseUrl: process.env.PAYLOAD_BASE_URL || 'http://localhost:3002'
+    payloadApiUrl: process.env.PAYLOAD_API_URL + '/api/connect-posts',
+    payloadBaseUrl: process.env.PAYLOAD_BASE_URL
   }
 })

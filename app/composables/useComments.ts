@@ -53,18 +53,11 @@ export const useComments = () => {
    */
   const fetchComments = async (postId: number): Promise<Comment[]> => {
     try {
-      const { data, error } = await useFetch<{ docs: Comment[] }>('/api/comments', {
-        query: {
-          postId: postId.toString()
-        }
+      const data = await $fetch<{ docs: Comment[] }>('/api/comments', {
+        query: { postId: postId.toString() },
+        credentials: 'include'
       })
-
-      if (error.value || !data.value) {
-        console.error('Error fetching comments:', error.value)
-        return []
-      }
-
-      return data.value.docs || []
+      return data?.docs || []
     } catch (err) {
       console.error('Error fetching comments:', err)
       return []
@@ -130,21 +123,16 @@ export const useComments = () => {
     parentId?: number | null
   ): Promise<Comment | null> => {
     try {
-      const { data, error } = await useFetch<Comment>('/api/comments', {
+      const data = await $fetch<Comment>('/api/comments', {
         method: 'POST',
         body: {
           post: postId,
           parent: parentId || null,
           content
-        }
+        },
+        credentials: 'include'
       })
-
-      if (error.value || !data.value) {
-        console.error('Error creating comment:', error.value)
-        return null
-      }
-
-      return data.value
+      return data || null
     } catch (err) {
       console.error('Error creating comment:', err)
       return null
@@ -159,19 +147,14 @@ export const useComments = () => {
     content: any
   ): Promise<Comment | null> => {
     try {
-      const { data, error } = await useFetch<Comment>(`/api/comments/${commentId}`, {
+      const data = await $fetch<Comment>(`/api/comments/${commentId}`, {
         method: 'PATCH',
         body: {
           content
-        }
+        },
+        credentials: 'include'
       })
-
-      if (error.value || !data.value) {
-        console.error('Error updating comment:', error.value)
-        return null
-      }
-
-      return data.value
+      return data || null
     } catch (err) {
       console.error('Error updating comment:', err)
       return null
@@ -183,15 +166,10 @@ export const useComments = () => {
    */
   const deleteComment = async (commentId: number): Promise<boolean> => {
     try {
-      const { error } = await useFetch(`/api/comments/${commentId}`, {
-        method: 'DELETE'
+      await $fetch(`/api/comments/${commentId}`, {
+        method: 'DELETE',
+        credentials: 'include'
       })
-
-      if (error.value) {
-        console.error('Error deleting comment:', error.value)
-        return false
-      }
-
       return true
     } catch (err) {
       console.error('Error deleting comment:', err)

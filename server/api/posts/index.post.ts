@@ -11,6 +11,8 @@ export default defineEventHandler(async (event) => {
     const body = await readBody(event) as {
       content: any
       audience?: string[]
+      images?: any
+      imagesConnectUserMedia?: any
     }
 
     if (!body?.content) {
@@ -65,6 +67,14 @@ export default defineEventHandler(async (event) => {
     // Include audience if provided
     if (Array.isArray(body.audience) && body.audience.length > 0) {
       postData.audience = body.audience
+    }
+
+    if (body.imagesConnectUserMedia !== undefined) {
+      postData.imagesConnectUserMedia = body.imagesConnectUserMedia
+    } else if (body.images !== undefined) {
+      // Prefer new field but keep legacy compatibility for callers still sending `images`.
+      postData.imagesConnectUserMedia = body.images
+      postData.images = body.images
     }
 
     // Include email for email-based authentication if no token

@@ -3,22 +3,17 @@
 export default defineEventHandler(async (event) => {
   // Get cookies from the request
   const cookies = getHeader(event, 'cookie') || ''
-  
-  // Use $fetch with the full URL to call the actual session endpoint
-  const baseURL = process.env.AUTH_URL || process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-  const sessionUrl = `${baseURL}/api/auth/session`
-  
+
   try {
-    // Forward the request to the actual session endpoint
-    const response = await $fetch(sessionUrl, {
-      method: 'GET',
+    // Forward internally so this does not depend on AUTH_URL being set correctly.
+    const response = await event.fetch('/api/auth/session', {
       headers: {
         'Cookie': cookies,
         'Accept': 'application/json'
       }
-    })
-    
-    return response
+    }).then((r: Response) => r.json()).catch(() => null)
+
+    return response || null
   } catch (error: any) {
     // If session endpoint returns an error, return null (unauthenticated)
     if (error.statusCode === 401 || error.status === 401 || error.statusCode === 404 || error.status === 404) {

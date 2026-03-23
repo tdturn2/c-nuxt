@@ -1,45 +1,42 @@
 <template>
   <header class="border-b border-white/10 bg-gradient-to-r from-[rgba(13,94,130,1)] to-[rgba(10,69,92,1)] sticky top-0 z-50">
-    <div class="container mx-auto grid grid-cols-3">
+    <div :class="headerContainerClass">
       
       <div class="flex items-center gap-6">
         <NuxtLink to="/" class="flex items-center" noPrefetch>
           <img src="/connect-icon.webp" alt="Logo" class="w-[50px] h-auto py-1" />
         </NuxtLink>
-        <nav class="hidden md:flex items-center gap-6">
+        <nav v-if="isSignedIn" class="hidden md:flex items-center gap-6">
           <NuxtLink 
             to="/internal" 
             class="p-2 text-white/90 hover:text-white hover:bg-white/10 rounded-md transition-colors"
           >
-            <UIcon name="i-heroicons-building-library" class="w-5 h-5" />
+            <!-- <UIcon name="i-heroicons-building-library" class="w-5 h-5" /> -->
+             Docs
           </NuxtLink>
-          <UNavigationMenu
-            :items="directoryMenuItems"
-            content-orientation="vertical"
-            class="flex items-center [&>div>div]:min-w-[200px]"
-            :ui="{ content: 'min-w-[200px]' }"
-          />
+
         </nav>
       </div>
       
-      <!-- Feeds -->
-      <div class="flex items-center gap-1 backdrop-blur-sm rounded-lg p-1">
-        <button
-          v-for="tab in tabs"
-          :key="tab.id"
-          @click="activeTab = tab.id"
+      <!-- Center nav: Home, Marketplace, Jobs -->
+      <nav v-if="isSignedIn" class="flex items-center justify-center gap-2">
+        <NuxtLink
+          v-for="item in centerNavItems"
+          :key="item.to"
+          :to="item.to"
+          :aria-label="item.label"
           :class="[
-            'px-4 py-2 text-sm font-medium rounded-md transition-all',
-            activeTab === tab.id
-              ? 'bg-white text-[rgba(13,94,130,1)] shadow-sm'
-              : 'text-white/80 hover:text-white hover:bg-white/10'
+            'p-1.5 rounded-md transition-colors',
+            isActive(item.to)
+              ? 'bg-white/10 text-white'
+              : 'text-white/70 hover:text-white hover:bg-white/20'
           ]"
         >
-          {{ tab.label }}
-        </button>
-      </div>
+          <UIcon :name="item.icon" class="w-6 h-6" />
+        </NuxtLink>
+      </nav>
       
-      <div class="flex justify-center relative z-[1] rounded-t-md">
+      <div v-if="isSignedIn" class="flex items-center justify-end gap-1 relative z-[1] rounded-t-md">
         <!-- Grid Icon Dropdown -->
         <UNavigationMenu 
           :items="gridMenuItems" 
@@ -62,15 +59,31 @@
           :user="selectedPostUser"
           :open="isPostModalOpen"
           @update:open="isPostModalOpen = $event"
+          @post-updated="selectedPost = $event"
+          @post-deleted="closePostModal"
         />
         
-        <!-- Account Avatar Icon Dropdown -->
-        <UNavigationMenu 
-          :items="accountMenuItems" 
-          content-orientation="vertical"
-          class="flex items-center [&>div>div]:min-w-[200px]" 
-          :ui="{ content: 'min-w-[200px]' }"
-        />
+        <!-- Account dropdown (avatar trigger: Connect avatar or session image) -->
+        <UDropdownMenu :items="accountDropdownItems" :popper="{ placement: 'bottom-end' }">
+          <button
+            type="button"
+            class="flex items-center justify-center rounded-full ring-2 ring-white/50 hover:ring-white focus:outline-none focus:ring-2 focus:ring-white overflow-hidden w-9 h-9 shrink-0"
+            aria-label="Account menu"
+          >
+            <img
+              v-if="userAvatarUrl"
+              :src="userAvatarUrl"
+              :alt="session?.user?.name ?? 'Account'"
+              class="w-full h-full object-cover"
+            />
+            <span
+              v-else
+              class="flex items-center justify-center w-full h-full bg-white/20 text-white font-semibold text-sm"
+            >
+              {{ (meUser?.name ?? session?.user?.name)?.charAt(0)?.toUpperCase() ?? '?' }}
+            </span>
+          </button>
+        </UDropdownMenu>
       </div>
     </div>
   </header>
@@ -78,12 +91,89 @@
 
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
+import type { DropdownMenuItem } from '@nuxt/ui'
 import PostModal from './PostModal.vue'
 
+const route = useRoute()
 const { activeTab } = useFeedFilter()
+
+const centerNavItems = [
+  { to: '/', icon: 'i-heroicons-home', label: 'Home' },
+  { to: '/marketplace', icon: 'i-heroicons-shopping-bag', label: 'Marketplace' },
+  { to: '/jobs', icon: 'i-heroicons-briefcase', label: 'Jobs' },
+]
+
+function isActive(path: string): boolean {
+  if (path === '/') return route.path === '/'
+  return route.path.startsWith(path)
+}
 const { notifications, unreadCount, fetchNotifications, markAsRead, markAllAsRead } = useNotifications()
 const { fetchUser } = useUsers()
-const { data: session } = useAuth()
+const { data: session, getCsrfToken } = useAuth()
+const { user: meUser } = useMe()
+const isSignedIn = computed(() => Boolean(session.value?.user?.email))
+const headerContainerClass = computed(() =>
+  isSignedIn.value
+    ? 'container mx-auto grid grid-cols-3 items-center min-h-[60px]'
+    : 'container mx-auto flex items-center min-h-[60px]'
+)
+
+const handleSignOut = async () => {
+  try {
+    // Get CSRF token the same way as on the signin page
+    let csrfToken = await getCsrfToken()
+    if (!csrfToken) {
+      const res = await fetch('/api/auth/csrf')
+      if (res.ok) {
+        const data = await res.json()
+        csrfToken = data?.csrfToken
+      }
+    }
+
+    if (!csrfToken) {
+      console.error('Missing CSRF token for sign out, falling back to direct redirect.')
+      // Last-resort fallback: let the backend handle it
+      if (import.meta.client) {
+        window.location.href = '/api/auth/signout?callbackUrl=/signin'
+      }
+      return
+    }
+
+    // Call Auth.js signout endpoint directly
+    const res = await fetch('/api/auth/signout', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        csrfToken,
+        callbackUrl: '/signin',
+        json: 'true'
+      } as any)
+    })
+
+    if (!res.ok) {
+      throw new Error(`Sign out failed with status ${res.status}`)
+    }
+
+    // Hard redirect to force full app/auth state reset.
+    if (import.meta.client) {
+      window.location.href = '/signin'
+    }
+  } catch (err) {
+    console.error('Error during sign out', err)
+    if (import.meta.client) {
+      // Last-resort fallback that still reaches auth backend even if JS state is stale.
+      window.location.href = '/api/auth/signout?callbackUrl=/signin'
+    }
+  }
+}
+
+// Avatar: prefer Connect profile avatar (Payload), fallback to session (OAuth) image
+const userAvatarUrl = computed(() => {
+  const fromMe = meUser.value?.avatar?.url
+  if (fromMe) return fromMe
+  return session.value?.user?.image ?? null
+})
 
 const profileUsername = computed(() => {
   const email = session.value?.user?.email || ''
@@ -116,23 +206,13 @@ const gridMenuItems = ref<NavigationMenuItem[]>([
         target: '_blank'
       },
       {
-        label: 'Jobs',
-        icon: 'i-heroicons-briefcase',
-        to: '/jobs'
-      },
-      {
         label: 'Canvas',
         icon: 'i-heroicons-academic-cap',
         to: 'https://asburyseminary.instructure.com/',
         target: '_blank'
       },
       {
-        label: 'Class Search',
-        icon: 'i-heroicons-magnifying-glass',
-        to: '/classes'
-      },
-      {
-        label: 'B.L. Fisher Library',
+        label: 'Library',
         icon: 'i-heroicons-book-open',
         to: 'http://guides.asburyseminary.edu/home',
         target: '_blank'
@@ -154,22 +234,6 @@ const gridMenuItems = ref<NavigationMenuItem[]>([
         to: 'https://portal.asburyseminary.edu',
         target: '_blank'
       },
-      {
-        label: 'Forums',
-        icon: 'i-heroicons-chat-bubble-left-right',
-        to: '/forums/'
-      },
-      {
-        label: 'ThriveU',
-        icon: 'i-heroicons-arrow-trending-up',
-        to: 'https://thriveu.asburyseminary.edu',
-        target: '_blank'
-      },
-      {
-        label: 'Employee Directory',
-        icon: 'i-heroicons-users',
-        to: '/employee-directory'
-      }
     ]
   }
 ])
@@ -181,7 +245,21 @@ const directoryMenuItems = ref<NavigationMenuItem[]>([
     icon: 'i-heroicons-user-group',
     children: [
       { label: 'Student Directory', to: '/student-directory' },
+      { label: 'Faculty Directory', to: '/faculty-directory' },
       { label: 'Employee Directory', to: '/employee-directory' }
+    ]
+  }
+])
+
+// Media menu - vertical dropdown
+const mediaMenuItems = ref<NavigationMenuItem[]>([
+  {
+    label: '',
+    icon: 'i-heroicons-film',
+    children: [
+      { label: 'WesWorld', to: '/media/wesworld' },
+      { label: 'It\'s Elementary', to: '/media/elementary' },
+      { label: 'Chapel', to: '/media/chapel' }
     ]
   }
 ])
@@ -211,38 +289,38 @@ const notificationMenuItems = computed<NavigationMenuItem[]>(() => [
   }
 ])
 
-// Account menu items
-const accountMenuItems = computed<NavigationMenuItem[]>(() => [
-  {
-    label: '',
-    icon: 'i-heroicons-user',
-    children: [
-      {
-        label: 'Update Profile',
-        to: '/profile/avatar'
-      },
-      {
-        label: 'Employee Profile',
-        to: '/profile/employee'
-      },
-      {
-        label: 'Faculty Profile',
-        to: '/profile/faculty'
-      },
-      {
-        label: 'Faculty Publications',
-        to: '/profile/faculty-pub'
-      },
-      {
-        label: 'Student Profile',
-        to: '/profile/student'
-      },
-      {
-        label: 'Sign Out'
-      }
-    ]
-  }
-])
+// Account dropdown items (avatar trigger, user label + profile links)
+const accountDropdownItems = computed<DropdownMenuItem[][]>(() => {
+  const labelAvatar = userAvatarUrl.value ? { src: userAvatarUrl.value } : undefined
+  return [
+  [
+    {
+      label: (meUser.value?.name ?? session.value?.user?.name) ?? 'Account',
+      avatar: labelAvatar,
+      type: 'label'
+    }
+  ],
+  [
+    { label: 'Update Profile', icon: 'i-heroicons-user-circle', to: '/profile/avatar' },
+    { label: 'Employee Profile', icon: 'i-heroicons-identification', to: '/profile/employee' },
+    { label: 'Faculty Profile', icon: 'i-heroicons-academic-cap', to: '/profile/faculty' },
+    { label: 'Faculty Publications', icon: 'i-heroicons-book-open', to: '/profile/faculty-pub' },
+    { label: 'Student Profile', icon: 'i-heroicons-user', to: '/profile/student' }
+  ],
+  [
+    {
+      label: 'Sign Out',
+      icon: 'i-heroicons-arrow-right-on-rectangle',
+      onSelect: handleSignOut
+    }
+  ]
+] })
+
+const closePostModal = () => {
+  isPostModalOpen.value = false
+  selectedPost.value = null
+  selectedPostUser.value = null
+}
 
 // Open post in modal
 const openPostModal = async (postId: number) => {

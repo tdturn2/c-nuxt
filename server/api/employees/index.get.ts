@@ -1,4 +1,4 @@
-// GET all employees. Proxies to Payload GET /api/connect-users/employees.
+// GET employees: connect-users with role staff or faculty.
 import { defineEventHandler, createError } from 'h3'
 
 export default defineEventHandler(async () => {
@@ -6,17 +6,22 @@ export default defineEventHandler(async () => {
   const payloadBaseUrl = config.public.payloadBaseUrl || 'http://localhost:3002'
 
   try {
-    const response = await $fetch(`${payloadBaseUrl}/api/connect-users/employees`, {
-      headers: { 'Content-Type': 'application/json' }
-    }) as { docs?: any[]; employees?: any[] } | any[]
+    const response = await $fetch(`${payloadBaseUrl}/api/connect-users`, {
+      headers: { 'Content-Type': 'application/json' },
+      query: { limit: 500, depth: 1 }
+    }) as { docs?: any[] }
 
-    const docs = Array.isArray(response)
-      ? response
-      : (response?.docs ?? response?.employees ?? [])
+    const allDocs = response?.docs ?? []
+    const roles = (r: unknown): string[] => Array.isArray(r) ? r.map(String) : []
+    const docs = allDocs.filter((user: any) => {
+      const r = roles(user?.roles)
+      return r.includes('staff') || r.includes('faculty')
+    })
     const payloadBase = payloadBaseUrl
 
     const employees = docs.map((user: any) => {
-      let avatarUrl = user.avatar?.url ?? null
+      const avatar = user.avatarConnectUserMedia || user.avatar || null
+      let avatarUrl = avatar?.url ?? null
       if (avatarUrl && !avatarUrl.startsWith('http')) {
         avatarUrl = avatarUrl.startsWith('/') ? `${payloadBase}${avatarUrl}` : `${payloadBase}/${avatarUrl}`
       }
