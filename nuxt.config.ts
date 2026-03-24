@@ -12,6 +12,7 @@ const nitroPreset = process.env.VERCEL ? 'vercel' : undefined
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: process.env.NODE_ENV !== 'production' },
+  sourcemap: false,
   modules: ['@nuxt/ui', '@nuxt/content', '@sidebase/nuxt-auth'],
   ssr: false, // SPA mode - no SSR needed for intranet
   colorMode: {
