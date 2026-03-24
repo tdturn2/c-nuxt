@@ -1,5 +1,6 @@
 {
   "name": "connect",
+  "packageManager": "npm@10.9.2",
   "type": "module",
   "private": true,
   "scripts": {
