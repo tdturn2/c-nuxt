@@ -1,9 +1,13 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
-// Auth base URL: set AUTH_URL in Vercel (e.g. https://your-domain.com/api/auth). If missing,
-// derive from VERCEL_URL so builds don't hit AUTH_NO_ORIGIN (sidebase requires this in production).
+// Auth public URL — sidebase reads NUXT_PUBLIC_AUTH_BASE_URL / AUTH_ORIGIN first, NOT AUTH_URL.
+// https://auth.sidebase.io/guide/advanced/url-resolutions
+// Set one of these in Vercel (Production + Preview if you use previews), e.g. https://your-app.vercel.app/api/auth
 const authBaseUrl =
+  process.env.NUXT_PUBLIC_AUTH_BASE_URL ||
+  process.env.AUTH_ORIGIN ||
   process.env.AUTH_URL ||
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}/api/auth` : undefined)
+const nitroPreset = process.env.VERCEL ? 'vercel' : undefined
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
@@ -15,7 +19,15 @@ export default defineNuxtConfig({
     fallback: 'light',
     classSuffix: ''
   },
+  // Rollup warns when any chunk > 500 kB; Vercel logs often show `[warn]` with the message on the next lines (looks "empty").
+  vite: {
+    build: {
+      chunkSizeWarningLimit: 900
+    }
+  },
   nitro: {
+    // Force Vercel-optimized output during Vercel builds to avoid slow node-server packaging.
+    ...(nitroPreset ? { preset: nitroPreset } : {}),
     // Ensure API routes work in SPA mode
     experimental: {
       wasm: true
