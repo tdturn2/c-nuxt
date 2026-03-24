@@ -1,7 +1,13 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+// Auth base URL: set AUTH_URL in Vercel (e.g. https://your-domain.com/api/auth). If missing,
+// derive from VERCEL_URL so builds don't hit AUTH_NO_ORIGIN (sidebase requires this in production).
+const authBaseUrl =
+  process.env.AUTH_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}/api/auth` : undefined)
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
-  devtools: { enabled: true },
+  devtools: { enabled: process.env.NODE_ENV !== 'production' },
   modules: ['@nuxt/ui', '@nuxt/content', '@sidebase/nuxt-auth'],
   ssr: false, // SPA mode - no SSR needed for intranet
   colorMode: {
@@ -23,7 +29,7 @@ export default defineNuxtConfig({
     provider: {
       type: 'authjs'
     },
-    baseURL: process.env.AUTH_URL,
+    baseURL: authBaseUrl,
     globalAppMiddleware: {
       isEnabled: true, 
       addDefaultCallbackUrl: true
@@ -72,7 +78,9 @@ export default defineNuxtConfig({
       ]
     },
     // Legacy PayloadCMS config
-    payloadApiUrl: process.env.PAYLOAD_API_URL + '/api/connect-posts',
+    payloadApiUrl: process.env.PAYLOAD_API_URL
+      ? `${process.env.PAYLOAD_API_URL}/api/connect-posts`
+      : undefined,
     payloadBaseUrl: process.env.PAYLOAD_BASE_URL
   }
 })

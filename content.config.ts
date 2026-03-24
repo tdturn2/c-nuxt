@@ -1,3 +1,11 @@
+import { defineCollection, defineContentConfig } from '@nuxt/content'
+
 export default defineContentConfig({
-  // Minimal config to satisfy @nuxt/content
+  collections: {
+    /** Markdown pages in project `content/` (pattern is relative to that folder) */
+    content: defineCollection({
+      type: 'page',
+      source: '**/*.md'
+    })
+  }
 })
