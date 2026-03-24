@@ -14,7 +14,7 @@ export default defineNuxtConfig({
   devtools: { enabled: process.env.NODE_ENV !== 'production' },
   sourcemap: false,
   // modules: ['@nuxt/ui', '@nuxt/content', '@sidebase/nuxt-auth'],
-  modules: ['@nuxt/ui', '@sidebase/nuxt-auth']
+  modules: ['@nuxt/ui', '@sidebase/nuxt-auth'],
   ssr: false, // SPA mode - no SSR needed for intranet
   colorMode: {
     preference: 'light',
