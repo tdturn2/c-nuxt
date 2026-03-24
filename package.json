@@ -1,6 +1,9 @@
 {
   "name": "connect",
   "packageManager": "npm@10.9.2",
+  "engines": {
+    "node": "22.x"
+  },
   "type": "module",
   "private": true,
   "scripts": {
