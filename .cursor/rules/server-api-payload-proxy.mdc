@@ -1,0 +1,34 @@
+---
+description: Patterns for Nitro server/api routes that proxy to Payload
+globs: server/api/**/*.ts
+alwaysApply: false
+---
+
+# Payload proxy API route patterns
+
+## Request basics
+- Use `defineEventHandler`.
+- Read params with `getRouterParam(event, 'id')` etc.
+- Read body with `readBody(event)` and default to `{}` on parse errors.
+
+## Authentication
+- Use `authenticateWithPayloadCMS(event)` to get `{ token, email }`.
+- Decide early whether this is an admin/token request or SSO/email request.
+- Only add `Authorization` header when you are intentionally doing an admin/token call.
+
+## Payload base URL resolution
+- Prefer `config.payloadBaseUrl || config.public.payloadBaseUrl`.
+- In local dev only, you may fallback to `http://localhost:3002`.
+- Always `encodeURIComponent` for IDs and query values.
+
+## Safe forwarding
+- Set `Content-Type: application/json` when sending JSON.
+- For `GET` proxies that return docs with `avatar.url` or media URLs, normalize leading `/` to `payloadBaseUrl + url`.
+
+## Error surfacing
+- When `$fetch` throws, capture:
+  - `err?.response?.status` → `statusCode`
+  - `err?.data` (Payload error body) → `data`
+  - `err?.message` → fallback message
+- Re-throw with `createError({ statusCode, statusMessage, data })`.
+

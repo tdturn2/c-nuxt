@@ -1,0 +1,25 @@
+---
+description: Docs dashboard CRUD + UEditor conventions (TipTap <-> Lexical)
+globs: app/pages/dashboard/**/*.vue
+alwaysApply: false
+---
+
+# Dashboard docs + editor conventions
+
+## Rich text
+- Payload stores **Lexical JSON**; Nuxt UI `UEditor` uses **TipTap JSON**.
+- Keep conversions **pure** and **type-safe**:
+  - `lexicalToTipTap(lexical)` for loading
+  - `tipTapToLexical(tiptap)` for saving
+- Prefer defensive checks (null/undefined/shape mismatch) and return an empty doc/root.
+
+## Update endpoint selection (important)
+- When editing existing pages, call `PATCH /api/connect-pages/update/:id` (SSO-style rules).
+- When creating pages, use the create endpoint already used by the dashboard.
+- Do not call the generic `/api/connect-pages/:id` patch route from the dashboard UI unless explicitly doing admin-only updates.
+
+## Editor UX
+- Use `UEditor` with the toolbar + drag handle slot pattern:
+  - `UEditorToolbar` should be sticky at the top of the editor container
+  - `UEditorDragHandle` enabled for block movement
+

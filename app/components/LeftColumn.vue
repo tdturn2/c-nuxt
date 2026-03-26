@@ -91,6 +91,13 @@ const filteredMainNavItems = computed(() =>
   mainNavItems.value
     .map((item) => filterMenuByLabel(item, menuSearchQuery.value))
     .filter((item): item is NavigationMenuItem => item != null)
+    .map((item) => {
+      const q = menuSearchQuery.value.trim()
+      if (!q) return item
+      // If search is active, expand any group that still has children after filtering.
+      if (item.children?.length) return { ...item, defaultOpen: true }
+      return item
+    })
 )
 
 const footerNavItems: NavigationMenuItem[] = [

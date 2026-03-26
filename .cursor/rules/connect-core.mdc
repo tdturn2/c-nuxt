@@ -1,0 +1,25 @@
+---
+description: Core conventions for Connect (Nuxt + Payload)
+alwaysApply: true
+---
+
+# Connect repo conventions
+
+## Runtime config + Payload base URL
+- Prefer `useRuntimeConfig()` for server code. Resolve Payload base URL like:
+  - `const payloadBaseUrl = (config.payloadBaseUrl || config.public.payloadBaseUrl || '').trim() || (import.meta.dev ? 'http://localhost:3002' : '')`
+- Avoid building URLs like `"undefined/api/..."`. Guard env usage.
+
+## SSO vs token auth (critical)
+- There are **two auth styles** used across endpoints:
+  - **Admin/token**: use `Authorization: Bearer <token>` and can call Payload admin endpoints (e.g. `/api/users/me`).
+  - **SSO/email**: call Payload “custom” endpoints that accept `{ email }` in the body.
+- **Do not forward a non-admin Bearer token to an SSO/email endpoint**. If you must detect admin, verify with a safe call like `GET /api/users/me`.
+- When adding a new “SSO-style” endpoint, enforce:
+  - session email present (401 otherwise)
+  - body `email` cannot spoof a different user (403 on mismatch)
+
+## Error handling
+- Payload may return error shapes like `{ "0": { "message": "..." } }`. Preserve `err.data` when rethrowing via `createError`.
+- For proxy handlers, include `statusCode`, `statusMessage`, and `data` from upstream when available.
+

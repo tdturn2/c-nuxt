@@ -25,7 +25,7 @@
             class="prose prose-gray max-w-none prose-headings:font-semibold prose-a:text-[rgba(13,94,130,1)] prose-a:no-underline hover:prose-a:underline"
             v-html="contentHtml"
           />
-          <div v-else-if="(page as any)?.content" class="prose prose-gray max-w-none text-gray-600">
+          <div v-else-if="page.content" class="prose prose-gray max-w-none text-gray-600">
             <p>Content format is not supported for display.</p>
           </div>
         </article>
@@ -42,7 +42,7 @@ const route = useRoute()
 const { data: fetchData, pending, error } = await useFetch<
   { docs?: Array<{ id: number | string; title?: string; content?: unknown; slug?: string; parent?: unknown }> }
 >('/api/connect-pages', {
-  key: () => `connect-page-route-${route.path}`,
+  key: () => `connect-page-catchall-${route.path}`,
   query: () => ({
     limit: 500,
     depth: 2,
@@ -69,7 +69,6 @@ function lexicalToHtml(node: any): string {
   const urlRegex = /\bhttps?:\/\/[^\s<>"')\]}]+/gi
   const linkifyEscapedText = (escapedText: string) =>
     escapedText.replace(urlRegex, (matchedUrl) => {
-      // `matchedUrl` is already HTML-escaped because the input is escaped.
       const href = matchedUrl
       return `<a href="${href}" target="_blank" rel="noopener noreferrer">${matchedUrl}</a>`
     })
@@ -77,34 +76,28 @@ function lexicalToHtml(node: any): string {
   if (node.type === 'root' && Array.isArray(node.children)) {
     return node.children.map(lexicalToHtml).join('')
   }
-
   if (node.type === 'paragraph') {
     const inner = (node.children || []).map(lexicalToHtml).join('')
     return inner ? `<p class="mb-4 leading-relaxed">${inner}</p>` : ''
   }
-
   if (node.type === 'heading') {
     const tag = node.tag || 'h2'
     const inner = (node.children || []).map(lexicalToHtml).join('')
     return inner ? `<${tag} class="mt-8 mb-3 font-semibold">${inner}</${tag}>` : ''
   }
-
   if (node.type === 'quote') {
     const inner = (node.children || []).map(lexicalToHtml).join('')
     return inner ? `<blockquote>${inner}</blockquote>` : ''
   }
-
   if (node.type === 'list') {
     const tag = node.listType === 'number' ? 'ol' : 'ul'
     const inner = (node.children || []).map(lexicalToHtml).join('')
     return inner ? `<${tag}>${inner}</${tag}>` : ''
   }
-
   if (node.type === 'listitem') {
     const inner = (node.children || []).map(lexicalToHtml).join('')
     return inner ? `<li>${inner}</li>` : ''
   }
-
   if (node.type === 'link') {
     const inner = (node.children || []).map(lexicalToHtml).join('')
     const href = typeof node?.fields?.url === 'string' ? node.fields.url : (typeof node.url === 'string' ? node.url : '')
@@ -113,17 +106,14 @@ function lexicalToHtml(node: any): string {
     const target = (node?.fields?.newTab || node.newTab) ? ' target="_blank" rel="noopener noreferrer"' : ''
     return `<a href="${safeHref}"${target}>${inner}</a>`
   }
-
   if (node.type === 'text') {
     let text = escapeHtml(node.text || '')
     if (!text) return ''
-    if (node.format & 1) text = `<strong>${text}</strong>` // bold
-    if (node.format & 2) text = `<em>${text}</em>` // italic
-    if (node.format & 8) text = `<u>${text}</u>` // underline
-    // Convert plain URLs into clickable anchors
+    if (node.format & 1) text = `<strong>${text}</strong>`
+    if (node.format & 2) text = `<em>${text}</em>`
+    if (node.format & 8) text = `<u>${text}</u>`
     return linkifyEscapedText(text)
   }
-
   if (node.type === 'autolink') {
     const hrefRaw = node?.fields?.url || node?.url
     if (typeof hrefRaw !== 'string' || !hrefRaw) return ''
@@ -131,28 +121,18 @@ function lexicalToHtml(node: any): string {
     const inner = (node.children || []).map(lexicalToHtml).join('') || href
     return `<a href="${href}" target="_blank" rel="noopener noreferrer">${inner}</a>`
   }
-
-  // Fallback: render children only
-  if (Array.isArray(node.children)) {
-    return node.children.map(lexicalToHtml).join('')
-  }
-
+  if (Array.isArray(node.children)) return node.children.map(lexicalToHtml).join('')
   return ''
 }
 
-/** Extract HTML string from Payload content (HTML field or Lexical rich text JSON) */
 const contentHtml = computed(() => {
-  const c = (page.value as any)?.content as any
+  const c = page.value?.content as any
   if (!c) return ''
-
   if (typeof c === 'string') return c
   if (c && typeof c === 'object' && 'html' in c && typeof (c as { html: string }).html === 'string') {
     return (c as { html: string }).html
   }
-  if (c && typeof c === 'object' && c.root && typeof c.root === 'object') {
-    return lexicalToHtml(c.root)
-  }
-
+  if (c && typeof c === 'object' && c.root && typeof c.root === 'object') return lexicalToHtml(c.root)
   return ''
 })
 
@@ -160,4 +140,3 @@ useHead({
   title: () => (page.value?.title ? `${page.value.title} | Asbury Connect` : 'Asbury Connect'),
 })
 </script>
-

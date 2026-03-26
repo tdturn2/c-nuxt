@@ -1,6 +1,6 @@
 <template>
   <div class="flex min-h-0 bg-gray-50">
-    <LeftColumn />
+    <LeftInternal />
     <main class="flex-1 min-w-0 overflow-y-auto">
       <div class="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div v-if="pending" class="py-12 text-center text-gray-500">
@@ -31,29 +31,58 @@
 </template>
 
 <script setup lang="ts">
+import { buildPagePathMap } from '~/composables/useConnectPagesTree'
+
 const route = useRoute()
 const slug = computed(() => (route.params.slug as string) ?? '')
 
 const { data: fetchData, pending, error } = await useFetch<
-  { docs?: Array<{ title?: string; content?: unknown }> } | { title?: string; content?: unknown }
+  { docs?: Array<{ id: number | string; title?: string; content?: unknown; slug?: string; parent?: unknown }> }
 >('/api/connect-pages', {
   key: () => `connect-page-${slug.value}`,
   query: () => ({
-    'where[slug][equals]': slug.value,
-    limit: 1,
-    depth: 1,
+    limit: 500,
+    depth: 2,
+    sort: 'order,title',
   }),
 })
 
-/** Single page doc: by-slug may return doc directly or { docs: [doc] } */
 const page = computed(() => {
-  const d = fetchData.value
-  if (!d) return null
-  return Array.isArray((d as any).docs) ? (d as any).docs[0] ?? null : (d as any)
+  const docs = Array.isArray(fetchData.value?.docs) ? fetchData.value.docs : []
+  return docs.find((d) => (d.slug || '').toString() === slug.value) || null
+})
+
+const canonicalPath = computed(() => {
+  const docs = Array.isArray(fetchData.value?.docs) ? fetchData.value.docs : []
+  const current = page.value
+  if (!current) return null
+  const { pathById } = buildPagePathMap(docs)
+  return pathById.get(String(current.id)) || null
+})
+
+watchEffect(() => {
+  const next = canonicalPath.value
+  if (next && route.path !== next) navigateTo(next, { replace: true })
 })
 
 function lexicalToHtml(node: any): string {
   if (!node || typeof node !== 'object') return ''
+
+  const escapeHtml = (value: string) =>
+    value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+
+  const urlRegex = /\bhttps?:\/\/[^\s<>"')\]}]+/gi
+  const linkifyEscapedText = (escapedText: string) =>
+    escapedText.replace(urlRegex, (matchedUrl) => {
+      // `matchedUrl` is already HTML-escaped because the input is escaped.
+      const href = matchedUrl
+      return `<a href="${href}" target="_blank" rel="noopener noreferrer">${matchedUrl}</a>`
+    })
 
   if (node.type === 'root' && Array.isArray(node.children)) {
     return node.children.map(lexicalToHtml).join('')
@@ -86,13 +115,31 @@ function lexicalToHtml(node: any): string {
     return inner ? `<li>${inner}</li>` : ''
   }
 
+  if (node.type === 'link') {
+    const inner = (node.children || []).map(lexicalToHtml).join('')
+    const href = typeof node?.fields?.url === 'string' ? node.fields.url : (typeof node.url === 'string' ? node.url : '')
+    if (!inner || !href) return inner
+    const safeHref = escapeHtml(href)
+    const target = (node?.fields?.newTab || node.newTab) ? ' target="_blank" rel="noopener noreferrer"' : ''
+    return `<a href="${safeHref}"${target}>${inner}</a>`
+  }
+
   if (node.type === 'text') {
-    let text = node.text || ''
+    let text = escapeHtml(node.text || '')
     if (!text) return ''
     if (node.format & 1) text = `<strong>${text}</strong>` // bold
     if (node.format & 2) text = `<em>${text}</em>` // italic
     if (node.format & 8) text = `<u>${text}</u>` // underline
-    return text
+    // Convert plain URLs into clickable anchors
+    return linkifyEscapedText(text)
+  }
+
+  if (node.type === 'autolink') {
+    const hrefRaw = node?.fields?.url || node?.url
+    if (typeof hrefRaw !== 'string' || !hrefRaw) return ''
+    const href = escapeHtml(hrefRaw)
+    const inner = (node.children || []).map(lexicalToHtml).join('') || href
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer">${inner}</a>`
   }
 
   if (Array.isArray(node.children)) {
