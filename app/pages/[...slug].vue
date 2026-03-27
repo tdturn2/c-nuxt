@@ -22,7 +22,7 @@
           </h1>
           <div
             v-if="contentHtml"
-            class="connect-page-body prose prose-gray max-w-none prose-headings:font-semibold prose-a:text-[rgba(13,94,130,1)] prose-p:mb-4 prose-h1:mb-6 prose-h2:mt-8 prose-h2:mb-3 prose-ul:ml-6 prose-ul:list-disc prose-ol:ml-6 prose-ol:list-decimal prose-li:my-1"
+            class="connect-page-body prose prose-gray max-w-none prose-headings:font-semibold prose-a:text-[rgba(13,94,130,1)] prose-p:mb-4 prose-h1:mb-6 prose-h2:mt-8 prose-h2:mb-3 prose-ul:ml-6 prose-ul:list-disc prose-ul:my-2 prose-ol:ml-6 prose-ol:list-decimal prose-ol:my-2 prose-li:my-0 prose-li:leading-snug"
             v-html="contentHtml"
             @click="onContentClick"
           />
@@ -147,12 +147,12 @@ function lexicalToHtml(node: any): string {
     const tag = node.listType === 'number' ? 'ol' : 'ul'
     const inner = (node.children || []).map(lexicalToHtml).join('')
     if (!inner) return ''
-    if (tag === 'ol') return `<ol class="list-decimal ml-6 my-4">${inner}</ol>`
-    return `<ul class="list-disc ml-6 my-4">${inner}</ul>`
+    if (tag === 'ol') return `<ol class="list-decimal ml-6 my-2">${inner}</ol>`
+    return `<ul class="list-disc ml-6 my-2">${inner}</ul>`
   }
   if (node.type === 'listitem') {
     const inner = (node.children || []).map(lexicalToHtml).join('')
-    return inner ? `<li class="list-item my-1">${inner}</li>` : ''
+    return inner ? `<li class="list-item my-0 py-0.5">${inner}</li>` : ''
   }
   if (node.type === 'link') {
     const inner = (node.children || []).map(lexicalToHtml).join('')
@@ -254,6 +254,27 @@ article .connect-page-body.prose a {
 }
 article .connect-page-body.prose a:hover {
   text-decoration-color: rgba(13, 94, 130, 0.75);
+}
+
+article .connect-page-body.prose ul,
+article .connect-page-body.prose ol {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+article .connect-page-body.prose li {
+  margin-top: 0.1rem;
+  margin-bottom: 0.1rem;
+}
+
+/* Lexical wraps list text in <p class="mb-4"> — that dominates vertical rhythm inside <li>. */
+article .connect-page-body.prose li > p {
+  margin-top: 0 !important;
+  margin-bottom: 0.25rem !important;
+}
+
+article .connect-page-body.prose li > p:last-child {
+  margin-bottom: 0 !important;
 }
 
 .prose a[data-pdf-link="true"]::after {
