@@ -22,7 +22,7 @@
           </h1>
           <div
             v-if="contentHtml"
-            class="prose prose-gray max-w-none prose-headings:font-semibold prose-a:text-[rgba(13,94,130,1)] prose-a:no-underline hover:prose-a:underline prose-p:mb-4 prose-h1:mb-6 prose-h2:mt-8 prose-h2:mb-3 prose-ul:ml-6 prose-ul:list-disc prose-ol:ml-6 prose-ol:list-decimal prose-li:my-1"
+            class="connect-page-body prose prose-gray max-w-none prose-headings:font-semibold prose-a:text-[rgba(13,94,130,1)] prose-p:mb-4 prose-h1:mb-6 prose-h2:mt-8 prose-h2:mb-3 prose-ul:ml-6 prose-ul:list-disc prose-ol:ml-6 prose-ol:list-decimal prose-li:my-1"
             v-html="contentHtml"
             @click="onContentClick"
           />
@@ -101,13 +101,30 @@ function lexicalToHtml(node: any): string {
   }
 
   const pdfAttr = (href: string) => (isPdfUrl(href) ? ' data-pdf-link="true"' : '')
+  const isInternalConnectHref = (href: string) => {
+    if (href.startsWith('/')) return true
+    try {
+      const base = import.meta.client ? window.location.origin : 'http://localhost'
+      const url = new URL(href, base)
+      if (url.origin === 'https://connect.asburyseminary.edu') return true
+      if (import.meta.client && url.origin === window.location.origin) return true
+      return false
+    } catch {
+      return false
+    }
+  }
+  const externalAttr = (href: string) => (
+    !isInternalConnectHref(href) && /^https?:\/\//i.test(href)
+      ? ' data-external-link="true"'
+      : ''
+  )
 
   const urlRegex = /\bhttps?:\/\/[^\s<>"')\]}]+/gi
   const linkifyEscapedText = (escapedText: string) =>
     escapedText.replace(urlRegex, (matchedUrl) => {
       const href = toViewerHref(matchedUrl, pdfTitleFromHref(matchedUrl))
       const target = isPdfUrl(matchedUrl) ? '' : ' target="_blank" rel="noopener noreferrer"'
-      return `<a href="${escapeHtml(href)}"${target}${pdfAttr(matchedUrl)}>${matchedUrl}</a>`
+      return `<a href="${escapeHtml(href)}"${target}${pdfAttr(matchedUrl)}${externalAttr(matchedUrl)}>${matchedUrl}</a>`
     })
 
   if (node.type === 'root' && Array.isArray(node.children)) {
@@ -146,7 +163,7 @@ function lexicalToHtml(node: any): string {
     const target = isPdfUrl(href)
       ? ''
       : (node?.fields?.newTab || node.newTab) ? ' target="_blank" rel="noopener noreferrer"' : ''
-    return `<a href="${safeHref}"${target}${pdfAttr(href)}>${inner}</a>`
+    return `<a href="${safeHref}"${target}${pdfAttr(href)}${externalAttr(href)}>${inner}</a>`
   }
   if (node.type === 'text') {
     let text = escapeHtml(node.text || '')
@@ -164,7 +181,7 @@ function lexicalToHtml(node: any): string {
     const href = escapeHtml(toViewerHref(hrefRaw, titleFromText))
     const fallbackInner = inner || href
     const target = isPdfUrl(hrefRaw) ? '' : ' target="_blank" rel="noopener noreferrer"'
-    return `<a href="${href}"${target}${pdfAttr(hrefRaw)}>${fallbackInner}</a>`
+    return `<a href="${href}"${target}${pdfAttr(hrefRaw)}${externalAttr(hrefRaw)}>${fallbackInner}</a>`
   }
   if (Array.isArray(node.children)) return node.children.map(lexicalToHtml).join('')
   return ''
@@ -228,6 +245,17 @@ useHead({
 </script>
 
 <style>
+/* Prose often wins over utilities for `a { text-decoration }` — force subtle underlines here. */
+article .connect-page-body.prose a {
+  text-decoration: underline;
+  text-decoration-color: rgba(13, 94, 130, 0.38);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+article .connect-page-body.prose a:hover {
+  text-decoration-color: rgba(13, 94, 130, 0.75);
+}
+
 .prose a[data-pdf-link="true"]::after {
   content: '';
   display: inline-block;
@@ -238,5 +266,13 @@ useHead({
   background-color: #dc2626; /* red-600 */
   -webkit-mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A//www.w3.org/2000/svg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M14%202H6a2%202%200%200%200-2%202v16a2%202%200%200%200%202%202h12a2%202%200%200%200%202-2V8z'/%3E%3Cpath%20d%3D'M14%202v6h6'/%3E%3Cpath%20d%3D'M16%2013H8'/%3E%3Cpath%20d%3D'M16%2017H8'/%3E%3Cpath%20d%3D'M10%209H8'/%3E%3C/svg%3E") center / contain no-repeat;
   mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A//www.w3.org/2000/svg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M14%202H6a2%202%200%200%200-2%202v16a2%202%200%200%200%202%202h12a2%202%200%200%200%202-2V8z'/%3E%3Cpath%20d%3D'M14%202v6h6'/%3E%3Cpath%20d%3D'M16%2013H8'/%3E%3Cpath%20d%3D'M16%2017H8'/%3E%3Cpath%20d%3D'M10%209H8'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.prose a[data-external-link="true"]::after {
+  content: ' \2197';
+  font-size: 0.85em;
+  margin-left: 0.2em;
+  color: #6b7280; /* gray-500 */
+  vertical-align: 0.08em;
 }
 </style>
