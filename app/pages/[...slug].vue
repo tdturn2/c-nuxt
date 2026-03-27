@@ -22,8 +22,9 @@
           </h1>
           <div
             v-if="contentHtml"
-            class="prose prose-gray max-w-none prose-headings:font-semibold prose-a:text-[rgba(13,94,130,1)] prose-a:no-underline hover:prose-a:underline"
+            class="prose prose-gray max-w-none prose-headings:font-semibold prose-a:text-[rgba(13,94,130,1)] prose-a:no-underline hover:prose-a:underline prose-p:mb-4 prose-h1:mb-6 prose-h2:mt-8 prose-h2:mb-3 prose-ul:ml-6 prose-ul:list-disc prose-ol:ml-6 prose-ol:list-decimal prose-li:my-1"
             v-html="contentHtml"
+            @click="onContentClick"
           />
           <div v-else-if="page.content" class="prose prose-gray max-w-none text-gray-600">
             <p>Content format is not supported for display.</p>
@@ -66,11 +67,47 @@ function lexicalToHtml(node: any): string {
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;')
 
+  const stripHtml = (value: string) => value.replace(/<[^>]*>/g, '').trim()
+  const pdfTitleFromHref = (href: string) => {
+    try {
+      const u = new URL(href)
+      const last = decodeURIComponent((u.pathname.split('/').pop() || '').trim())
+      return last.replace(/\.pdf$/i, '') || 'PDF Document'
+    } catch {
+      return 'PDF Document'
+    }
+  }
+  const isPdfUrl = (href: string) => {
+    if (/\.pdf(?:$|[?#])/i.test(href)) return true
+    try {
+      const base = import.meta.client ? window.location.origin : 'http://localhost'
+      const url = new URL(href, base)
+      const src = url.searchParams.get('src') || ''
+      return /\.pdf(?:$|[?#])/i.test(decodeURIComponent(src))
+    } catch {
+      return false
+    }
+  }
+  const toViewerHref = (href: string, linkText?: string) => {
+    if (!isPdfUrl(href)) return href
+    try {
+      const base = import.meta.client ? window.location.origin : 'http://localhost'
+      const url = new URL(href, base)
+      if (url.pathname === '/pdf' && url.searchParams.get('src')) return href
+    } catch {}
+    const candidate = (linkText || '').trim()
+    const title = candidate || pdfTitleFromHref(href)
+    return `/pdf?src=${encodeURIComponent(href)}&title=${encodeURIComponent(title)}&from=${encodeURIComponent(route.fullPath)}`
+  }
+
+  const pdfAttr = (href: string) => (isPdfUrl(href) ? ' data-pdf-link="true"' : '')
+
   const urlRegex = /\bhttps?:\/\/[^\s<>"')\]}]+/gi
   const linkifyEscapedText = (escapedText: string) =>
     escapedText.replace(urlRegex, (matchedUrl) => {
-      const href = matchedUrl
-      return `<a href="${href}" target="_blank" rel="noopener noreferrer">${matchedUrl}</a>`
+      const href = toViewerHref(matchedUrl, pdfTitleFromHref(matchedUrl))
+      const target = isPdfUrl(matchedUrl) ? '' : ' target="_blank" rel="noopener noreferrer"'
+      return `<a href="${escapeHtml(href)}"${target}${pdfAttr(matchedUrl)}>${matchedUrl}</a>`
     })
 
   if (node.type === 'root' && Array.isArray(node.children)) {
@@ -92,19 +129,24 @@ function lexicalToHtml(node: any): string {
   if (node.type === 'list') {
     const tag = node.listType === 'number' ? 'ol' : 'ul'
     const inner = (node.children || []).map(lexicalToHtml).join('')
-    return inner ? `<${tag}>${inner}</${tag}>` : ''
+    if (!inner) return ''
+    if (tag === 'ol') return `<ol class="list-decimal ml-6 my-4">${inner}</ol>`
+    return `<ul class="list-disc ml-6 my-4">${inner}</ul>`
   }
   if (node.type === 'listitem') {
     const inner = (node.children || []).map(lexicalToHtml).join('')
-    return inner ? `<li>${inner}</li>` : ''
+    return inner ? `<li class="list-item my-1">${inner}</li>` : ''
   }
   if (node.type === 'link') {
     const inner = (node.children || []).map(lexicalToHtml).join('')
     const href = typeof node?.fields?.url === 'string' ? node.fields.url : (typeof node.url === 'string' ? node.url : '')
     if (!inner || !href) return inner
-    const safeHref = escapeHtml(href)
-    const target = (node?.fields?.newTab || node.newTab) ? ' target="_blank" rel="noopener noreferrer"' : ''
-    return `<a href="${safeHref}"${target}>${inner}</a>`
+    const viewerHref = toViewerHref(href, stripHtml(inner))
+    const safeHref = escapeHtml(viewerHref)
+    const target = isPdfUrl(href)
+      ? ''
+      : (node?.fields?.newTab || node.newTab) ? ' target="_blank" rel="noopener noreferrer"' : ''
+    return `<a href="${safeHref}"${target}${pdfAttr(href)}>${inner}</a>`
   }
   if (node.type === 'text') {
     let text = escapeHtml(node.text || '')
@@ -117,9 +159,12 @@ function lexicalToHtml(node: any): string {
   if (node.type === 'autolink') {
     const hrefRaw = node?.fields?.url || node?.url
     if (typeof hrefRaw !== 'string' || !hrefRaw) return ''
-    const href = escapeHtml(hrefRaw)
-    const inner = (node.children || []).map(lexicalToHtml).join('') || href
-    return `<a href="${href}" target="_blank" rel="noopener noreferrer">${inner}</a>`
+    const inner = (node.children || []).map(lexicalToHtml).join('')
+    const titleFromText = stripHtml(inner) || pdfTitleFromHref(hrefRaw)
+    const href = escapeHtml(toViewerHref(hrefRaw, titleFromText))
+    const fallbackInner = inner || href
+    const target = isPdfUrl(hrefRaw) ? '' : ' target="_blank" rel="noopener noreferrer"'
+    return `<a href="${href}"${target}${pdfAttr(hrefRaw)}>${fallbackInner}</a>`
   }
   if (Array.isArray(node.children)) return node.children.map(lexicalToHtml).join('')
   return ''
@@ -136,7 +181,62 @@ const contentHtml = computed(() => {
   return ''
 })
 
+function onContentClick(event: MouseEvent) {
+  if (!import.meta.client) return
+  if (event.defaultPrevented) return
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+
+  const target = event.target as HTMLElement | null
+  const link = target?.closest('a') as HTMLAnchorElement | null
+  if (!link) return
+  const hrefAttr = (link.getAttribute('href') || '').trim()
+  if (!hrefAttr) return
+
+  const text = (link.textContent || '').trim()
+  const looksLikePdf = /\.pdf(?:$|[?#])/i.test(hrefAttr)
+
+  // Handle absolute PDF links from raw HTML content by routing them through SPA viewer.
+  if (looksLikePdf && /^https?:\/\//i.test(hrefAttr)) {
+    event.preventDefault()
+    const title = text || 'PDF Document'
+    const to = `/pdf?src=${encodeURIComponent(hrefAttr)}&title=${encodeURIComponent(title)}&from=${encodeURIComponent(route.fullPath)}`
+    navigateTo(to)
+    return
+  }
+
+  const href = hrefAttr
+  if (/^https?:\/\//i.test(href)) {
+    try {
+      const url = new URL(href)
+      if (url.origin === window.location.origin) {
+        event.preventDefault()
+        navigateTo(`${url.pathname}${url.search}${url.hash}`)
+      }
+    } catch {}
+    return
+  }
+
+  if (!href.startsWith('/')) return
+
+  event.preventDefault()
+  navigateTo(href)
+}
+
 useHead({
   title: () => (page.value?.title ? `${page.value.title} | Asbury Connect` : 'Asbury Connect'),
 })
 </script>
+
+<style>
+.prose a[data-pdf-link="true"]::after {
+  content: '';
+  display: inline-block;
+  width: 0.95em;
+  height: 0.95em;
+  margin-left: 0.25em;
+  vertical-align: -0.12em;
+  background-color: #dc2626; /* red-600 */
+  -webkit-mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A//www.w3.org/2000/svg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M14%202H6a2%202%200%200%200-2%202v16a2%202%200%200%200%202%202h12a2%202%200%200%200%202-2V8z'/%3E%3Cpath%20d%3D'M14%202v6h6'/%3E%3Cpath%20d%3D'M16%2013H8'/%3E%3Cpath%20d%3D'M16%2017H8'/%3E%3Cpath%20d%3D'M10%209H8'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A//www.w3.org/2000/svg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M14%202H6a2%202%200%200%200-2%202v16a2%202%200%200%200%202%202h12a2%202%200%200%200%202-2V8z'/%3E%3Cpath%20d%3D'M14%202v6h6'/%3E%3Cpath%20d%3D'M16%2013H8'/%3E%3Cpath%20d%3D'M16%2017H8'/%3E%3Cpath%20d%3D'M10%209H8'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+</style>

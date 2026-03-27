@@ -110,6 +110,16 @@
           <h2 class="text-base font-semibold text-gray-900 truncate">
             {{ form.title?.trim() || (editingId ? `Page #${editingId}` : 'New page') }}
           </h2>
+          <div v-if="editingId && pagePathById.get(String(editingId))" class="mt-1">
+            <NuxtLink
+              class="text-xs font-medium text-[rgba(13,94,130,1)] hover:underline"
+              :to="pagePathById.get(String(editingId))"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View live page
+            </NuxtLink>
+          </div>
         </div>
       </template>
 
@@ -235,6 +245,10 @@
 <script setup lang="ts">
 import { getConnectPageBreadcrumbLabel } from '~/composables/useConnectPagesTree'
 import { CONNECT_PAGE_CATEGORIES, type ConnectPageCategory } from '~/composables/useConnectPagesTree'
+import { buildPagePathMap } from '~/composables/useConnectPagesTree'
+
+const route = useRoute()
+const router = useRouter()
 
 type ConnectPage = {
   id: number
@@ -281,6 +295,11 @@ const pages = computed<ConnectPage[]>(() => {
   const raw = pagesData.value
   const docs = Array.isArray(raw?.docs) ? raw.docs : []
   return docs
+})
+
+const pagePathById = computed(() => {
+  const { pathById } = buildPagePathMap(pages.value)
+  return pathById
 })
 
 const pagesError = computed(() => {
@@ -375,6 +394,12 @@ function resetEditor() {
   contentTipTap.value = { type: 'doc', content: [] }
   saveError.value = null
   savePending.value = false
+
+  // Keep the dashboard URL shareable/clean when closing the editor.
+  const nextQuery = { ...route.query }
+  delete (nextQuery as any).edit
+  delete (nextQuery as any).create
+  router.replace({ query: nextQuery })
 }
 
 const categoryOptions = CONNECT_PAGE_CATEGORIES.map((c) => ({ value: c.value, label: c.label }))
@@ -419,6 +444,7 @@ const pageCategoryLabelById = computed(() => {
 function openCreate() {
   resetEditor()
   editorOpen.value = true
+  router.replace({ query: { ...route.query, create: '1' } })
 }
 
 function openEdit(p: ConnectPage) {
@@ -433,7 +459,27 @@ function openEdit(p: ConnectPage) {
   form.value = { title: (p.title ?? '').toString(), slug: (p.slug ?? '').toString(), parentId, navCategory }
   contentTipTap.value = p.content ? lexicalToTipTap(p.content) : { type: 'doc', content: [] }
   editorOpen.value = true
+  router.replace({ query: { ...route.query, edit: String(p.id) } })
 }
+
+watch([canManage, pagesPending, pagesData, () => route.query.edit, () => route.query.create], () => {
+  if (!canManage.value) return
+  if (pagesPending.value) return
+
+  const edit = route.query.edit
+  const create = route.query.create
+
+  if (typeof edit === 'string' && edit.trim()) {
+    const id = Number(edit)
+    const p = Number.isFinite(id) ? pages.value.find((x) => x.id === id) : undefined
+    if (p && (!editorOpen.value || editingId.value !== p.id)) openEdit(p)
+    return
+  }
+
+  if (create === '1' && !editorOpen.value) {
+    openCreate()
+  }
+}, { immediate: true })
 
 const parentPageOptions = computed(() => (
   pages.value
