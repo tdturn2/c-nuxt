@@ -3,12 +3,17 @@
     <LeftColumn />
   <main class="flex-1 min-w-0 overflow-y-auto">
       <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <header class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-900 tracking-tight">
+      <header class="mb-8 overflow-hidden">
+        <img
+          src="https://ats-edu.storage.googleapis.com/uploads/Elementary_Podcast_Square_Cover.jpg"
+          alt="It's Elementary"
+          class="w-[130px] h-auto float-left mr-6 mb-2 rounded-lg"
+        />
+        <h1 class="text-3xl font-bold text-gray-900 tracking-tight leading-tight">
           It's Elementary Podcast
         </h1>
-        <p class="mt-2 text-gray-600 max-w-2xl">
-          Browse and listen to past It's Elementary podcast episodes.
+        <p class="mt-2 text-gray-600">
+          A weekly podcast about exploring theological curiosity, where we talk to interesting people and explore topics that come through Asbury Theological Seminary. Hosted by Dr. David Watson and Dr. Jessica LaGrone.
         </p>
       </header>
 
@@ -56,7 +61,7 @@
           >
             <div class="flex flex-col sm:flex-row sm:items-center gap-3">
               <!-- Date -->
-              <div class="flex-shrink-0 w-20 text-center sm:text-left">
+              <div class="shrink-0 w-20 text-center sm:text-left">
                 <span class="text-xs font-medium uppercase text-gray-500 tracking-wider">
                   {{ formatDate(ep.pubDate) }}
                 </span>
@@ -73,7 +78,7 @@
               </div>
 
               <!-- Play -->
-              <div class="flex-shrink-0">
+              <div class="shrink-0">
                 <UButton
                   variant="soft"
                   color="primary"
