@@ -39,6 +39,7 @@
 import { findConnectPageByPath } from '~/composables/useConnectPagesTree'
 
 const route = useRoute()
+const { playVideo } = useVideoPlayer()
 
 const { data: fetchData, pending, error } = await useFetch<
   { docs?: Array<{ id: number | string; title?: string; content?: unknown; slug?: string; parent?: unknown }> }
@@ -127,11 +128,76 @@ function lexicalToHtml(node: any): string {
       return `<a href="${escapeHtml(href)}"${target}${pdfAttr(matchedUrl)}${externalAttr(matchedUrl)}>${matchedUrl}</a>`
     })
 
+  /** Lexical TextNode: IS_CODE = 1 << 4 = 16 */
+  const IS_LEXICAL_CODE = 16
+
+  /**
+   * Inline code starting with `@connect-videos` + JSON array:
+   * `[{ "title": "…", "vimeoId": "123" }]` (also accepts `vimeo_id`)
+   */
+  const buildConnectVideoCollectionHtml = (raw: string): string | null => {
+    const t = raw.trim()
+    if (!t.startsWith('@connect-videos')) return null
+    const jsonStr = t.replace(/^@connect-videos\s*/i, '').trim()
+    if (!jsonStr) {
+      return '<div class="connect-video-collection not-prose my-2 text-xs text-amber-800">@connect-videos: empty JSON</div>'
+    }
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(jsonStr)
+    } catch {
+      return '<div class="connect-video-collection not-prose my-2 text-xs text-red-600">@connect-videos: invalid JSON</div>'
+    }
+    if (!Array.isArray(parsed)) {
+      return '<div class="connect-video-collection not-prose my-2 text-xs text-red-600">@connect-videos: expected JSON array</div>'
+    }
+    const rows: { title: string; id: string }[] = []
+    for (const row of parsed) {
+      if (!row || typeof row !== 'object') continue
+      const o = row as Record<string, unknown>
+      const id = String(o.vimeoId ?? o.vimeo_id ?? '').trim()
+      if (!id) continue
+      const title = String(o.title ?? '').trim() || `Video ${id}`
+      rows.push({ title, id })
+    }
+    if (!rows.length) {
+      return '<div class="connect-video-collection not-prose my-2 text-xs text-gray-500">@connect-videos: no valid items</div>'
+    }
+    const lis = rows
+      .map(
+        (r) =>
+          `<li class="my-0.5"><button type="button" class="text-[rgba(13,94,130,1)] hover:underline text-left w-full font-normal bg-transparent border-0 p-0 cursor-pointer" data-connect-play-vimeo="${escapeHtml(r.id)}" data-connect-video-title="${escapeHtml(r.title)}">${escapeHtml(r.title)}</button></li>`,
+      )
+      .join('')
+    return `<div class="connect-video-collection not-prose my-3 rounded border border-gray-200 bg-gray-50 p-3 text-sm"><ul class="list-none m-0 p-0 space-y-0.5">${lis}</ul></div>`
+  }
+
+  /** Walk Lexical tree: list items are often `listitem → paragraph → text`. */
+  const collectPlainText = (nodes: any): string => {
+    if (nodes == null) return ''
+    if (Array.isArray(nodes)) {
+      let out = ''
+      for (const n of nodes) out += collectPlainText(n)
+      return out
+    }
+    if (typeof nodes !== 'object') return ''
+    if (nodes.type === 'text') return typeof nodes.text === 'string' ? nodes.text : ''
+    if (nodes.type === 'linebreak' || nodes.type === 'lineBreak') return '\n'
+    if (Array.isArray(nodes.children)) return collectPlainText(nodes.children)
+    return ''
+  }
+
   if (node.type === 'root' && Array.isArray(node.children)) {
     return node.children.map(lexicalToHtml).join('')
   }
   if (node.type === 'paragraph') {
-    const inner = (node.children || []).map(lexicalToHtml).join('')
+    const ch = node.children || []
+    const plain = collectPlainText(ch)
+    if (plain.trim().startsWith('@connect-videos')) {
+      const block = buildConnectVideoCollectionHtml(plain)
+      if (block !== null) return block
+    }
+    const inner = ch.map(lexicalToHtml).join('')
     return inner ? `<p class="mb-4 leading-relaxed">${inner}</p>` : ''
   }
   if (node.type === 'heading') {
@@ -151,7 +217,13 @@ function lexicalToHtml(node: any): string {
     return `<ul class="list-disc ml-6 my-2">${inner}</ul>`
   }
   if (node.type === 'listitem') {
-    const inner = (node.children || []).map(lexicalToHtml).join('')
+    const ch = node.children || []
+    const plain = collectPlainText(ch)
+    if (plain.trim().startsWith('@connect-videos')) {
+      const block = buildConnectVideoCollectionHtml(plain)
+      if (block !== null) return `<li class="list-item my-0 py-0.5">${block}</li>`
+    }
+    const inner = ch.map(lexicalToHtml).join('')
     return inner ? `<li class="list-item my-0 py-0.5">${inner}</li>` : ''
   }
   if (node.type === 'link') {
@@ -165,12 +237,43 @@ function lexicalToHtml(node: any): string {
       : (node?.fields?.newTab || node.newTab) ? ' target="_blank" rel="noopener noreferrer"' : ''
     return `<a href="${safeHref}"${target}${pdfAttr(href)}${externalAttr(href)}>${inner}</a>`
   }
+  if (node.type === 'inlineCode') {
+    const raw =
+      typeof node.text === 'string'
+        ? node.text
+        : collectPlainText(Array.isArray(node.children) ? node.children : [])
+    const collection = buildConnectVideoCollectionHtml(raw)
+    if (collection !== null) return collection
+    return `<code class="rounded bg-gray-100 px-1.5 py-0.5 text-[0.875em] font-mono text-gray-800">${escapeHtml(raw)}</code>`
+  }
+  if (node.type === 'code') {
+    const raw =
+      typeof (node as { code?: string }).code === 'string'
+        ? (node as { code: string }).code
+        : collectPlainText(Array.isArray(node.children) ? node.children : [])
+    if (raw.trim().startsWith('@connect-videos')) {
+      const collection = buildConnectVideoCollectionHtml(raw)
+      if (collection !== null) return collection
+    }
+    return `<pre class="not-prose my-3 overflow-x-auto rounded border border-gray-200 bg-gray-50 p-3 text-xs"><code class="font-mono text-gray-800">${escapeHtml(raw)}</code></pre>`
+  }
   if (node.type === 'text') {
-    let text = escapeHtml(node.text || '')
+    const raw = node.text || ''
+    const format = Number(node.format) || 0
+    const isCode = !!(format & IS_LEXICAL_CODE)
+    const looksLikeVideos = raw.trim().startsWith('@connect-videos')
+    if (isCode || looksLikeVideos) {
+      const collection = buildConnectVideoCollectionHtml(raw)
+      if (collection !== null) return collection
+      if (isCode) {
+        return `<code class="rounded bg-gray-100 px-1.5 py-0.5 text-[0.875em] font-mono text-gray-800">${escapeHtml(raw)}</code>`
+      }
+    }
+    let text = escapeHtml(raw)
     if (!text) return ''
-    if (node.format & 1) text = `<strong>${text}</strong>`
-    if (node.format & 2) text = `<em>${text}</em>`
-    if (node.format & 8) text = `<u>${text}</u>`
+    if (format & 1) text = `<strong>${text}</strong>`
+    if (format & 2) text = `<em>${text}</em>`
+    if (format & 8) text = `<u>${text}</u>`
     return linkifyEscapedText(text)
   }
   if (node.type === 'autolink') {
@@ -204,6 +307,15 @@ function onContentClick(event: MouseEvent) {
   if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
 
   const target = event.target as HTMLElement | null
+  const playEl = target?.closest('[data-connect-play-vimeo]') as HTMLElement | null
+  if (playEl) {
+    event.preventDefault()
+    const id = playEl.getAttribute('data-connect-play-vimeo')?.trim()
+    const title = playEl.getAttribute('data-connect-video-title')?.trim() || 'Video'
+    if (id) playVideo({ vimeoId: id, title })
+    return
+  }
+
   const link = target?.closest('a') as HTMLAnchorElement | null
   if (!link) return
   const hrefAttr = (link.getAttribute('href') || '').trim()
