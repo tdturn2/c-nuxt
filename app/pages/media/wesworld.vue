@@ -10,7 +10,7 @@
           class="w-[120px] h-auto float-left mr-6 mb-2 rounded-lg"
         />
         <h1 class="text-3xl font-bold text-gray-900 tracking-tight leading-tight">
-          WesWorld Archive
+          WesWorld
         </h1>
         <p class="mt-2 text-gray-600">
           A biweekly podcast about all things Wesleyan and beyond: hosted by Maggie Ulmer, Dr. Scott Kisker, and Dr. David Watson.

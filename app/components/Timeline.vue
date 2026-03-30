@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-2xl mx-auto px-4 py-8">
+  <div class="max-w-2xl mx-auto px-4 py-6">
     <!-- Category Tabs + Create Post icon -->
     <div class="flex items-center justify-between gap-4 mb-6">
       <UTabs
@@ -51,7 +51,7 @@
     <div v-else-if="error" class="text-center py-8 text-red-600">
       Error loading timeline: {{ error }}
     </div>
-    <div v-else-if="displayedPosts && displayedPosts.length > 0" class="space-y-6">
+    <div v-else-if="displayedPosts && displayedPosts.length > 0" class="space-y-0">
       <Post
         v-for="post in displayedPosts"
         :key="`${post.id}-${post.reactionRefreshAt ?? 0}`"

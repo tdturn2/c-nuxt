@@ -10,7 +10,7 @@
           class="w-[130px] h-auto float-left mr-6 mb-2 rounded-lg"
         />
         <h1 class="text-3xl font-bold text-gray-900 tracking-tight leading-tight">
-          It's Elementary Podcast
+          It's Elementary
         </h1>
         <p class="mt-2 text-gray-600">
           A weekly podcast about exploring theological curiosity, where we talk to interesting people and explore topics that come through Asbury Theological Seminary. Hosted by Dr. David Watson and Dr. Jessica LaGrone.

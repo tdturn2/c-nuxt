@@ -1,7 +1,7 @@
 <template>
-  <article class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+  <article class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-3">
     <!-- Post Header -->
-    <div class="p-4 flex items-center gap-3">
+    <div class="px-4 py-3 flex items-center gap-2.5">
       <UPopover
         :open="showHoverCard"
         :popper="{ placement: 'top-start', strategy: 'fixed' }"
@@ -15,7 +15,7 @@
         >
           <NuxtLink
             :to="`/user/${getUsernameFromEmail(displayUser.email)}`"
-            class="block w-10 h-10 rounded-full bg-gray-300 flex-shrink-0 flex items-center justify-center overflow-hidden hover:opacity-80 transition-opacity"
+            class="flex w-10 h-10 rounded-full bg-gray-300 shrink-0 items-center justify-center overflow-hidden hover:opacity-80 transition-opacity"
           >
             <img
               v-if="avatarUrl"
@@ -48,7 +48,7 @@
             </div>
             <template v-else-if="hoverCardData">
               <div class="p-4 flex gap-3">
-                <div class="w-14 h-14 rounded-full bg-gray-200 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                <div class="w-14 h-14 rounded-full bg-gray-200 shrink-0 overflow-hidden flex items-center justify-center">
                   <img
                     v-if="hoverCardData.avatarUrl"
                     :src="hoverCardData.avatarUrl"
@@ -86,7 +86,7 @@
         </template>
       </UPopover>
       <!-- Edit/Delete (only for own posts) -->
-      <div v-if="isOwnPost && !isEditing" class="flex items-center gap-3 flex-shrink-0">
+      <div v-if="isOwnPost && !isEditing" class="flex items-center gap-3 shrink-0">
         <a
           href="#"
           @click.prevent="handleEditClick"
@@ -105,7 +105,7 @@
     </div>
 
     <!-- Post Content (display mode) -->
-    <div v-if="!isEditing && (postContent || youtubeEmbeds.length > 0)" class="px-4 pb-4">
+    <div v-if="!isEditing && (postContent || youtubeEmbeds.length > 0)" class="px-4 pb-2">
       <div 
         class="text-gray-900 whitespace-pre-wrap"
         :style="!isExpanded && shouldTruncate ? 'display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;' : ''"
@@ -159,7 +159,7 @@
     </div>
 
     <!-- Post Content (edit mode) -->
-    <div v-if="isEditing" class="px-4 pb-4">
+    <div v-if="isEditing" class="px-4 pb-2.5">
       <textarea
         v-model="editText"
         rows="4"
@@ -324,7 +324,7 @@
     </div>
 
     <!-- Post Images -->
-    <div v-if="!isEditing && post.images && post.images.length > 0" class="px-4 pb-4">
+    <div v-if="!isEditing && post.images && post.images.length > 0" class="px-4 pb-2">
       <div v-if="post.images.length === 1 && post.images[0]?.image" class="rounded-xl overflow-hidden">
         <button
           type="button"
@@ -357,8 +357,8 @@
     </div>
 
     <!-- Post Actions -->
-    <div class="border-t border-gray-200 px-4 py-3">
-      <div class="flex items-center gap-6">
+    <div class="border-t border-gray-200 px-4 py-2">
+      <div class="flex items-center gap-3">
         <!-- Reaction Button with Picker -->
         <UPopover :open="showReactionPicker" @update:open="showReactionPicker = $event" :popper="{ placement: 'top' }">
           <template #default="{ open }">
@@ -366,15 +366,16 @@
               :disabled="togglingReaction || !currentUserId"
               variant="ghost"
               color="neutral"
+              size="sm"
               :class="[
-                'flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
-                userReaction ? getReactionConfig(userReaction).color : '!text-gray-600 hover:!text-gray-900'
+                'min-h-0 py-1! px-2! flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+                userReaction ? getReactionConfig(userReaction).color : 'text-gray-600! hover:text-gray-900!'
               ]"
             >
-              <span class="text-xl" :class="userReaction ? '' : 'opacity-60'">
+              <span class="text-base leading-none" :class="userReaction ? '' : 'opacity-60'">
                 {{ userReaction ? getReactionConfig(userReaction).emoji : '👍' }}
               </span>
-              <span class="text-sm font-medium">
+              <span class="text-xs font-medium">
                 {{ userReaction ? getReactionConfig(userReaction).label : 'Like' }}
               </span>
             </UButton>
@@ -411,16 +412,16 @@
         
         <button 
           @click="handleCommentClick"
-          class="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+          class="flex items-center gap-1.5 text-gray-600 hover:text-gray-900 transition-colors py-1 px-1 rounded-md hover:bg-gray-50"
         >
-          <UIcon name="i-heroicons-chat-bubble-left-right" class="w-5 h-5" />
-          <span class="text-sm font-medium">Comment</span>
+          <UIcon name="i-heroicons-chat-bubble-left-right" class="w-4 h-4 shrink-0" />
+          <span class="text-xs font-medium">Comment</span>
           <span v-if="commentCount > 0" class="text-xs text-gray-500">({{ commentCount }})</span>
         </button>
       </div>
       
       <!-- Reaction Summary -->
-      <div v-if="reactions.length > 0" class="mt-3 flex items-center gap-2">
+      <div v-if="reactions.length > 0" class="mt-1.5 flex items-center gap-2">
         <!-- Reaction Type Icons -->
         <div class="flex items-center gap-1">
           <template v-for="(count, type) in reactionCountsByType" :key="type">
@@ -457,9 +458,9 @@
       </div>
 
       <!-- Comments Section -->
-      <div v-if="showComments" class="border-t border-gray-200 px-4 py-4 mt-3">
+      <div v-if="showComments" class="border-t border-gray-200 px-4 py-2 mt-2">
         <!-- Comment Form -->
-        <div v-if="currentUserId" class="mb-4 relative">
+        <div v-if="currentUserId" class="mb-2.5 relative">
           <textarea
             ref="commentTextareaRef"
             v-model="newCommentText"
@@ -477,7 +478,7 @@
             @select="handleMentionSelect"
             @update-selected-index="mentionSelectedIndex = $event"
           />
-          <div class="flex items-center justify-end gap-2 mt-2">
+          <div class="flex items-center justify-end gap-2 mt-1.5">
             <button
               @click="submitComment"
               :disabled="!newCommentText.trim() || submittingComment"
@@ -492,7 +493,7 @@
         <div v-if="loadingComments" class="text-center py-4 text-gray-500 text-sm">
           Loading comments...
         </div>
-        <div v-else-if="organizedComments.length > 0" class="space-y-4">
+        <div v-else-if="organizedComments.length > 0" class="space-y-2.5">
           <Comment
             v-for="comment in organizedComments"
             :key="comment.id"
