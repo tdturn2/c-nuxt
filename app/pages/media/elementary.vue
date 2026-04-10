@@ -78,7 +78,7 @@
               </div>
 
               <!-- Play -->
-              <div class="shrink-0">
+              <div class="shrink-0 flex flex-wrap items-center gap-2">
                 <UButton
                   variant="soft"
                   color="primary"
@@ -87,6 +87,16 @@
                   leading-icon="i-heroicons-play"
                 >
                   Play Audio
+                </UButton>
+                <UButton
+                  variant="soft"
+                  color="neutral"
+                  size="sm"
+                  :disabled="!getYoutubeId(ep)"
+                  @click="playEpisodeVideo(ep)"
+                  leading-icon="i-heroicons-film"
+                >
+                  Watch Video
                 </UButton>
               </div>
             </div>
@@ -100,6 +110,8 @@
 
 <script setup lang="ts">
 import type { PodcastFeed, PodcastEpisode } from '~/composables/usePodcasts'
+import type { YoutubePlaylistItem } from '@shared/matchPodcastYoutube'
+import { matchYoutubeVideoId } from '@shared/matchPodcastYoutube'
 
 const { getPodcast } = usePodcasts()
 const podcast = getPodcast('elementary')
@@ -108,6 +120,11 @@ const rssUrl = podcast?.rssUrl ?? ''
 const { data: feedData, pending, error } = await useFetch<PodcastFeed>('/api/podcasts/feed', {
   query: { rssUrl }
 })
+
+const { data: ytPlaylist } = await useFetch<{ items: YoutubePlaylistItem[] }>(
+  '/api/youtube/elementary-playlist'
+)
+const ytItems = computed(() => ytPlaylist.value?.items ?? [])
 
 const episodes = computed(() => {
   const feed = feedData.value
@@ -143,6 +160,17 @@ function formatDate(pubDate?: string): string {
 }
 
 const { playTrack } = useAudioPlayer()
+const { playVideo } = useVideoPlayer()
+
+function getYoutubeId(ep: PodcastEpisode): string | undefined {
+  return matchYoutubeVideoId(ep, ytItems.value)
+}
+
+function playEpisodeVideo(ep: PodcastEpisode) {
+  const youtubeId = getYoutubeId(ep)
+  if (!youtubeId) return
+  playVideo({ youtubeId, title: ep.title || "It's Elementary" })
+}
 
 function playEpisode(ep: PodcastEpisode) {
   playTrack({

@@ -1,5 +1,5 @@
-import { defineEventHandler, readBody, createError, getRouterParam } from 'h3'
-import { authenticateWithPayloadCMS } from '../../../utils/payloadAuth'
+import { readBody, createError, getRouterParam, type H3Event } from 'h3'
+import { authenticateWithPayloadCMS } from './payloadAuth'
 
 type UpdateBody = {
   email?: string
@@ -10,6 +10,8 @@ type UpdateBody = {
   order?: number
   section?: unknown
   content?: any
+  contactsHeading?: string | null
+  contacts?: any
 }
 
 function normalizeRelId(value: any): number | string | null {
@@ -27,7 +29,32 @@ function toIdList(value: any): Array<number | string> {
   return value.map(normalizeRelId).filter((v): v is number | string => v != null)
 }
 
-export default defineEventHandler(async (event) => {
+/** e.g. http://localhost:3002/api → http://localhost:3002 */
+function payloadOrigin(raw: string): string {
+  let b = raw.trim().replace(/\/+$/, '')
+  if (b.endsWith('/api')) b = b.slice(0, -4).replace(/\/+$/, '')
+  return b
+}
+
+function upstreamStatus(err: any): number {
+  return err?.statusCode ?? err?.response?.status ?? err?.status ?? 0
+}
+
+function mapUpstreamError(err: any) {
+  return createError({
+    statusCode: upstreamStatus(err) || 502,
+    statusMessage: err?.statusMessage || err?.message || 'Failed to update page',
+    data: err?.data ?? err?.response?._data,
+  })
+}
+
+/**
+ * Proxies dashboard “save page” to Payload. Tries, in order:
+ * 1) POST /api/{payloadConnectPagesUpdatePath}/:id (SSO body includes `email`)
+ * 2) PATCH same URL (some Payload custom routes only register PATCH)
+ * 3) PATCH /api/connect-pages/:id with Bearer from connect-users/sync (native REST)
+ */
+export async function handleConnectPagesPayloadUpdate(event: H3Event) {
   const config = useRuntimeConfig()
   const payloadBaseUrl =
     (config.payloadBaseUrl || config.public.payloadBaseUrl || '').trim() ||
@@ -37,6 +64,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, statusMessage: 'Missing PAYLOAD_BASE_URL' })
   }
 
+  const origin = payloadOrigin(payloadBaseUrl)
+  const updatePath = String((config as { payloadConnectPagesUpdatePath?: string }).payloadConnectPagesUpdatePath || 'connect-pages/update')
+    .replace(/^\/+/, '')
+    .replace(/\/+$/, '')
+
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'Page ID is required' })
 
@@ -45,16 +77,15 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized - must be signed in' })
   }
 
-  // Detect admin-style Payload session: token that can access /api/users/me.
-  let isAdminTokenSession = false
+  let isPayloadAdminJwt = false
   if (token) {
     try {
-      await $fetch(`${payloadBaseUrl}/api/users/me`, {
+      await $fetch(`${origin}/api/users/me`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      isAdminTokenSession = true
+      isPayloadAdminJwt = true
     } catch {
-      isAdminTokenSession = false
+      isPayloadAdminJwt = false
     }
   }
 
@@ -63,9 +94,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden - email mismatch' })
   }
 
-  // Load connect-user to support role-based admin (connect-users.roles includes 'admin').
   const connectUserRes: any = await $fetch(
-    `${payloadBaseUrl}/api/connect-users?where[email][equals]=${encodeURIComponent(sessionEmail)}&limit=1&depth=2`
+    `${origin}/api/connect-users?where[email][equals]=${encodeURIComponent(sessionEmail)}&limit=1&depth=2`
   ).catch((err: any) => {
     throw createError({
       statusCode: err?.statusCode || 502,
@@ -81,10 +111,9 @@ export default defineEventHandler(async (event) => {
   ].filter((r): r is string => typeof r === 'string' && r.length > 0)
 
   const isConnectAdmin = connectUserRoles.includes('admin')
-  const isAdminSession = isAdminTokenSession || isConnectAdmin
+  const isAdminSession = isPayloadAdminJwt || isConnectAdmin
 
-  // Load existing page (need its current section for permission checks).
-  const existing: any = await $fetch(`${payloadBaseUrl}/api/connect-pages/${encodeURIComponent(id)}?depth=2`).catch((err: any) => {
+  const existing: any = await $fetch(`${origin}/api/connect-pages/${encodeURIComponent(id)}?depth=2`).catch((err: any) => {
     throw createError({
       statusCode: err?.statusCode || 502,
       statusMessage: err?.statusMessage || 'Failed to load page',
@@ -99,24 +128,14 @@ export default defineEventHandler(async (event) => {
     null
 
   if (!isAdminSession) {
-    // Non-admin rules:
-    // - can update only if page's existing section is in their editableSections
-    // - cannot change section via this endpoint
     if (!connectUser) throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
 
-    // Note: `[]` is truthy, so don't use `||` here.
     const editableSectionIds = [
       ...toIdList(connectUser?.editableSections),
       ...toIdList(connectUser?.fields?.editableSections),
     ]
 
     if (!existingSectionId || !editableSectionIds.includes(existingSectionId)) {
-      console.warn('[connect-pages/update] Forbidden - section mismatch', {
-        pageId: id,
-        email: sessionEmail,
-        existingSectionId,
-        editableSectionIds,
-      })
       throw createError({ statusCode: 403, statusMessage: 'Forbidden - not allowed to edit this section' })
     }
 
@@ -126,7 +145,6 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // Build payload update body. For SSO updates, always include email.
   const payloadUpdate: Record<string, unknown> = { email: sessionEmail }
   if (typeof body.title === 'string') payloadUpdate.title = body.title
   if (typeof body.slug === 'string') payloadUpdate.slug = body.slug
@@ -135,33 +153,48 @@ export default defineEventHandler(async (event) => {
   if (body.order !== undefined) payloadUpdate.order = body.order
   if (body.section !== undefined && isAdminSession) payloadUpdate.section = body.section
   if (body.content !== undefined) payloadUpdate.content = body.content
+  if (body.contactsHeading !== undefined) payloadUpdate.contactsHeading = body.contactsHeading
+  if (body.contacts !== undefined) payloadUpdate.contacts = toIdList(body.contacts)
 
-  // Important: For non-admin SSO updates, do NOT forward a non-admin token.
-  // Payload custom SSO endpoints typically authorize based on the `email` in body.
-  // Sending a non-admin Bearer token can cause Payload to reject the request even if the SSO email is allowed.
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  const customUpdateUrl = `${origin}/api/${updatePath}/${encodeURIComponent(id)}`
+  const jsonHeaders = { 'Content-Type': 'application/json' }
 
-  // Admin token can PATCH collection directly; otherwise use Payload custom endpoint (email-based auth).
-  const url = isAdminTokenSession
-    ? `${payloadBaseUrl}/api/connect-pages/${encodeURIComponent(id)}`
-    : `${payloadBaseUrl}/api/connect-pages/update/${encodeURIComponent(id)}`
-
-  if (isAdminTokenSession && token) headers.Authorization = `Bearer ${token}`
-
-  try {
-    return await $fetch(url, {
-      method: 'PATCH',
-      headers,
+  const tryCustom = async (method: 'POST' | 'PATCH') =>
+    $fetch(customUpdateUrl, {
+      method,
+      headers: jsonHeaders,
       body: payloadUpdate,
     })
-  } catch (err: any) {
-    if (err?.statusCode === 401 || err?.statusCode === 403) throw err
-    console.error('connect-pages sso update error:', err)
-    throw createError({
-      statusCode: err?.statusCode || 500,
-      statusMessage: err?.statusMessage || 'Failed to update page',
-      data: err?.data,
-    })
-  }
-})
 
+  try {
+    try {
+      return await tryCustom('POST')
+    } catch (first: any) {
+      if (upstreamStatus(first) !== 404) throw mapUpstreamError(first)
+      try {
+        return await tryCustom('PATCH')
+      } catch (second: any) {
+        if (upstreamStatus(second) !== 404 || !token) throw mapUpstreamError(second)
+        const patchBody: Record<string, unknown> = { ...payloadUpdate }
+        delete patchBody.email
+        try {
+          return await $fetch(`${origin}/api/connect-pages/${encodeURIComponent(id)}`, {
+            method: 'PATCH',
+            headers: { ...jsonHeaders, Authorization: `Bearer ${token}` },
+            body: patchBody,
+          })
+        } catch (third: any) {
+          console.error('connect-pages update proxy: custom POST/PATCH 404, REST PATCH failed', {
+            customUpdateUrl,
+            restUrl: `${origin}/api/connect-pages/${id}`,
+          })
+          throw mapUpstreamError(third)
+        }
+      }
+    }
+  } catch (err: any) {
+    if (typeof err?.statusCode === 'number') throw err
+    console.error('connect-pages update proxy error:', err)
+    throw mapUpstreamError(err)
+  }
+}

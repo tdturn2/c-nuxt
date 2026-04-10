@@ -1,4 +1,9 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const projectDir = dirname(fileURLToPath(import.meta.url))
+
 // Auth public URL — sidebase reads NUXT_PUBLIC_AUTH_BASE_URL / AUTH_ORIGIN first, NOT AUTH_URL.
 // https://auth.sidebase.io/guide/advanced/url-resolutions
 // Set one of these in Vercel (Production + Preview if you use previews), e.g. https://your-app.vercel.app/api/auth
@@ -8,11 +13,15 @@ const authBaseUrl =
   process.env.AUTH_URL ||
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}/api/auth` : undefined)
 const nitroPreset = process.env.VERCEL ? 'vercel' : undefined
+const devAuthBaseUrl = process.env.NODE_ENV !== 'production' ? '/api/auth' : undefined
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: process.env.NODE_ENV !== 'production' },
   sourcemap: false,
+  alias: {
+    '@shared': join(projectDir, 'shared'),
+  },
   modules: ['@nuxt/ui', '@sidebase/nuxt-auth'],
   ssr: false, // SPA mode - no SSR needed for intranet
   colorMode: {
@@ -22,6 +31,12 @@ export default defineNuxtConfig({
   },
   // Rollup warns when any chunk > 500 kB; Vercel logs often show `[warn]` with the message on the next lines (looks "empty").
   vite: {
+    server: {
+      // macOS often has low default file-watch limits; aggressively ignore large folders.
+      watch: {
+        ignored: ['**/node_modules/**', '**/.git/**', '**/.nuxt/**', '**/.output/**']
+      }
+    },
     build: {
       chunkSizeWarningLimit: 900
     }
@@ -42,7 +57,8 @@ export default defineNuxtConfig({
     provider: {
       type: 'authjs'
     },
-    baseURL: authBaseUrl,
+    // In dev, Nuxt may shift ports (e.g. 3000 -> 3001). A relative baseURL avoids mismatches.
+    baseURL: authBaseUrl ?? devAuthBaseUrl,
     globalAppMiddleware: {
       isEnabled: true, 
       addDefaultCallbackUrl: true
@@ -94,6 +110,9 @@ export default defineNuxtConfig({
     payloadApiUrl: process.env.PAYLOAD_API_URL
       ? `${process.env.PAYLOAD_API_URL}/api/connect-posts`
       : undefined,
-    payloadBaseUrl: process.env.PAYLOAD_BASE_URL
+    payloadBaseUrl: process.env.PAYLOAD_BASE_URL,
+    // Path segments before :id for dashboard SSO update (default matches POST /api/connect-pages/update/:id)
+    payloadConnectPagesUpdatePath:
+      process.env.PAYLOAD_CONNECT_PAGES_UPDATE_PATH || 'connect-pages/update',
   }
 })

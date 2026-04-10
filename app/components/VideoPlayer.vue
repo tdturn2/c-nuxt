@@ -75,24 +75,36 @@ const destroyPlyr = () => {
   }
 }
 
-const initPlyr = async (vimeoId: string) => {
+type EmbedKind = 'vimeo' | 'youtube'
+
+const initPlyr = async (kind: EmbedKind, embedId: string) => {
   if (!import.meta.client || !PlyrPromise || !container.value) return
 
   const Plyr = await PlyrPromise
 
-  // Guard after await
-  if (currentVideo.value?.vimeoId !== vimeoId || !container.value) return
+  // Guard after await — current track may have changed
+  const v = currentVideo.value
+  if (!container.value || !v) return
+  if (kind === 'vimeo' && v.vimeoId !== embedId) return
+  if (kind === 'youtube' && v.youtubeId !== embedId) return
 
   // Wipe whatever Plyr left behind and put a fresh target div in
   container.value.innerHTML = ''
   const target = document.createElement('div')
-  target.setAttribute('data-plyr-provider', 'vimeo')
-  target.setAttribute('data-plyr-embed-id', vimeoId)
+  target.setAttribute('data-plyr-provider', kind)
+  target.setAttribute('data-plyr-embed-id', embedId)
   container.value.appendChild(target)
 
   const plyr = new Plyr(target, {
     ratio: '16:9',
     hideControls: false,
+    ...(kind === 'youtube'
+      ? {
+          youtube: {
+            noCookie: true,
+          },
+        }
+      : {}),
     controls: [
       'play-large',
       'play',
@@ -111,13 +123,21 @@ const initPlyr = async (vimeoId: string) => {
   plyrInstance = plyr
 }
 
+const embedRef = computed(() => {
+  const v = currentVideo.value
+  if (!v) return null
+  if (v.youtubeId?.trim()) return { kind: 'youtube' as const, id: v.youtubeId.trim() }
+  if (v.vimeoId?.trim()) return { kind: 'vimeo' as const, id: v.vimeoId.trim() }
+  return null
+})
+
 watch(
-  () => currentVideo.value?.vimeoId,
-  async (vimeoId) => {
+  embedRef,
+  async (ref) => {
     destroyPlyr()
-    if (!vimeoId) return
+    if (!ref) return
     await nextTick()
-    initPlyr(vimeoId)
+    initPlyr(ref.kind, ref.id)
   },
   { immediate: true }
 )

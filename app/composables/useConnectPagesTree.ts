@@ -222,8 +222,18 @@ export function buildConnectPageCategoryNavItems(rawPages: any[]): NavigationMen
   }))
 }
 
+/** Strip query/hash so lookups work for URLs like `/docs/page#faq` or pasted full paths. */
+export function normalizeConnectPageLookupPath(path: string) {
+  let p = typeof path === 'string' ? path.trim() : ''
+  const qi = p.indexOf('?')
+  if (qi >= 0) p = p.slice(0, qi)
+  const hi = p.indexOf('#')
+  if (hi >= 0) p = p.slice(0, hi)
+  return `/${p.replace(/^\/+|\/+$/g, '')}`.replace(/\/+/g, '/')
+}
+
 export function findConnectPageByPath(rawPages: any[], path: string) {
-  const normalizedPath = `/${path.replace(/^\/+|\/+$/g, '')}`.replace(/\/+/g, '/')
+  const normalizedPath = normalizeConnectPageLookupPath(path)
   const pages = rawPages.map(normalizeConnectPage)
   const { pathById } = buildPagePathMap(pages)
   const match = pages.find((p) => pathById.get(String(p.id)) === normalizedPath)

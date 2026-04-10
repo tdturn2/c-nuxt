@@ -1,6 +1,24 @@
 import { defineEventHandler, readBody, createError } from 'h3'
 import { authenticateWithPayloadCMS } from '../utils/payloadAuth'
 
+function toProxyError(err: any, fallbackMessage: string) {
+  const statusCode =
+    err?.statusCode ??
+    err?.response?.status ??
+    err?.response?.statusCode ??
+    err?.status ??
+    500
+
+  const data = err?.data ?? err?.response?._data ?? err?.response?.data
+  const statusMessage =
+    data?.message ||
+    err?.statusMessage ||
+    err?.message ||
+    fallbackMessage
+
+  return createError({ statusCode, statusMessage, data })
+}
+
 export default defineEventHandler(async (event) => {
   const { token, email: sessionEmail } = await authenticateWithPayloadCMS(event)
   if (!sessionEmail) {
@@ -32,11 +50,7 @@ export default defineEventHandler(async (event) => {
   const connectUserRes: any = await $fetch(
     `${payloadBaseUrl}/api/connect-users?where[email][equals]=${encodeURIComponent(sessionEmail)}&limit=1&depth=0`
   ).catch((err: any) => {
-    throw createError({
-      statusCode: err?.statusCode || 502,
-      statusMessage: err?.statusMessage || 'Failed to load connect-user',
-      data: err?.data,
-    })
+    throw toProxyError(err, 'Failed to load connect-user')
   })
 
   const connectUser = Array.isArray(connectUserRes?.docs) ? connectUserRes.docs[0] : null
@@ -52,8 +66,16 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden - email mismatch' })
   }
 
+  const rawTitle = typeof body?.title === 'string' ? body.title.trim() : ''
+  const rawSlug = typeof body?.slug === 'string' ? body.slug.trim() : ''
+  if (!rawTitle) throw createError({ statusCode: 400, statusMessage: 'Title is required' })
+  if (!rawSlug) throw createError({ statusCode: 400, statusMessage: 'Slug is required' })
+
   // For SSO-style create, always include email so Payload can authorize.
-  const payloadBody = typeof body === 'object' && body != null ? { ...body, email: sessionEmail } : { email: sessionEmail }
+  const payloadBody =
+    typeof body === 'object' && body != null
+      ? { ...body, title: rawTitle, slug: rawSlug, email: sessionEmail }
+      : { title: rawTitle, slug: rawSlug, email: sessionEmail }
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (isAdminTokenSession && token) headers.Authorization = `Bearer ${token}`
@@ -77,11 +99,7 @@ export default defineEventHandler(async (event) => {
       })
     }
     console.error('connect-pages create error:', err)
-    throw createError({
-      statusCode: err?.statusCode || 500,
-      statusMessage: err?.statusMessage || 'Failed to create page',
-      data: err?.data,
-    })
+    throw toProxyError(err, 'Failed to create page')
   }
 })
 

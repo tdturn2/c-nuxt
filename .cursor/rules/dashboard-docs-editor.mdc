@@ -14,7 +14,7 @@ alwaysApply: false
 - Prefer defensive checks (null/undefined/shape mismatch) and return an empty doc/root.
 
 ## Update endpoint selection (important)
-- When editing existing pages, call `PATCH /api/connect-pages/update/:id` (SSO-style rules).
+- When editing existing pages, call `PATCH` or `POST` `/api/connect-pages-update/:id`. That Nitro route proxies to Payload `POST /api/connect-pages/update/:id` with session `email` in the body (SSO-style).
 - When creating pages, use the create endpoint already used by the dashboard.
 - Do not call the generic `/api/connect-pages/:id` patch route from the dashboard UI unless explicitly doing admin-only updates.
 

@@ -9,6 +9,7 @@
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
+    "dev:clean": "sh -c 'for p in 3000 3001; do lsof -ti:$p | xargs kill -9 2>/dev/null; done; ulimit -n 10000; exec nuxt dev --port 3000'",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare"

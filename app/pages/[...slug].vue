@@ -29,6 +29,75 @@
           <div v-else-if="page.content" class="prose prose-gray max-w-none text-gray-600">
             <p>Content format is not supported for display.</p>
           </div>
+
+          <section v-if="contacts.length" class="mt-10 not-prose max-w-3xl">
+            <h2 class="text-xl font-semibold text-gray-900">
+              {{ contactsHeading }}
+            </h2>
+            <ul
+              role="list"
+              class="mt-4 overflow-hidden rounded-xl border border-gray-200/80 bg-white shadow-sm divide-y divide-gray-100"
+            >
+              <li
+                v-for="c in contacts"
+                :key="c.id"
+                class="flex gap-3 sm:gap-4 px-4 py-3.5 sm:px-5 sm:py-4 min-w-0 transition-colors hover:bg-gray-50/90"
+              >
+                <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 ring-1 ring-gray-200/60 shrink-0">
+                  <img
+                    v-if="c.avatar?.url"
+                    :src="c.avatar.url"
+                    :alt="c.name || 'Contact avatar'"
+                    class="w-full h-full object-cover"
+                    loading="lazy"
+                    decoding="async"
+                  >
+                  <div
+                    v-else
+                    class="w-full h-full flex items-center justify-center text-xs font-semibold text-gray-500 tabular-nums"
+                    aria-hidden="true"
+                  >
+                    {{ initialsForContact(c.name) }}
+                  </div>
+                </div>
+                <div class="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                  <div class="min-w-0">
+                    <div class="font-semibold text-gray-900 leading-snug">
+                      {{ c.name || '—' }}
+                    </div>
+                    <p v-if="c.employeeTitle" class="mt-0.5 text-sm text-gray-600 leading-snug">
+                      {{ c.employeeTitle }}
+                    </p>
+                  </div>
+                  <div
+                    v-if="c.email || c.phone"
+                    class="mt-2 sm:mt-0 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm shrink-0 sm:justify-end"
+                  >
+                    <a
+                      v-if="c.email"
+                      class="text-[rgba(13,94,130,1)] hover:underline truncate max-w-full sm:max-w-[14rem]"
+                      :href="`mailto:${c.email}`"
+                      :title="c.email"
+                    >
+                      {{ c.email }}
+                    </a>
+                    <span
+                      v-if="c.email && c.phone"
+                      class="hidden sm:inline text-gray-300 select-none"
+                      aria-hidden="true"
+                    >·</span>
+                    <a
+                      v-if="c.phone"
+                      class="text-[rgba(13,94,130,1)] hover:underline whitespace-nowrap"
+                      :href="`tel:${toTelHref(c.phone)}`"
+                    >
+                      {{ c.phone }}
+                    </a>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </section>
         </article>
       </div>
     </main>
@@ -41,8 +110,27 @@ import { findConnectPageByPath } from '~/composables/useConnectPagesTree'
 const route = useRoute()
 const { playVideo } = useVideoPlayer()
 
+type ConnectUser = {
+  id: number | string
+  name?: string | null
+  employeeTitle?: string | null
+  email?: string | null
+  phone?: string | null
+  avatar?: { url: string } | null
+}
+
+type ConnectPageDoc = {
+  id: number | string
+  title?: string
+  content?: unknown
+  slug?: string
+  parent?: unknown
+  contactsHeading?: string | null
+  contacts?: Array<string | number | ConnectUser> | null
+}
+
 const { data: fetchData, pending, error } = await useFetch<
-  { docs?: Array<{ id: number | string; title?: string; content?: unknown; slug?: string; parent?: unknown }> }
+  { docs?: ConnectPageDoc[] }
 >('/api/connect-pages', {
   key: () => `connect-page-catchall-${route.path}`,
   query: () => ({
@@ -56,6 +144,40 @@ const page = computed(() => {
   const docs = Array.isArray(fetchData.value?.docs) ? fetchData.value.docs : []
   return findConnectPageByPath(docs, route.path)
 })
+
+const contacts = computed<ConnectUser[]>(() => {
+  const raw = (page.value as any)?.contacts
+  if (!Array.isArray(raw)) return []
+  return raw
+    .filter((c: unknown): c is ConnectUser => !!c && typeof c === 'object' && 'id' in (c as any))
+    .map((c) => ({
+      id: c.id,
+      name: c.name ?? null,
+      employeeTitle: c.employeeTitle ?? null,
+      email: c.email ?? null,
+      phone: c.phone ?? null,
+      avatar: (c as any).avatar?.url ? { url: String((c as any).avatar.url) } : null,
+    }))
+})
+
+const contactsHeading = computed(() => {
+  const h = String((page.value as any)?.contactsHeading ?? '').trim()
+  return h || 'Contacts'
+})
+
+function toTelHref(phoneRaw: string) {
+  return phoneRaw.replace(/[^\d+]/g, '')
+}
+
+function initialsForContact(name: string | null | undefined) {
+  const parts = String(name ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  if (parts.length === 0) return '?'
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase()
+  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase()
+}
 
 function lexicalToHtml(node: any): string {
   if (!node || typeof node !== 'object') return ''
@@ -172,6 +294,65 @@ function lexicalToHtml(node: any): string {
     return `<div class="connect-video-collection not-prose my-3 rounded border border-gray-200 bg-gray-50 p-3 text-sm"><ul class="list-none m-0 p-0 space-y-0.5">${lis}</ul></div>`
   }
 
+  /**
+   * Paragraph / code starting with `@connect-faq` + JSON array:
+   * `[{ "question": "…", "answer": "…", "id": "optional-anchor" }]`
+   * Optional `id` becomes a fragment target (`#id`) on the `<details>` element.
+   */
+  const buildConnectFaqHtml = (raw: string): string | null => {
+    const t = raw.trim()
+    if (!t.startsWith('@connect-faq')) return null
+    const jsonStr = t.replace(/^@connect-faq\s*/i, '').trim()
+    if (!jsonStr) {
+      return '<div class="connect-faq-block not-prose my-2 text-xs text-amber-800">@connect-faq: empty JSON</div>'
+    }
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(jsonStr)
+    } catch {
+      return '<div class="connect-faq-block not-prose my-2 text-xs text-red-600">@connect-faq: invalid JSON</div>'
+    }
+    if (!Array.isArray(parsed)) {
+      return '<div class="connect-faq-block not-prose my-2 text-xs text-red-600">@connect-faq: expected JSON array</div>'
+    }
+    const items: { question: string; answer: string; id: string }[] = []
+    for (const row of parsed) {
+      if (!row || typeof row !== 'object') continue
+      const o = row as Record<string, unknown>
+      const question = String(o.question ?? '').trim()
+      const answer = String(o.answer ?? '').trim()
+      if (!question || !answer) continue
+      let id = typeof o.id === 'string' ? o.id.trim() : ''
+      id = id.replace(/[^a-zA-Z0-9_-]/g, '')
+      items.push({ question, answer, id })
+    }
+    if (!items.length) {
+      return '<div class="connect-faq-block not-prose my-2 text-xs text-gray-500">@connect-faq: no valid items</div>'
+    }
+    const answerToInnerHtml = (answer: string) => {
+      const paras = answer.split(/\n\n+/).map((p) => p.trim()).filter(Boolean)
+      if (paras.length <= 1) {
+        return escapeHtml(answer).replace(/\n/g, '<br>\n')
+      }
+      return paras
+        .map(
+          (p) =>
+            `<p class="mb-2 last:mb-0">${escapeHtml(p).replace(/\n/g, '<br>\n')}</p>`,
+        )
+        .join('')
+    }
+    const blocks = items
+      .map((item) => {
+        const idAttr = item.id ? ` id="${escapeHtml(item.id)}"` : ''
+        return `<details${idAttr} class="group rounded-lg border border-gray-200 bg-white shadow-sm [&_summary::-webkit-details-marker]:hidden open:shadow-md"><summary class="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-50/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(13,94,130,0.35)] focus-visible:ring-offset-1">${escapeHtml(item.question)}</summary><div class="border-t border-gray-100 px-4 py-3 text-sm leading-relaxed text-gray-700">${answerToInnerHtml(item.answer)}</div></details>`
+      })
+      .join('')
+    return `<section class="connect-faq-block not-prose my-6 space-y-2" aria-label="Frequently asked questions">${blocks}</section>`
+  }
+
+  const buildConnectMagicBlockHtml = (raw: string): string | null =>
+    buildConnectVideoCollectionHtml(raw) ?? buildConnectFaqHtml(raw)
+
   /** Walk Lexical tree: list items are often `listitem → paragraph → text`. */
   const collectPlainText = (nodes: any): string => {
     if (nodes == null) return ''
@@ -187,16 +368,85 @@ function lexicalToHtml(node: any): string {
     return ''
   }
 
+  /** Pasted multi-line @connect-faq / @connect-videos often becomes several Lexical paragraphs; merge before parse. */
+  const getLexicalNodeMagicPlain = (n: any): string | null => {
+    if (!n || typeof n !== 'object') return null
+    if (n.type === 'paragraph') return collectPlainText(n.children || []).trim()
+    if (n.type === 'code') {
+      return (
+        typeof n.code === 'string'
+          ? n.code
+          : collectPlainText(Array.isArray(n.children) ? n.children : [])
+      ).trim()
+    }
+    return null
+  }
+
+  const connectMagicJsonParses = (raw: string): boolean => {
+    const t = raw.trim()
+    if (t.toLowerCase().startsWith('@connect-videos')) {
+      const jsonStr = t.replace(/^@connect-videos\s*/i, '').trim()
+      if (!jsonStr) return false
+      try {
+        return Array.isArray(JSON.parse(jsonStr))
+      } catch {
+        return false
+      }
+    }
+    if (t.toLowerCase().startsWith('@connect-faq')) {
+      const jsonStr = t.replace(/^@connect-faq\s*/i, '').trim()
+      if (!jsonStr) return false
+      try {
+        return Array.isArray(JSON.parse(jsonStr))
+      } catch {
+        return false
+      }
+    }
+    return false
+  }
+
+  const tryCoalesceRootMagic = (children: any[], start: number): { html: string; next: number } | null => {
+    const firstPlain = getLexicalNodeMagicPlain(children[start])
+    if (firstPlain === null) return null
+    const low = firstPlain.toLowerCase()
+    if (!low.startsWith('@connect-faq') && !low.startsWith('@connect-videos')) return null
+    let merged = firstPlain
+    let j = start
+    const max = Math.min(children.length, start + 80)
+    while (j < max) {
+      if (connectMagicJsonParses(merged)) {
+        const html = buildConnectMagicBlockHtml(merged)
+        if (html !== null) return { html, next: j + 1 }
+      }
+      const nextPlain = getLexicalNodeMagicPlain(children[j + 1])
+      if (nextPlain === null) break
+      j++
+      merged += '\n' + nextPlain
+    }
+    return null
+  }
+
   if (node.type === 'root' && Array.isArray(node.children)) {
-    return node.children.map(lexicalToHtml).join('')
+    const ch = node.children
+    const parts: string[] = []
+    let i = 0
+    while (i < ch.length) {
+      const co = tryCoalesceRootMagic(ch, i)
+      if (co) {
+        parts.push(co.html)
+        i = co.next
+      } else {
+        parts.push(lexicalToHtml(ch[i]))
+        i++
+      }
+    }
+    return parts.join('')
   }
   if (node.type === 'paragraph') {
     const ch = node.children || []
     const plain = collectPlainText(ch)
-    if (plain.trim().startsWith('@connect-videos')) {
-      const block = buildConnectVideoCollectionHtml(plain)
-      if (block !== null) return block
-    }
+    const magic = buildConnectMagicBlockHtml(plain)
+    if (magic !== null) return magic
     const inner = ch.map(lexicalToHtml).join('')
     return inner ? `<p class="mb-4 leading-relaxed">${inner}</p>` : ''
   }
@@ -219,10 +469,8 @@ function lexicalToHtml(node: any): string {
   if (node.type === 'listitem') {
     const ch = node.children || []
     const plain = collectPlainText(ch)
-    if (plain.trim().startsWith('@connect-videos')) {
-      const block = buildConnectVideoCollectionHtml(plain)
-      if (block !== null) return `<li class="list-item my-0 py-0.5">${block}</li>`
-    }
+    const magic = buildConnectMagicBlockHtml(plain)
+    if (magic !== null) return `<li class="list-item my-0 py-0.5">${magic}</li>`
     const inner = ch.map(lexicalToHtml).join('')
     return inner ? `<li class="list-item my-0 py-0.5">${inner}</li>` : ''
   }
@@ -242,7 +490,7 @@ function lexicalToHtml(node: any): string {
       typeof node.text === 'string'
         ? node.text
         : collectPlainText(Array.isArray(node.children) ? node.children : [])
-    const collection = buildConnectVideoCollectionHtml(raw)
+    const collection = buildConnectMagicBlockHtml(raw)
     if (collection !== null) return collection
     return `<code class="rounded bg-gray-100 px-1.5 py-0.5 text-[0.875em] font-mono text-gray-800">${escapeHtml(raw)}</code>`
   }
@@ -251,19 +499,18 @@ function lexicalToHtml(node: any): string {
       typeof (node as { code?: string }).code === 'string'
         ? (node as { code: string }).code
         : collectPlainText(Array.isArray(node.children) ? node.children : [])
-    if (raw.trim().startsWith('@connect-videos')) {
-      const collection = buildConnectVideoCollectionHtml(raw)
-      if (collection !== null) return collection
-    }
+    const codeMagic = buildConnectMagicBlockHtml(raw)
+    if (codeMagic !== null) return codeMagic
     return `<pre class="not-prose my-3 overflow-x-auto rounded border border-gray-200 bg-gray-50 p-3 text-xs"><code class="font-mono text-gray-800">${escapeHtml(raw)}</code></pre>`
   }
   if (node.type === 'text') {
     const raw = node.text || ''
     const format = Number(node.format) || 0
     const isCode = !!(format & IS_LEXICAL_CODE)
-    const looksLikeVideos = raw.trim().startsWith('@connect-videos')
-    if (isCode || looksLikeVideos) {
-      const collection = buildConnectVideoCollectionHtml(raw)
+    const looksLikeMagic =
+      raw.trim().startsWith('@connect-videos') || raw.trim().startsWith('@connect-faq')
+    if (isCode || looksLikeMagic) {
+      const collection = buildConnectMagicBlockHtml(raw)
       if (collection !== null) return collection
       if (isCode) {
         return `<code class="rounded bg-gray-100 px-1.5 py-0.5 text-[0.875em] font-mono text-gray-800">${escapeHtml(raw)}</code>`
