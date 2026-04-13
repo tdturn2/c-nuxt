@@ -3,6 +3,18 @@
 import { defineEventHandler, createError } from 'h3'
 import { authenticateWithPayloadCMS } from '../utils/payloadAuth'
 
+function normalizePlans(response: unknown): any[] {
+  if (response == null) return []
+  const r = response as Record<string, unknown>
+  if (Array.isArray(r.docs)) return r.docs.filter(Boolean) as any[]
+  if (Array.isArray(r.plans)) return r.plans.filter(Boolean) as any[]
+  if (r.plan != null) return [r.plan]
+  if (Array.isArray(r.data)) return r.data.filter(Boolean) as any[]
+  if (Array.isArray(response)) return (response as any[]).filter(Boolean)
+  if (typeof response === 'object' && response !== null && 'id' in r) return [response]
+  return []
+}
+
 export default defineEventHandler(async (event) => {
   const { email } = await authenticateWithPayloadCMS(event)
   if (!email) {
@@ -13,36 +25,34 @@ export default defineEventHandler(async (event) => {
   }
 
   const config = useRuntimeConfig()
-  const payloadBaseUrl = process.env.PAYLOAD_BASE_URL || 'http://localhost:3002'
+  const payloadBaseUrl =
+    (config.payloadBaseUrl || config.public.payloadBaseUrl || '').trim() ||
+    (import.meta.dev ? 'http://localhost:3002' : '')
+
+  if (!payloadBaseUrl) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Missing Payload base URL',
+    })
+  }
 
   try {
-    // SSO: no Payload cookie, so pass email. Payload my-plans returns plans for that user.
     const response = await $fetch<any>(`${payloadBaseUrl}/api/student-degree-plans/my-plans`, {
       headers: { 'Content-Type': 'application/json' },
       query: { email },
     })
 
-    // Normalize: Payload may return { docs: [...] }, { plan }, { data }, or array
-    let plan: any = null
-    if (response != null) {
-      if (Array.isArray(response?.docs)) plan = response.docs[0] ?? null
-      else if (response?.plan != null) plan = response.plan
-      else if (response?.data != null) plan = Array.isArray(response.data) ? response.data[0] : response.data
-      else if (Array.isArray(response)) plan = response[0] ?? null
-      else if (typeof response === 'object' && !Array.isArray(response)) plan = response
-    }
-
-    return { plan }
+    const plans = normalizePlans(response)
+    return { plans, plan: plans[0] ?? null }
   } catch (err: any) {
     console.error('Student degree plans API error:', err)
     if (err.statusCode) {
       throw err
     }
     throw createError({
-      statusCode: 500,
-      statusMessage: 'Failed to load student degree plans',
+      statusCode: err?.statusCode || err?.response?.status || 500,
+      statusMessage: err.statusMessage || 'Failed to load student degree plans',
       data: err.data,
     })
   }
 })
-

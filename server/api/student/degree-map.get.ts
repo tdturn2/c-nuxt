@@ -14,7 +14,9 @@ export default defineEventHandler(async (event) => {
   }
 
   const config = useRuntimeConfig()
-  const payloadBaseUrl = config.public.payloadBaseUrl || 'http://localhost:3002'
+  const payloadBaseUrl =
+    (config.payloadBaseUrl || config.public.payloadBaseUrl || '').trim() ||
+    (import.meta.dev ? 'http://localhost:3002' : '')
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -41,15 +43,20 @@ export default defineEventHandler(async (event) => {
       }),
     ])
 
-    // Normalize plan: Payload may return { docs: [...] }, { plan }, { data }, array, or single object
-    let plan: any = null
-    if (planRes != null) {
-      if (Array.isArray(planRes?.docs)) plan = planRes.docs[0] ?? null
-      else if (planRes?.plan != null) plan = planRes.plan
-      else if (planRes?.data != null) plan = Array.isArray(planRes.data) ? planRes.data[0] : planRes.data
-      else if (Array.isArray(planRes)) plan = planRes[0] ?? null
-      else if (typeof planRes === 'object') plan = planRes
+    function normalizePlans(response: unknown): any[] {
+      if (response == null) return []
+      const r = response as Record<string, unknown>
+      if (Array.isArray(r.docs)) return r.docs.filter(Boolean) as any[]
+      if (Array.isArray(r.plans)) return r.plans.filter(Boolean) as any[]
+      if (r.plan != null) return [r.plan]
+      if (Array.isArray(r.data)) return r.data.filter(Boolean) as any[]
+      if (Array.isArray(response)) return (response as any[]).filter(Boolean)
+      if (typeof response === 'object' && response !== null && 'id' in r) return [response]
+      return []
     }
+
+    const plans = normalizePlans(planRes)
+    const plan = plans[0] ?? null
 
     // Normalize course records: prefer docs[], then data[], then array
     let courseRecords: any[] = []
@@ -57,7 +64,7 @@ export default defineEventHandler(async (event) => {
     else if (Array.isArray(recordsRes?.data)) courseRecords = recordsRes.data
     else if (Array.isArray(recordsRes)) courseRecords = recordsRes
 
-    return { plan, courseRecords }
+    return { plans, plan, courseRecords }
   } catch (err: any) {
     console.error('Student degree map API error:', err)
     if (err.statusCode) {

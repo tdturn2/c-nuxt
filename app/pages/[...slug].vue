@@ -20,17 +20,8 @@
           <h1 class="text-3xl font-bold text-gray-900 mb-6">
             {{ page.title }}
           </h1>
-          <div
-            v-if="contentHtml"
-            class="connect-page-body prose prose-gray max-w-none prose-headings:font-semibold prose-a:text-[rgba(13,94,130,1)] prose-p:mb-4 prose-h1:mb-6 prose-h2:mt-8 prose-h2:mb-3 prose-ul:ml-6 prose-ul:list-disc prose-ul:my-2 prose-ol:ml-6 prose-ol:list-decimal prose-ol:my-2 prose-li:my-0 prose-li:leading-snug"
-            v-html="contentHtml"
-            @click="onContentClick"
-          />
-          <div v-else-if="page.content" class="prose prose-gray max-w-none text-gray-600">
-            <p>Content format is not supported for display.</p>
-          </div>
 
-          <section v-if="contacts.length" class="mt-10 not-prose max-w-3xl">
+          <section v-if="contacts.length" class="not-prose max-w-3xl mb-10">
             <h2 class="text-xl font-semibold text-gray-900">
               {{ contactsHeading }}
             </h2>
@@ -98,6 +89,16 @@
               </li>
             </ul>
           </section>
+
+          <div
+            v-if="contentHtml"
+            class="connect-page-body prose prose-gray max-w-none prose-headings:font-semibold prose-a:text-[rgba(13,94,130,1)] prose-p:mb-4 prose-h1:mb-6 prose-h2:mt-8 prose-h2:mb-3 prose-ul:ml-6 prose-ul:list-disc prose-ul:my-2 prose-ol:ml-6 prose-ol:list-decimal prose-ol:my-2 prose-li:my-0 prose-li:leading-snug"
+            v-html="contentHtml"
+            @click="onContentClick"
+          />
+          <div v-else-if="page.content" class="prose prose-gray max-w-none text-gray-600">
+            <p>Content format is not supported for display.</p>
+          </div>
         </article>
       </div>
     </main>
