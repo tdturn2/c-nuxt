@@ -222,6 +222,38 @@ export function buildConnectPageCategoryNavItems(rawPages: any[]): NavigationMen
   }))
 }
 
+export async function fetchAllConnectPages(query?: {
+  depth?: number
+  sort?: string
+  limit?: number
+}) {
+  const docs: any[] = []
+  const perPage = Math.max(1, query?.limit ?? 100)
+  const depth = query?.depth ?? 2
+  const sort = query?.sort ?? 'order,title'
+  let page = 1
+  let hasNextPage = true
+  let guard = 0
+
+  while (hasNextPage && guard < 500) {
+    const res = await $fetch<any>('/api/connect-pages', {
+      query: {
+        page,
+        limit: perPage,
+        depth,
+        sort,
+      },
+    })
+    const chunk = Array.isArray(res?.docs) ? res.docs : []
+    docs.push(...chunk)
+    hasNextPage = Boolean(res?.hasNextPage)
+    page = Number(res?.nextPage || page + 1)
+    guard += 1
+  }
+
+  return { docs }
+}
+
 /** Strip query/hash so lookups work for URLs like `/docs/page#faq` or pasted full paths. */
 export function normalizeConnectPageLookupPath(path: string) {
   let p = typeof path === 'string' ? path.trim() : ''

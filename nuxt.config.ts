@@ -15,6 +15,34 @@ const authBaseUrl =
 const nitroPreset = process.env.VERCEL ? 'vercel' : undefined
 const devAuthBaseUrl = process.env.NODE_ENV !== 'production' ? '/api/auth' : undefined
 
+function hostnameFromEnvUrl(raw: string | undefined): string | undefined {
+  const t = (raw || '').trim()
+  if (!t) return undefined
+  try {
+    return new URL(t).hostname
+  } catch {
+    return undefined
+  }
+}
+
+/** Hostnames allowed for @nuxt/image / IPX (Payload media, S3, etc.). */
+const nuxtImageDomains = [
+  ...new Set(
+    [
+      hostnameFromEnvUrl(process.env.NUXT_PUBLIC_PAYLOAD_BASE_URL),
+      hostnameFromEnvUrl(process.env.PAYLOAD_BASE_URL),
+      ...((process.env.NUXT_PUBLIC_IMAGE_DOMAINS || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)),
+      'localhost',
+      '127.0.0.1',
+      's3.amazonaws.com',
+      'storage.googleapis.com',
+    ].filter(Boolean) as string[],
+  ),
+]
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: process.env.NODE_ENV !== 'production' },
@@ -22,7 +50,11 @@ export default defineNuxtConfig({
   alias: {
     '@shared': join(projectDir, 'shared'),
   },
-  modules: ['@nuxt/ui', '@sidebase/nuxt-auth'],
+  modules: ['@nuxt/ui', '@nuxt/image', '@sidebase/nuxt-auth'],
+  image: {
+    domains: nuxtImageDomains,
+    format: ['webp'],
+  },
   ssr: false, // SPA mode - no SSR needed for intranet
   colorMode: {
     preference: 'light',

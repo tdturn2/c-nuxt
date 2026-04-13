@@ -105,7 +105,7 @@
 </template>
 
 <script setup lang="ts">
-import { findConnectPageByPath } from '~/composables/useConnectPagesTree'
+import { fetchAllConnectPages, findConnectPageByPath } from '~/composables/useConnectPagesTree'
 
 const route = useRoute()
 const { playVideo } = useVideoPlayer()
@@ -129,16 +129,13 @@ type ConnectPageDoc = {
   contacts?: Array<string | number | ConnectUser> | null
 }
 
-const { data: fetchData, pending, error } = await useFetch<
+const { data: fetchData, pending, error } = await useAsyncData<
   { docs?: ConnectPageDoc[] }
->('/api/connect-pages', {
-  key: () => `connect-page-catchall-${route.path}`,
-  query: () => ({
-    limit: 500,
-    depth: 2,
-    sort: 'order,title',
-  }),
-})
+>(() => `connect-page-catchall-${route.path}`, () => fetchAllConnectPages({
+  limit: 100,
+  depth: 2,
+  sort: 'order,title',
+}))
 
 const page = computed(() => {
   const docs = Array.isArray(fetchData.value?.docs) ? fetchData.value.docs : []

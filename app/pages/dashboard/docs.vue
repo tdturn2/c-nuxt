@@ -669,7 +669,7 @@
 
 <script setup lang="ts">
 import { nextTick, unref, watch } from 'vue'
-import { getConnectPageBreadcrumbLabel } from '~/composables/useConnectPagesTree'
+import { fetchAllConnectPages, getConnectPageBreadcrumbLabel } from '~/composables/useConnectPagesTree'
 import { CONNECT_PAGE_CATEGORIES, type ConnectPageCategory } from '~/composables/useConnectPagesTree'
 import { buildPagePathMap, buildPageTree } from '~/composables/useConnectPagesTree'
 import { humanizeFilename } from '@shared/humanizeFilename'
@@ -768,16 +768,25 @@ const employees = computed<EmployeeChoice[]>(() => {
   return arr
 })
 
-const {
-  data: pagesData,
-  pending: pagesPending,
-  error: pagesErrorRef,
-  execute: refreshPages,
-} = useFetch<any>('/api/connect-pages', {
-  key: 'dashboard-docs-pages-v2-auth',
-  immediate: false,
-  query: () => ({ limit: 500, sort: '-updatedAt', depth: 2 }),
-})
+const pagesData = ref<any>({ docs: [] })
+const pagesPending = ref(false)
+const pagesErrorRef = ref<any>(null)
+
+const refreshPages = async () => {
+  pagesPending.value = true
+  pagesErrorRef.value = null
+  try {
+    pagesData.value = await fetchAllConnectPages({
+      limit: 100,
+      depth: 2,
+      sort: '-updatedAt',
+    })
+  } catch (err) {
+    pagesErrorRef.value = err
+  } finally {
+    pagesPending.value = false
+  }
+}
 
 watch(canManage, (allowed) => {
   if (allowed) refreshPages()

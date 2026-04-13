@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
-import { buildConnectPageCategoryNavItems } from '~/composables/useConnectPagesTree'
+import { buildConnectPageCategoryNavItems, fetchAllConnectPages } from '~/composables/useConnectPagesTree'
 
 const route = useRoute()
 const menuSearchQuery = ref('')
@@ -40,10 +40,11 @@ function filterMenuByLabel(item: NavigationMenuItem, query: string): NavigationM
   return labelMatch ? item : null
 }
 
-const { data: pagesData } = await useFetch<any>('/api/connect-pages', {
-  key: 'left-internal-pages',
-  query: () => ({ limit: 500, depth: 2, sort: 'order,title' }),
-})
+const { data: pagesData } = await useAsyncData<any>('left-internal-pages', () => fetchAllConnectPages({
+  limit: 100,
+  depth: 2,
+  sort: 'order,title',
+}))
 
 const mainNavItems = computed<NavigationMenuItem[]>(() => {
   const docs = Array.isArray(pagesData.value?.docs) ? pagesData.value.docs : []

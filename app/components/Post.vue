@@ -17,11 +17,14 @@
             :to="`/user/${getUsernameFromEmail(displayUser.email)}`"
             class="flex w-10 h-10 rounded-full bg-gray-300 shrink-0 items-center justify-center overflow-hidden hover:opacity-80 transition-opacity"
           >
-            <img
+            <NuxtImg
               v-if="avatarUrl"
               :src="avatarUrl"
               :alt="displayUser.name"
               class="w-full h-full object-cover"
+              width="80"
+              height="80"
+              sizes="40px"
             />
             <span v-else class="text-gray-600 font-semibold text-sm">
               {{ displayUser.name.charAt(0).toUpperCase() }}
@@ -49,11 +52,14 @@
             <template v-else-if="hoverCardData">
               <div class="p-4 flex gap-3">
                 <div class="w-14 h-14 rounded-full bg-gray-200 shrink-0 overflow-hidden flex items-center justify-center">
-                  <img
+                  <NuxtImg
                     v-if="hoverCardData.avatarUrl"
                     :src="hoverCardData.avatarUrl"
                     :alt="hoverCardData.name"
                     class="w-full h-full object-cover"
+                    width="112"
+                    height="112"
+                    sizes="56px"
                   />
                   <span v-else class="text-gray-600 font-semibold text-lg">
                     {{ (hoverCardData.name || ' ').charAt(0).toUpperCase() }}
@@ -215,7 +221,21 @@
               img.file ? 'border-blue-400 ring-1 ring-blue-300' : 'border-gray-200'
             ]"
           >
-            <img :src="img.previewUrl" :alt="img.alt || 'Post image'" class="w-full h-28 object-cover" />
+            <img
+              v-if="isBlobOrDataUrl(img.previewUrl)"
+              :src="img.previewUrl"
+              :alt="img.alt || 'Post image'"
+              class="w-full h-28 object-cover"
+            />
+            <NuxtImg
+              v-else
+              :src="img.previewUrl"
+              :alt="img.alt || 'Post image'"
+              class="w-full h-28 object-cover"
+              width="560"
+              height="224"
+              sizes="(max-width: 640px) 50vw, 280px"
+            />
             <span
               v-if="img.file"
               class="absolute top-1 left-1 px-2 py-0.5 text-[10px] font-semibold text-white bg-blue-600 rounded"
@@ -259,7 +279,14 @@
                 isEditGalleryItemSelected(item) ? 'border-indigo-600' : 'border-transparent'
               ]"
             >
-              <img :src="item.url" :alt="item.alt || 'Gallery image'" class="w-full h-28 object-cover" />
+              <NuxtImg
+                :src="item.url"
+                :alt="item.alt || 'Gallery image'"
+                class="w-full h-28 object-cover"
+                width="560"
+                height="224"
+                sizes="(max-width: 768px) 33vw, 200px"
+              />
               <span
                 v-if="isEditGalleryItemSelected(item)"
                 class="absolute top-1 right-1 px-1.5 py-0.5 text-[10px] font-semibold text-white bg-indigo-600 rounded"
@@ -331,10 +358,12 @@
           @click="openImageModal(0)"
           class="block w-full"
         >
-          <img
-          :src="post.images[0].image.url"
-          :alt="post.images[0].image.alt || 'Post image'"
-          class="w-full h-auto object-cover"
+          <NuxtImg
+            :src="post.images[0].image.url"
+            :alt="post.images[0].image.alt || 'Post image'"
+            class="w-full h-auto object-cover"
+            sizes="(max-width: 640px) 100vw, 672px"
+            width="1200"
           />
         </button>
       </div>
@@ -346,10 +375,13 @@
             @click="openImageModal(index)"
             class="block w-full"
           >
-            <img
-            :src="img.image.url"
-            :alt="img.image.alt || `Post image ${index + 1}`"
-            class="w-full h-48 object-cover"
+            <NuxtImg
+              :src="img.image.url"
+              :alt="img.image.alt || `Post image ${index + 1}`"
+              class="w-full h-48 object-cover"
+              sizes="(max-width: 640px) 50vw, 336px"
+              width="800"
+              height="384"
             />
           </button>
         </template>
@@ -439,11 +471,14 @@
         <!-- Reaction Avatars -->
         <div class="flex -space-x-2 ml-2">
           <template v-for="(reaction, index) in reactions.slice(0, 5)" :key="reaction.id">
-            <img
+            <NuxtImg
               v-if="reaction.user?.avatar?.url"
               :src="reaction.user.avatar.url"
               :alt="reaction.user.name"
               class="w-6 h-6 rounded-full border-2 border-white object-cover"
+              width="48"
+              height="48"
+              sizes="24px"
               :title="`${reaction.user.name} reacted with ${getReactionConfig(reaction.reactionType).label}`"
             />
             <div
@@ -541,10 +576,14 @@
       <template #body>
         <div v-if="currentModalImage" class="bg-black rounded-lg overflow-hidden h-[90vh] max-h-[90vh] flex flex-col">
           <div class="relative flex-1 min-h-0">
-            <img
+            <NuxtImg
               :src="currentModalImage.image.url"
               :alt="currentModalImage.image.alt || `Post image ${activeImageIndex + 1}`"
               class="w-full h-full object-contain"
+              sizes="100vw"
+              width="1920"
+              height="1080"
+              fit="inside"
             />
             <button
               v-if="modalImages.length > 1"
@@ -577,11 +616,14 @@
                   idx === activeImageIndex ? 'border-white' : 'border-transparent'
                 ]"
               >
-                <img
+                <NuxtImg
                   v-if="img.image"
                   :src="img.image.url"
                   :alt="img.image.alt || `Thumbnail ${idx + 1}`"
                   class="w-16 h-16 object-cover"
+                  width="128"
+                  height="128"
+                  sizes="64px"
                 />
               </button>
             </div>
@@ -686,6 +728,10 @@ const emit = defineEmits<{
   postEditRequest: [post: Post & { user: User | null }]
   postCommentRequest: [post: Post & { user: User | null }]
 }>()
+
+function isBlobOrDataUrl(src: string) {
+  return src.startsWith('blob:') || src.startsWith('data:')
+}
 
 const reactions = ref<Reaction[]>([])
 const togglingReaction = ref(false)
