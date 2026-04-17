@@ -1,10 +1,11 @@
 // Proxy to Payload student-course-records upsert-line endpoint.
 // Payload handles auth and ownership; we forward SSO session and body.
 import { defineEventHandler, readBody, createError } from 'h3'
-import { authenticateWithPayloadCMS } from '../../utils/payloadAuth'
+import { authenticateWithPayloadCMS, getPayloadProxyHeaders } from '../../utils/payloadAuth'
 
 export default defineEventHandler(async (event) => {
-  const { token, email } = await authenticateWithPayloadCMS(event)
+  const auth = await authenticateWithPayloadCMS(event)
+  const { email } = auth
 
   if (!email) {
     throw createError({
@@ -36,12 +37,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  }
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
+  const headers = getPayloadProxyHeaders(event, auth)
 
   const payloadBody = {
     ...body,

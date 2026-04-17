@@ -1,7 +1,7 @@
 // PATCH a student course record (term, hoursEarned, hoursType, substitutionNotes, status).
 // Payload enforces ownership; we forward auth (token or identify by email).
 import { defineEventHandler, readBody, createError, getRouterParam } from 'h3'
-import { authenticateWithPayloadCMS } from '../../utils/payloadAuth'
+import { authenticateWithPayloadCMS, getPayloadProxyHeaders } from '../../utils/payloadAuth'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
@@ -12,7 +12,8 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const { token, email } = await authenticateWithPayloadCMS(event)
+  const auth = await authenticateWithPayloadCMS(event)
+  const { email } = auth
   if (!email) {
     throw createError({
       statusCode: 401,
@@ -45,12 +46,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  }
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
+  const headers = getPayloadProxyHeaders(event, auth)
 
   try {
     const response = await $fetch<any>(`${payloadBaseUrl}/api/student-course-records/${id}`, {

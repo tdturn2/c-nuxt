@@ -1,11 +1,12 @@
 // Create a new student course record in PayloadCMS.
 // Used by the Degree Map editor when a plan item has no existing record yet.
 import { defineEventHandler, readBody, createError } from 'h3'
-import { authenticateWithPayloadCMS } from '../../utils/payloadAuth'
+import { authenticateWithPayloadCMS, getPayloadProxyHeaders } from '../../utils/payloadAuth'
 import { getUserIdFromEmail } from '../../utils/getUserIdFromEmail'
 
 export default defineEventHandler(async (event) => {
-  const { token, email } = await authenticateWithPayloadCMS(event)
+  const auth = await authenticateWithPayloadCMS(event)
+  const { email } = auth
 
   if (!email) {
     throw createError({
@@ -46,12 +47,7 @@ export default defineEventHandler(async (event) => {
   if (body.substitutionNotes !== undefined) createData.substitutionNotes = body.substitutionNotes
   if (body.status !== undefined) createData.status = body.status
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  }
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
+  const headers = getPayloadProxyHeaders(event, auth)
 
   try {
     const created = await $fetch<any>(`${payloadBaseUrl}/api/student-course-records`, {

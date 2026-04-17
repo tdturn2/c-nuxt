@@ -1,11 +1,12 @@
 // Composite endpoint for the Degree Map page.
 // Returns the student's degree plan + course records from Payload.
 import { defineEventHandler, createError } from 'h3'
-import { authenticateWithPayloadCMS } from '../../utils/payloadAuth'
+import { authenticateWithPayloadCMS, getPayloadProxyHeaders } from '../../utils/payloadAuth'
 import { getUserIdFromEmail } from '../../utils/getUserIdFromEmail'
 
 export default defineEventHandler(async (event) => {
-  const { email } = await authenticateWithPayloadCMS(event)
+  const auth = await authenticateWithPayloadCMS(event)
+  const { email } = auth
   if (!email) {
     throw createError({
       statusCode: 401,
@@ -18,9 +19,7 @@ export default defineEventHandler(async (event) => {
     (config.payloadBaseUrl || config.public.payloadBaseUrl || '').trim() ||
     (import.meta.dev ? 'http://localhost:3002' : '')
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  }
+  const headers = getPayloadProxyHeaders(event, auth)
 
   try {
     // Resolve connect-users ID once for course records
