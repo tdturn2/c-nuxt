@@ -21,6 +21,37 @@
             {{ page.title }}
           </h1>
 
+          <section
+            v-if="childPages.length"
+            class="not-prose mb-8 rounded-2xl border border-gray-200/80 bg-white/90 p-4 sm:p-5 shadow-sm"
+            aria-labelledby="child-pages-heading"
+          >
+            <div class="flex items-center justify-between gap-3 mb-3">
+              <h2 id="child-pages-heading" class="text-base sm:text-lg font-semibold text-gray-900">
+                Explore this section
+              </h2>
+              <span class="text-xs font-medium text-gray-500">
+                {{ childPages.length }} {{ childPages.length === 1 ? 'page' : 'pages' }}
+              </span>
+            </div>
+            <div class="grid gap-2 sm:grid-cols-2">
+              <NuxtLink
+                v-for="child in childPages"
+                :key="child.id"
+                :to="child.path"
+                class="group flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50/70 px-3 py-2.5 text-sm font-medium text-gray-700 transition-all hover:border-[rgba(13,94,130,0.35)] hover:bg-white hover:text-[rgba(13,94,130,1)] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(13,94,130,0.35)] focus-visible:ring-offset-2"
+              >
+                <span class="truncate pr-3">{{ child.title }}</span>
+                <span
+                  class="text-gray-400 transition-transform group-hover:translate-x-0.5 group-hover:text-[rgba(13,94,130,1)]"
+                  aria-hidden="true"
+                >
+                  →
+                </span>
+              </NuxtLink>
+            </div>
+          </section>
+
           <section v-if="contacts.length" class="not-prose max-w-3xl mb-10">
             <h2 class="text-xl font-semibold text-gray-900">
               {{ contactsHeading }}
@@ -91,14 +122,22 @@
           </section>
 
           <div
-            v-if="contentHtml"
+            v-if="renderedContentSegments.length"
             class="connect-page-body prose prose-gray max-w-none prose-headings:font-semibold prose-a:text-[rgba(13,94,130,1)] prose-p:mb-4 prose-h1:mb-6 prose-h2:mt-8 prose-h2:mb-3 prose-ul:ml-6 prose-ul:list-disc prose-ul:my-2 prose-ol:ml-6 prose-ol:list-decimal prose-ol:my-2 prose-li:my-0 prose-li:leading-snug"
-            v-html="contentHtml"
             @click="onContentClick"
-          />
+          >
+            <template
+              v-for="(segment, idx) in renderedContentSegments"
+              :key="`content-segment-${idx}-${segment.kind}`"
+            >
+              <div v-if="segment.kind === 'html'" v-html="segment.value" />
+              <ConnectInlineForm v-else :slug="segment.value" />
+            </template>
+          </div>
           <div v-else-if="page.content" class="prose prose-gray max-w-none text-gray-600">
             <p>Content format is not supported for display.</p>
           </div>
+
         </article>
       </div>
     </main>
@@ -106,7 +145,8 @@
 </template>
 
 <script setup lang="ts">
-import { fetchAllConnectPages, findConnectPageByPath } from '~/composables/useConnectPagesTree'
+import { fetchAllConnectPages, findConnectPageByPath, normalizeConnectPage, buildPagePathMap } from '~/composables/useConnectPagesTree'
+import ConnectInlineForm from '~/components/forms/ConnectInlineForm.vue'
 
 const route = useRoute()
 const { playVideo } = useVideoPlayer()
@@ -120,12 +160,55 @@ type ConnectUser = {
   avatar?: { url: string } | null
 }
 
+type ResolvedContactRef = {
+  id: string
+  seeded?: Partial<ConnectUser> | null
+}
+
+function resolveContactAvatarUrl(raw: any): string | null {
+  if (!raw || typeof raw !== 'object') return null
+  const avatarCandidates = [
+    raw.avatar,
+    raw.avatarConnectUserMedia,
+    raw.avatar?.file,
+    raw.avatarConnectUserMedia?.file,
+  ]
+  for (const candidate of avatarCandidates) {
+    if (!candidate || typeof candidate !== 'object') continue
+    const direct = typeof candidate.url === 'string' ? candidate.url.trim() : ''
+    if (direct) {
+      const proxied = toLocalAvatarProxy(direct)
+      return proxied || direct
+    }
+    const nested = typeof (candidate as any).file?.url === 'string'
+      ? String((candidate as any).file.url).trim()
+      : ''
+    if (nested) {
+      const proxied = toLocalAvatarProxy(nested)
+      return proxied || nested
+    }
+  }
+  return null
+}
+
+function toLocalAvatarProxy(urlRaw: string): string | null {
+  const input = String(urlRaw || '').trim()
+  if (!input) return null
+  const hit = input.match(/\/api\/connect-user-media\/file\/([^/?#]+)/i)
+  if (hit?.[1]) return `/api/connect-user-media/file/${hit[1]}`
+  const hitLegacy = input.match(/\/api\/media\/file\/([^/?#]+)/i)
+  if (hitLegacy?.[1]) return `/api/connect-user-media/file/${hitLegacy[1]}`
+  return null
+}
+
 type ConnectPageDoc = {
   id: number | string
   title?: string
   content?: unknown
   slug?: string
   parent?: unknown
+  parentId?: string | null
+  order?: number | null
   contactsHeading?: string | null
   contacts?: Array<string | number | ConnectUser> | null
 }
@@ -143,23 +226,167 @@ const page = computed(() => {
   return findConnectPageByPath(docs, route.path)
 })
 
-const contacts = computed<ConnectUser[]>(() => {
-  const raw = (page.value as any)?.contacts
-  if (!Array.isArray(raw)) return []
+const currentPageId = computed(() => {
+  const id = (page.value as any)?.id
+  if (id == null) return ''
+  return String(id).trim()
+})
+
+const { data: pageDetail } = await useAsyncData<any>(
+  () => `connect-page-detail-${currentPageId.value}`,
+  async () => {
+    if (!currentPageId.value) return null
+    return await $fetch(`/api/connect-pages/${encodeURIComponent(currentPageId.value)}`, {
+      query: { depth: 2 },
+    })
+  },
+  { watch: [currentPageId] }
+)
+
+const childPages = computed(() => {
+  const docs = Array.isArray(fetchData.value?.docs) ? fetchData.value.docs : []
+  const current = page.value
+  if (!current) return [] as Array<{ id: string; title: string; path: string }>
+
+  const normalizedDocs = docs.map((doc) => normalizeConnectPage(doc))
+  const { pathById } = buildPagePathMap(normalizedDocs)
+  const currentId = String(current.id)
+  const collator = new Intl.Collator('en', { sensitivity: 'base' })
+
+  return normalizedDocs
+    .filter((doc) => doc.parentId === currentId)
+    .sort((a, b) => {
+      const orderA = typeof a.order === 'number' ? a.order : Number.MAX_SAFE_INTEGER
+      const orderB = typeof b.order === 'number' ? b.order : Number.MAX_SAFE_INTEGER
+      if (orderA !== orderB) return orderA - orderB
+      return collator.compare((a.title || a.slug || '').toString(), (b.title || b.slug || '').toString())
+    })
+    .map((doc) => {
+      const path = pathById.get(String(doc.id))
+      if (!path) return null
+      return {
+        id: String(doc.id),
+        title: (doc.title || doc.slug || `#${doc.id}`).toString(),
+        path,
+      }
+    })
+    .filter((doc): doc is { id: string; title: string; path: string } => doc != null)
+})
+
+function normalizeContactRef(raw: unknown): ResolvedContactRef | null {
+  if (raw == null) return null
+  if (typeof raw === 'string' || typeof raw === 'number') {
+    const id = String(raw).trim()
+    return id ? { id } : null
+  }
+  if (typeof raw !== 'object') return null
+  const obj: any = raw
+
+  const readId = (value: unknown): string => {
+    if (value == null) return ''
+    if (typeof value === 'string' || typeof value === 'number') return String(value).trim()
+    if (typeof value === 'object') {
+      const o: any = value
+      if (o.id != null) return String(o.id).trim()
+      if (o.value != null) return String(o.value).trim()
+    }
+    return ''
+  }
+
+  const directId = readId(obj.id)
+  if (directId) {
+    const avatarUrl = resolveContactAvatarUrl(obj)
+    return {
+      id: directId,
+      seeded: {
+        id: directId,
+        name: typeof obj.name === 'string' ? obj.name : null,
+        employeeTitle: typeof obj.employeeTitle === 'string' ? obj.employeeTitle : null,
+        email: typeof obj.email === 'string' ? obj.email : null,
+        phone: typeof obj.phone === 'string' ? obj.phone : null,
+        avatar: avatarUrl ? { url: avatarUrl } : null,
+      },
+    }
+  }
+
+  const relationId = readId(obj.value)
+  if (relationId) return { id: relationId }
+  return null
+}
+
+const rawContactRefs = computed<ResolvedContactRef[]>(() => {
+  const detailContacts = (pageDetail.value as any)?.contacts
+  const raw = Array.isArray(detailContacts)
+    ? detailContacts
+    : (page.value as any)?.contacts
+  if (!Array.isArray(raw)) return [] as ResolvedContactRef[]
   return raw
-    .filter((c: unknown): c is ConnectUser => !!c && typeof c === 'object' && 'id' in (c as any))
-    .map((c) => ({
-      id: c.id,
-      name: c.name ?? null,
-      employeeTitle: c.employeeTitle ?? null,
-      email: c.email ?? null,
-      phone: c.phone ?? null,
-      avatar: (c as any).avatar?.url ? { url: String((c as any).avatar.url) } : null,
+    .map((item) => normalizeContactRef(item))
+    .filter((item): item is ResolvedContactRef => item != null)
+})
+
+const contactIdsToHydrate = computed(() => {
+  const out = new Set<string>()
+  for (const ref of rawContactRefs.value) {
+    const seeded = ref.seeded
+    const hasDisplayData = Boolean(
+      seeded?.name || seeded?.email || seeded?.phone || seeded?.employeeTitle || seeded?.avatar?.url,
+    )
+    if (!hasDisplayData) out.add(ref.id)
+  }
+  return [...out]
+})
+
+const { data: hydratedContacts } = await useAsyncData<Record<string, ConnectUser>>(
+  () => `connect-page-contacts-${currentPageId.value}-${contactIdsToHydrate.value.join(',')}`,
+  async () => {
+    const ids = contactIdsToHydrate.value
+    if (!ids.length) return {}
+    const entries = await Promise.all(ids.map(async (id) => {
+      try {
+        const user = await $fetch<any>(`/api/users/${encodeURIComponent(id)}`)
+        const avatarUrl = resolveContactAvatarUrl(user)
+        const normalized: ConnectUser = {
+          id,
+          name: user?.name ?? null,
+          employeeTitle: user?.employeeTitle ?? null,
+          email: user?.email ?? null,
+          phone: user?.phone ?? null,
+          avatar: avatarUrl ? { url: avatarUrl } : null,
+        }
+        return [id, normalized] as const
+      } catch {
+        return [id, { id }] as const
+      }
     }))
+    return Object.fromEntries(entries)
+  },
+  { watch: [currentPageId, contactIdsToHydrate] },
+)
+
+const contacts = computed<ConnectUser[]>(() => {
+  const hydratedById = hydratedContacts.value || {}
+  return rawContactRefs.value.map((ref) => {
+    const seeded = ref.seeded || {}
+    const hydrated = hydratedById[ref.id] || null
+    const avatarUrl = hydrated?.avatar?.url || seeded.avatar?.url || null
+    return {
+      id: ref.id,
+      name: hydrated?.name ?? seeded.name ?? null,
+      employeeTitle: hydrated?.employeeTitle ?? seeded.employeeTitle ?? null,
+      email: hydrated?.email ?? seeded.email ?? null,
+      phone: hydrated?.phone ?? seeded.phone ?? null,
+      avatar: avatarUrl ? { url: avatarUrl } : null,
+    }
+  })
 })
 
 const contactsHeading = computed(() => {
-  const h = String((page.value as any)?.contactsHeading ?? '').trim()
+  const h = String(
+    (pageDetail.value as any)?.contactsHeading ??
+    (page.value as any)?.contactsHeading ??
+    '',
+  ).trim()
   return h || 'Contacts'
 })
 
@@ -349,7 +576,36 @@ function lexicalToHtml(node: any): string {
   }
 
   const buildConnectMagicBlockHtml = (raw: string): string | null =>
-    buildConnectVideoCollectionHtml(raw) ?? buildConnectFaqHtml(raw)
+    buildConnectVideoCollectionHtml(raw) ?? buildConnectFaqHtml(raw) ?? buildConnectFormEmbedHtml(raw)
+
+  /**
+   * `@connect-form {"slug":"my-form"}`
+   * or `@connect-form my-form`
+   */
+  const buildConnectFormEmbedHtml = (raw: string): string | null => {
+    const t = raw.trim()
+    if (!t.toLowerCase().startsWith('@connect-form')) return null
+    const payload = t.replace(/^@connect-form\s*/i, '').trim()
+    if (!payload) {
+      return '<div class="connect-form-embed not-prose my-2 text-xs text-amber-800">@connect-form: missing slug</div>'
+    }
+    let slug = ''
+    if (payload.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(payload) as any
+        slug = String(parsed?.slug || '').trim()
+      } catch {
+        return '<div class="connect-form-embed not-prose my-2 text-xs text-red-600">@connect-form: invalid JSON</div>'
+      }
+    } else {
+      slug = payload.trim()
+    }
+    if (!slug) {
+      return '<div class="connect-form-embed not-prose my-2 text-xs text-amber-800">@connect-form: missing slug</div>'
+    }
+    const safe = encodeURIComponent(slug)
+    return `<div class="connect-form-embed hidden" data-connect-form-embed="${safe}"></div>`
+  }
 
   /** Walk Lexical tree: list items are often `listitem → paragraph → text`. */
   const collectPlainText = (nodes: any): string => {
@@ -400,6 +656,18 @@ function lexicalToHtml(node: any): string {
         return false
       }
     }
+    if (t.toLowerCase().startsWith('@connect-form')) {
+      const payload = t.replace(/^@connect-form\s*/i, '').trim()
+      if (!payload) return false
+      if (!payload.startsWith('{')) return true
+      try {
+        const parsed = JSON.parse(payload) as any
+        const slug = String(parsed?.slug || '').trim()
+        return Boolean(slug)
+      } catch {
+        return false
+      }
+    }
     return false
   }
 
@@ -407,7 +675,11 @@ function lexicalToHtml(node: any): string {
     const firstPlain = getLexicalNodeMagicPlain(children[start])
     if (firstPlain === null) return null
     const low = firstPlain.toLowerCase()
-    if (!low.startsWith('@connect-faq') && !low.startsWith('@connect-videos')) return null
+    if (
+      !low.startsWith('@connect-faq') &&
+      !low.startsWith('@connect-videos') &&
+      !low.startsWith('@connect-form')
+    ) return null
     let merged = firstPlain
     let j = start
     const max = Math.min(children.length, start + 80)
@@ -506,7 +778,9 @@ function lexicalToHtml(node: any): string {
     const format = Number(node.format) || 0
     const isCode = !!(format & IS_LEXICAL_CODE)
     const looksLikeMagic =
-      raw.trim().startsWith('@connect-videos') || raw.trim().startsWith('@connect-faq')
+      raw.trim().startsWith('@connect-videos') ||
+      raw.trim().startsWith('@connect-faq') ||
+      raw.trim().startsWith('@connect-form')
     if (isCode || looksLikeMagic) {
       const collection = buildConnectMagicBlockHtml(raw)
       if (collection !== null) return collection
@@ -544,6 +818,30 @@ const contentHtml = computed(() => {
   }
   if (c && typeof c === 'object' && c.root && typeof c.root === 'object') return lexicalToHtml(c.root)
   return ''
+})
+
+const renderedContentSegments = computed<Array<{ kind: 'html' | 'form'; value: string }>>(() => {
+  const html = String(contentHtml.value || '')
+  if (!html.trim()) return []
+  const out: Array<{ kind: 'html' | 'form'; value: string }> = []
+  const seenFormSlugs = new Set<string>()
+  const markerRe = /<div[^>]*data-connect-form-embed="([^"]+)"[^>]*><\/div>/gi
+  let last = 0
+  let m: RegExpExecArray | null = null
+  while ((m = markerRe.exec(html)) !== null) {
+    const before = html.slice(last, m.index)
+    if (before.trim()) out.push({ kind: 'html', value: before })
+    const rawSlug = String(m[1] || '')
+    const slug = decodeURIComponent(rawSlug).trim()
+    if (slug && !seenFormSlugs.has(slug)) {
+      out.push({ kind: 'form', value: slug })
+      seenFormSlugs.add(slug)
+    }
+    last = m.index + m[0].length
+  }
+  const tail = html.slice(last)
+  if (tail.trim()) out.push({ kind: 'html', value: tail })
+  return out
 })
 
 function onContentClick(event: MouseEvent) {

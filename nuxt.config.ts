@@ -143,6 +143,13 @@ export default defineNuxtConfig({
       ? `${process.env.PAYLOAD_API_URL}/api/connect-posts`
       : undefined,
     payloadBaseUrl: process.env.PAYLOAD_BASE_URL,
+    /** Optional. Payload JWT (e.g. admin or API user) for server-side REST when student session returns 403. */
+    payloadServerBearer: process.env.PAYLOAD_SERVER_BEARER,
+    /**
+     * Optional. Payload custom POST path (no leading slash), e.g. student-degree-plans/create-from-connect
+     * Body: { email, degree, specialization?, status, startDate, expectedGraduation } — implement in Payload with email verified against session.
+     */
+    payloadStudentDegreePlanSsoPath: process.env.PAYLOAD_STUDENT_DEGREE_PLAN_SSO_PATH,
     // Path segments before :id for dashboard SSO update (default matches POST /api/connect-pages/update/:id)
     payloadConnectPagesUpdatePath:
       process.env.PAYLOAD_CONNECT_PAGES_UPDATE_PATH || 'connect-pages/update',

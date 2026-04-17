@@ -1,5 +1,5 @@
-import { defineEventHandler, getRouterParam, getQuery, getHeader, createError } from 'h3'
-import { authenticateWithPayloadCMS } from '../../utils/payloadAuth'
+import { defineEventHandler, getRouterParam, getQuery, createError } from 'h3'
+import { authenticateWithPayloadCMS, getPayloadProxyHeaders } from '../../utils/payloadAuth'
 
 /** Load one connect-page doc (full `content` Lexical). Forwards session so Payload returns fields editors are allowed to read. */
 export default defineEventHandler(async (event) => {
@@ -20,14 +20,31 @@ export default defineEventHandler(async (event) => {
   const depth = typeof q.depth === 'string' && q.depth ? q.depth : '2'
   const url = `${payloadBaseUrl}/api/connect-pages/${encodeURIComponent(id)}?depth=${encodeURIComponent(depth)}`
 
-  const { token } = await authenticateWithPayloadCMS(event)
-  const headers: Record<string, string> = {}
-  const cookie = getHeader(event, 'cookie')
-  if (cookie) headers.Cookie = cookie
-  if (token) headers.Authorization = `Bearer ${token}`
+  const { token, payloadSessionCookie } = await authenticateWithPayloadCMS(event)
+  const headers = getPayloadProxyHeaders(event, { token, payloadSessionCookie }, { Accept: 'application/json' })
 
   try {
-    return await $fetch(url, { headers })
+    const data: any = await $fetch(url, { headers })
+    const shouldHydrateContactsFromPublic = (doc: any) => {
+      if (!doc || typeof doc !== 'object') return false
+      if (!('contacts' in doc)) return false
+      return Array.isArray(doc.contacts) && doc.contacts.length === 0
+    }
+    if (!shouldHydrateContactsFromPublic(data)) return data
+
+    try {
+      const publicDoc: any = await $fetch(url, { headers: { Accept: 'application/json' } })
+      const out = { ...data }
+      if (Array.isArray(out.contacts) && out.contacts.length === 0 && Array.isArray(publicDoc?.contacts) && publicDoc.contacts.length > 0) {
+        out.contacts = publicDoc.contacts
+      }
+      if ((out.contactsHeading == null || out.contactsHeading === '') && publicDoc?.contactsHeading != null) {
+        out.contactsHeading = publicDoc.contactsHeading
+      }
+      return out
+    } catch {
+      return data
+    }
   } catch (err: any) {
     throw createError({
       statusCode: err?.statusCode || err?.response?.status || 502,

@@ -33,6 +33,8 @@
             v-model="answers"
             :submitting="submitting"
             :error="submitError"
+            :validation-errors="submitValidationErrors"
+            :upload-progress="uploadProgress"
             @submit="handleSubmit"
           />
 
@@ -43,6 +45,9 @@
             <div class="font-semibold">No fields detected.</div>
             <div>componentKey: <code class="text-xs">{{ String(formDoc.componentKey || '') }}</code></div>
             <div>schema paths checked: <code class="text-xs">schema.raw.fields</code>, <code class="text-xs">schema.fields</code></div>
+            <div v-if="schemaErrors.length" class="text-xs text-amber-900">
+              {{ schemaErrors.join(' | ') }}
+            </div>
             <details>
               <summary class="cursor-pointer text-xs font-semibold">Debug: formDoc</summary>
               <pre class="mt-2 text-[11px] leading-snug overflow-auto max-h-80 whitespace-pre-wrap">{{ JSON.stringify(formDoc, null, 2) }}</pre>
@@ -56,6 +61,9 @@
 
 <script setup lang="ts">
 import ConnectFormRenderer from '~/components/forms/ConnectFormRenderer.vue'
+import type { FormSchemaV1 } from '~/types/forms'
+import { normalizeApiError } from '~/utils/forms/apiError'
+import { validateAnswersAgainstSchema, validateFormSchemaV1 } from '~/utils/forms/validation'
 
 type PayloadFindResponse<T> = { docs?: T[] }
 type ConnectFormDoc = {
@@ -63,6 +71,7 @@ type ConnectFormDoc = {
   slug?: string
   title?: string
   componentKey?: string
+  editableMode?: 'immutable' | 'versioned' | string
   viewerGroups?: unknown
   schema?: any
 }
@@ -87,36 +96,43 @@ const { data, pending, error } = await useFetch<{ doc: ConnectFormDoc | null }>(
 })
 
 const formDoc = computed(() => data.value?.doc ?? null)
+const schemaErrors = ref<string[]>([])
+const submitValidationErrors = ref<string[]>([])
+const uploadProgress = ref<Record<string, number>>({})
+const rootSubmissionId = computed(() => {
+  const raw = route.query.rootSubmissionId
+  const id = Number(Array.isArray(raw) ? raw[0] : raw)
+  return Number.isFinite(id) && id > 0 ? id : undefined
+})
 
 const loadError = computed(() => {
   const e = error.value as any
   return e?.data?.message ?? e?.statusMessage ?? e?.message ?? null
 })
 
-function getGravityFields(doc: ConnectFormDoc): any[] {
+function getFormSchema(doc: ConnectFormDoc): FormSchemaV1 | null {
   const schema = doc?.schema
-  if (!schema) return []
+  if (!schema) return null
 
-  // Common variants
-  if (schema?.raw?.fields && Array.isArray(schema.raw.fields)) return schema.raw.fields
-  if (schema?.raw?.raw?.fields && Array.isArray(schema.raw.raw.fields)) return schema.raw.raw.fields
-  if (schema?.raw?.schema?.fields && Array.isArray(schema.raw.schema.fields)) return schema.raw.schema.fields
-  if (schema?.fields && Array.isArray(schema.fields)) return schema.fields
-  // Payload sometimes stores "Gravity JSON" under numeric keys (e.g. schema["0"].fields)
-  if (schema?.['0']?.fields && Array.isArray(schema['0'].fields)) return schema['0'].fields
-  // Or: schema.form.fields
-  if (schema?.form?.fields && Array.isArray(schema.form.fields)) return schema.form.fields
+  const direct = validateFormSchemaV1(schema)
+  if (direct.valid && direct.schema) return direct.schema
 
-  // Some setups store raw as JSON string
+  const legacyCandidates = [schema?.raw, schema?.raw?.raw, schema?.raw?.schema, schema?.['0'], schema?.form]
+  for (const candidate of legacyCandidates) {
+    const checked = validateFormSchemaV1(candidate)
+    if (checked.valid && checked.schema) return checked.schema
+  }
+
   if (typeof schema?.raw === 'string') {
     try {
       const parsed = JSON.parse(schema.raw)
-      if (parsed?.fields && Array.isArray(parsed.fields)) return parsed.fields
-      if (parsed?.raw?.fields && Array.isArray(parsed.raw.fields)) return parsed.raw.fields
-      if (parsed?.['0']?.fields && Array.isArray(parsed['0'].fields)) return parsed['0'].fields
+      const checked = validateFormSchemaV1(parsed)
+      if (checked.valid && checked.schema) return checked.schema
     } catch {}
   }
-  return []
+
+  schemaErrors.value = direct.errors
+  return null
 }
 
 function toField(f: any): Field | null {
@@ -153,7 +169,20 @@ function toField(f: any): Field | null {
 const fields = computed<Field[]>(() => {
   const doc = formDoc.value
   if (!doc) return []
-  return getGravityFields(doc).map(toField).filter((x): x is Field => x != null)
+  const schema = getFormSchema(doc)
+  if (!schema) return []
+  return (schema.fields || [])
+    .map((f: any) =>
+      toField({
+        id: f.id,
+        label: f.label,
+        description: f.description,
+        type: f.type,
+        required: f.required,
+        choices: f.options,
+      })
+    )
+    .filter((x): x is Field => x != null)
 })
 
 const answers = ref<Record<string, unknown>>({})
@@ -165,6 +194,17 @@ const submissionId = ref<number | string | null>(null)
 async function handleSubmit(payload: { answers: Record<string, unknown>; files: Record<string, File | null> }) {
   if (!formDoc.value) return
   submitError.value = null
+  submitValidationErrors.value = []
+  const schema = getFormSchema(formDoc.value)
+  if (!schema) {
+    submitError.value = 'This form schema is invalid.'
+    return
+  }
+  const checkedAnswers = validateAnswersAgainstSchema(schema, payload.answers)
+  if (!checkedAnswers.valid) {
+    submitValidationErrors.value = checkedAnswers.errors
+    return
+  }
   submitting.value = true
   try {
     const submitted: any = await $fetch('/api/form-submissions/submit', {
@@ -172,6 +212,7 @@ async function handleSubmit(payload: { answers: Record<string, unknown>; files: 
       body: {
         formSlug: formDoc.value.slug,
         answers: payload.answers,
+        rootSubmissionId: formDoc.value.editableMode === 'versioned' ? rootSubmissionId.value : undefined,
       },
     })
 
@@ -182,17 +223,19 @@ async function handleSubmit(payload: { answers: Record<string, unknown>; files: 
     const fileEntries = Object.entries(payload.files || {}).filter(([, f]) => !!f) as Array<[string, File]>
     for (const [fieldKey, file] of fileEntries) {
       if (!id) break
+      uploadProgress.value[fieldKey] = 10
       const fd = new FormData()
       fd.set('formSlug', String(formDoc.value.slug || ''))
       fd.set('submissionId', String(id))
       fd.set('fieldKey', String(fieldKey))
       fd.set('file', file)
       await $fetch('/api/form-uploads/upload', { method: 'POST', body: fd })
+      uploadProgress.value[fieldKey] = 100
     }
 
     success.value = true
   } catch (e: any) {
-    submitError.value = e?.data?.message ?? e?.statusMessage ?? e?.message ?? 'Failed to submit.'
+    submitError.value = normalizeApiError(e, 'Failed to submit.').message
   } finally {
     submitting.value = false
   }

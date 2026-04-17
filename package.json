@@ -12,7 +12,8 @@
     "dev:clean": "sh -c 'for p in 3000 3001; do lsof -ti:$p | xargs kill -9 2>/dev/null; done; ulimit -n 10000; exec nuxt dev --port 3000'",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "test": "vitest run"
   },
   "dependencies": {
     "@nuxt/icon": "^1.7.0",
@@ -33,6 +34,7 @@
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "vitest": "^4.1.4"
   }
 }

@@ -1,7 +1,7 @@
 // GET current user's student degree plans from PayloadCMS.
 // SSO: we pass email to Payload my-plans. Payload also supports session (no email) when caller has connect-user cookie.
 import { defineEventHandler, createError } from 'h3'
-import { authenticateWithPayloadCMS } from '../utils/payloadAuth'
+import { authenticateWithPayloadCMS, getPayloadProxyHeaders } from '../utils/payloadAuth'
 
 function normalizePlans(response: unknown): any[] {
   if (response == null) return []
@@ -16,7 +16,8 @@ function normalizePlans(response: unknown): any[] {
 }
 
 export default defineEventHandler(async (event) => {
-  const { email } = await authenticateWithPayloadCMS(event)
+  const auth = await authenticateWithPayloadCMS(event)
+  const { email } = auth
   if (!email) {
     throw createError({
       statusCode: 401,
@@ -38,7 +39,7 @@ export default defineEventHandler(async (event) => {
 
   try {
     const response = await $fetch<any>(`${payloadBaseUrl}/api/student-degree-plans/my-plans`, {
-      headers: { 'Content-Type': 'application/json' },
+      headers: getPayloadProxyHeaders(event, auth),
       query: { email },
     })
 

@@ -82,7 +82,7 @@
           <template #body>
             <div class="space-y-4 p-2">
               <p class="text-sm text-gray-600">
-                Select the degree program to add as a new map. You can keep more than one map (for example, a primary program and a concentration).
+                Select the degree program to add as a new map. You can keep more than one map if you want to track multiple degree programs.
               </p>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Degree program</label>

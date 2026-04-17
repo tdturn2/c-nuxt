@@ -1,6 +1,6 @@
 // Proxy to Payload CMS connect-pages collection. Forward query params (e.g. where[slug][equals], limit, depth).
-import { defineEventHandler, getQuery, getHeader, createError } from 'h3'
-import { authenticateWithPayloadCMS } from '../utils/payloadAuth'
+import { defineEventHandler, getQuery, createError } from 'h3'
+import { authenticateWithPayloadCMS, getPayloadProxyHeaders } from '../utils/payloadAuth'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -12,11 +12,8 @@ export default defineEventHandler(async (event) => {
   const url = `${payloadBaseUrl}/api/connect-pages?${searchParams.toString()}`
 
   /** Same as connect-pages-media: without Cookie + JWT, Payload may omit restricted fields (e.g. `content`) for dashboard editors. */
-  const { token } = await authenticateWithPayloadCMS(event)
-  const headers: Record<string, string> = {}
-  const cookie = getHeader(event, 'cookie')
-  if (cookie) headers.Cookie = cookie
-  if (token) headers.Authorization = `Bearer ${token}`
+  const { token, payloadSessionCookie } = await authenticateWithPayloadCMS(event)
+  const headers = getPayloadProxyHeaders(event, { token, payloadSessionCookie }, { Accept: 'application/json' })
   const toAbsoluteUrl = (value: unknown): unknown => {
     if (!payloadBaseUrl) return value
     if (typeof value !== 'string') return value
@@ -56,13 +53,60 @@ export default defineEventHandler(async (event) => {
   }
   try {
     const data: any = await $fetch(url, { headers })
+    let publicData: any = null
+
+    const shouldHydrateContactsFromPublic = (doc: any) => {
+      if (!doc || typeof doc !== 'object') return false
+      if (!('contacts' in doc)) return false
+      return Array.isArray(doc.contacts) && doc.contacts.length === 0
+    }
+
+    const loadPublicDataIfNeeded = async () => {
+      if (publicData != null) return publicData
+      try {
+        publicData = await $fetch(url, { headers: { Accept: 'application/json' } })
+      } catch {
+        publicData = null
+      }
+      return publicData
+    }
+
+    const mergeContactsFromPublicDoc = (doc: any, publicDoc: any) => {
+      if (!doc || typeof doc !== 'object' || !publicDoc || typeof publicDoc !== 'object') return doc
+      const out = { ...doc }
+      if (Array.isArray(out.contacts) && out.contacts.length === 0 && Array.isArray(publicDoc.contacts) && publicDoc.contacts.length > 0) {
+        out.contacts = publicDoc.contacts
+      }
+      if ((out.contactsHeading == null || out.contactsHeading === '') && publicDoc.contactsHeading != null) {
+        out.contactsHeading = publicDoc.contactsHeading
+      }
+      return out
+    }
+
     if (Array.isArray(data?.docs)) {
+      const docs = data.docs.map((doc: any) => normalizeDoc(doc))
+      const needsFallback = docs.some((doc: any) => shouldHydrateContactsFromPublic(doc))
+      if (needsFallback) {
+        const publicRes = await loadPublicDataIfNeeded()
+        const publicDocs = Array.isArray(publicRes?.docs) ? publicRes.docs : []
+        const publicById = new Map<string, any>(publicDocs.map((d: any) => [String(d?.id ?? ''), d]))
+        return {
+          ...data,
+          docs: docs.map((doc: any) => normalizeDoc(mergeContactsFromPublicDoc(doc, publicById.get(String(doc?.id ?? ''))))),
+        }
+      }
       return {
         ...data,
-        docs: data.docs.map((doc: any) => normalizeDoc(doc)),
+        docs,
       }
     }
-    return normalizeDoc(data)
+    const normalized = normalizeDoc(data)
+    if (shouldHydrateContactsFromPublic(normalized)) {
+      const publicRes = await loadPublicDataIfNeeded()
+      const merged = mergeContactsFromPublicDoc(normalized, publicRes)
+      return normalizeDoc(merged)
+    }
+    return normalized
   } catch (err: any) {
     const statusCode = err?.response?.status || err?.statusCode || 502
     const data = err?.data

@@ -1,11 +1,12 @@
 import { readBody, createError, getRouterParam, type H3Event } from 'h3'
-import { authenticateWithPayloadCMS } from './payloadAuth'
+import { authenticateWithPayloadCMS, getPayloadProxyHeaders } from './payloadAuth'
 
 type UpdateBody = {
   email?: string
   title?: string
   slug?: string
   navCategory?: string | null
+  formSlug?: string | null
   parent?: unknown
   order?: number
   section?: unknown
@@ -48,6 +49,27 @@ function mapUpstreamError(err: any) {
   })
 }
 
+function normalizeExpectedFormSlug(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined
+  if (value == null) return null
+  if (typeof value !== 'string') return String(value)
+  const v = value.trim()
+  return v.length ? v : null
+}
+
+function readPersistedFormSlug(doc: any): string | null {
+  if (!doc || typeof doc !== 'object') return null
+  const direct = doc?.formSlug
+  if (typeof direct === 'string') return direct.trim() || null
+  if (direct == null) {
+    const fieldValue = doc?.fields?.formSlug
+    if (typeof fieldValue === 'string') return fieldValue.trim() || null
+    if (fieldValue == null) return null
+  }
+  if (doc?.form?.slug && typeof doc.form.slug === 'string') return doc.form.slug.trim() || null
+  return null
+}
+
 /**
  * Proxies dashboard “save page” to Payload. Tries, in order:
  * 1) POST /api/{payloadConnectPagesUpdatePath}/:id (SSO body includes `email`)
@@ -72,7 +94,7 @@ export async function handleConnectPagesPayloadUpdate(event: H3Event) {
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'Page ID is required' })
 
-  const { token, email: sessionEmail } = await authenticateWithPayloadCMS(event)
+  const { token, email: sessionEmail, payloadSessionCookie } = await authenticateWithPayloadCMS(event)
   if (!sessionEmail) {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized - must be signed in' })
   }
@@ -149,6 +171,7 @@ export async function handleConnectPagesPayloadUpdate(event: H3Event) {
   if (typeof body.title === 'string') payloadUpdate.title = body.title
   if (typeof body.slug === 'string') payloadUpdate.slug = body.slug
   if (body.navCategory !== undefined) payloadUpdate.navCategory = body.navCategory
+  if (body.formSlug !== undefined) payloadUpdate.formSlug = body.formSlug
   if (body.parent !== undefined) payloadUpdate.parent = body.parent
   if (body.order !== undefined) payloadUpdate.order = body.order
   if (body.section !== undefined && isAdminSession) payloadUpdate.section = body.section
@@ -158,6 +181,8 @@ export async function handleConnectPagesPayloadUpdate(event: H3Event) {
 
   const customUpdateUrl = `${origin}/api/${updatePath}/${encodeURIComponent(id)}`
   const jsonHeaders = { 'Content-Type': 'application/json' }
+  const restPageUrl = `${origin}/api/connect-pages/${encodeURIComponent(id)}`
+  const expectedFormSlug = normalizeExpectedFormSlug(body.formSlug)
 
   const tryCustom = async (method: 'POST' | 'PATCH') =>
     $fetch(customUpdateUrl, {
@@ -166,27 +191,79 @@ export async function handleConnectPagesPayloadUpdate(event: H3Event) {
       body: payloadUpdate,
     })
 
+  /**
+   * Custom SSO routes often return 200 but only persist an allowlisted subset of fields.
+   * If `formSlug` is present, merge it via native REST so it actually saves when the collection defines it.
+   */
+  const mergeFormSlugViaRestIfNeeded = async (customResult: unknown) => {
+    if (body.formSlug === undefined) return customResult
+    if (!token && !payloadSessionCookie) return customResult
+    try {
+      return await $fetch(restPageUrl, {
+        method: 'PATCH',
+        headers: getPayloadProxyHeaders(event, { token, payloadSessionCookie }),
+        body: { formSlug: body.formSlug },
+      })
+    } catch (e: any) {
+      console.error('connect-pages update proxy: formSlug REST merge after custom route failed', {
+        restPageUrl,
+      })
+      throw mapUpstreamError(e)
+    }
+  }
+
+  const assertFormSlugPersistedIfRequested = async () => {
+    if (expectedFormSlug === undefined) return
+    if (!token && !payloadSessionCookie) return
+    try {
+      const verifyDoc = await $fetch(`${restPageUrl}?depth=0`, {
+        headers: getPayloadProxyHeaders(event, { token, payloadSessionCookie }, { Accept: 'application/json' }),
+      })
+      const persisted = readPersistedFormSlug(verifyDoc)
+      if (persisted !== expectedFormSlug) {
+        throw createError({
+          statusCode: 409,
+          statusMessage: 'Saved, but attached form was not persisted in Payload.',
+          data: {
+            expectedFormSlug,
+            persistedFormSlug: persisted,
+            hint: 'Payload connect-pages schema or custom update allowlist may not include formSlug.',
+          },
+        })
+      }
+    } catch (err: any) {
+      if (typeof err?.statusCode === 'number') throw err
+      throw mapUpstreamError(err)
+    }
+  }
+
   try {
     try {
-      return await tryCustom('POST')
+      const result = await mergeFormSlugViaRestIfNeeded(await tryCustom('POST'))
+      await assertFormSlugPersistedIfRequested()
+      return result
     } catch (first: any) {
       if (upstreamStatus(first) !== 404) throw mapUpstreamError(first)
       try {
-        return await tryCustom('PATCH')
+        const result = await mergeFormSlugViaRestIfNeeded(await tryCustom('PATCH'))
+        await assertFormSlugPersistedIfRequested()
+        return result
       } catch (second: any) {
         if (upstreamStatus(second) !== 404 || !token) throw mapUpstreamError(second)
         const patchBody: Record<string, unknown> = { ...payloadUpdate }
         delete patchBody.email
         try {
-          return await $fetch(`${origin}/api/connect-pages/${encodeURIComponent(id)}`, {
+          const result = await $fetch(restPageUrl, {
             method: 'PATCH',
             headers: { ...jsonHeaders, Authorization: `Bearer ${token}` },
             body: patchBody,
           })
+          await assertFormSlugPersistedIfRequested()
+          return result
         } catch (third: any) {
           console.error('connect-pages update proxy: custom POST/PATCH 404, REST PATCH failed', {
             customUpdateUrl,
-            restUrl: `${origin}/api/connect-pages/${id}`,
+            restUrl: restPageUrl,
           })
           throw mapUpstreamError(third)
         }

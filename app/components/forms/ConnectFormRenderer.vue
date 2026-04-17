@@ -1,6 +1,6 @@
 <template>
   <form class="space-y-4" @submit.prevent="onSubmit">
-    <div v-for="f in fields" :key="f.key" class="space-y-1.5">
+    <div v-for="f in normalizedFields" :key="f.key" class="space-y-1.5">
       <label class="block text-sm font-medium text-gray-900">
         {{ f.label || f.key }}
         <span v-if="f.required" class="text-red-600">*</span>
@@ -8,9 +8,9 @@
 
       <!-- Text-ish -->
       <input
-        v-if="f.type === 'text' || f.type === 'email' || f.type === 'number'"
+        v-if="f.type === 'text' || f.type === 'email' || f.type === 'number' || f.type === 'date'"
         v-model="answersProxy[f.key]"
-        :type="f.type === 'number' ? 'number' : (f.type === 'email' ? 'email' : 'text')"
+        :type="f.type === 'number' ? 'number' : (f.type === 'email' ? 'email' : (f.type === 'date' ? 'date' : 'text'))"
         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(13,94,130,0.25)] focus:border-[rgba(13,94,130,1)]"
         :required="f.required"
       >
@@ -68,10 +68,16 @@
         @change="onFileChange(f.key, $event)"
         :required="f.required"
       >
-
-      <div v-else class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-        Unsupported field type: {{ f.type }} ({{ f.key }})
-      </div>
+      <input
+        v-else
+        v-model="answersProxy[f.key]"
+        type="text"
+        class="w-full rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(13,94,130,0.25)] focus:border-[rgba(13,94,130,1)]"
+        :required="f.required"
+      >
+      <p v-if="f.type === 'file' && props.uploadProgress && props.uploadProgress[f.key] != null" class="text-xs text-gray-500">
+        Upload progress: {{ props.uploadProgress[f.key] }}%
+      </p>
 
       <p v-if="f.description" class="text-xs text-gray-500">{{ f.description }}</p>
     </div>
@@ -86,6 +92,9 @@
       </button>
       <span v-if="error" class="text-sm text-red-600">{{ error }}</span>
     </div>
+    <ul v-if="validationErrors?.length" class="list-disc space-y-1 pl-5 text-sm text-red-700">
+      <li v-for="(msg, i) in validationErrors" :key="i">{{ msg }}</li>
+    </ul>
   </form>
 </template>
 
@@ -95,7 +104,7 @@ type Field = {
   key: string
   label?: string
   description?: string
-  type: 'text' | 'textarea' | 'email' | 'number' | 'select' | 'radio' | 'checkbox' | 'file' | string
+  type: 'text' | 'textarea' | 'email' | 'number' | 'select' | 'radio' | 'checkbox' | 'date' | 'file' | string
   required?: boolean
   choices?: Choice[]
 }
@@ -105,7 +114,41 @@ const props = defineProps<{
   modelValue: Record<string, unknown>
   submitting?: boolean
   error?: string | null
+  validationErrors?: string[]
+  uploadProgress?: Record<string, number>
 }>()
+
+const validationErrors = computed(() => props.validationErrors || [])
+
+function canonicalFieldType(raw: unknown): string {
+  const t = String(raw ?? '')
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\u00A0/g, ' ')
+    .trim()
+    .toLowerCase()
+  if (!t) return 'text'
+  if (t.includes('textarea') || t.includes('longtext') || t.includes('paragraph')) return 'textarea'
+  if (t.includes('text')) return 'text'
+  if (t === 'text' || t === 'shorttext' || t === 'short_text' || t === 'textfield' || t === 'textinput') return 'text'
+  if (t === 'textarea' || t === 'longtext' || t === 'long_text' || t === 'paragraph') return 'textarea'
+  if (t === 'email' || t === 'e-mail') return 'email'
+  if (t === 'number' || t === 'numeric' || t === 'integer' || t === 'decimal') return 'number'
+  if (t === 'date' || t === 'datetime' || t === 'date_time') return 'date'
+  if (t === 'select' || t === 'dropdown') return 'select'
+  if (t === 'radio' || t === 'radio-group' || t === 'radiogroup') return 'radio'
+  if (t === 'checkbox' || t === 'multi_select' || t === 'multiselect') return 'checkbox'
+  if (t === 'file' || t === 'upload') return 'file'
+  return t
+}
+
+const normalizedFields = computed<Field[]>(() =>
+  (props.fields || []).map((f) => ({
+    ...f,
+    type: canonicalFieldType(f.type),
+    choices: Array.isArray(f.choices) ? f.choices : undefined,
+  })),
+)
 
 const emit = defineEmits<{
   (e: 'update:modelValue', v: Record<string, unknown>): void
