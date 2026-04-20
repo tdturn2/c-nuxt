@@ -5,9 +5,10 @@
       <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 class="text-2xl font-bold text-gray-900 mb-6">Employee Directory</h1>
 
-        <div v-if="loading" class="text-center py-12">
-          <div class="text-gray-500">Loading directory...</div>
-        </div>
+        <template v-if="loading">
+          <p class="sr-only">Loading employee directory…</p>
+          <ConnectDirectorySkeleton toolbar="filters" />
+        </template>
 
         <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-md p-4">
           <div class="text-red-800 text-sm">{{ error }}</div>
@@ -120,10 +121,19 @@ type EmployeeRow = {
 const route = useRoute()
 const router = useRouter()
 
-const loading = ref(true)
-const error = ref<string | null>(null)
-const employees = ref<EmployeeRow[]>([])
 const searchQuery = ref('')
+
+const { data: employeesPayload, pending: loading, error: fetchError } = useLazyFetch<{ employees: EmployeeRow[] }>(
+  '/api/employees',
+)
+
+const employees = computed(() => employeesPayload.value?.employees ?? [])
+
+const error = computed(() => {
+  const e = fetchError.value as any
+  if (!e) return null
+  return e.data?.message || e.statusMessage || 'Failed to load directory'
+})
 
 const DEPARTMENT_LABELS: Record<string, string> = {
   '1': 'Academic Affairs',
@@ -271,18 +281,7 @@ function syncRouteFromFilters() {
 watch([selectedDepartment, selectedSection], syncRouteFromFilters, { deep: true })
 watchDebounced(searchQuery, syncRouteFromFilters, { debounce: 400 })
 
-onMounted(async () => {
-  if (!import.meta.client) return
-  try {
-    loading.value = true
-    error.value = null
-    const res = await $fetch<{ employees: EmployeeRow[] }>('/api/employees')
-    employees.value = res.employees ?? []
-  } catch (err: any) {
-    console.error('Error loading employees:', err)
-    error.value = err.data?.message || 'Failed to load directory'
-  } finally {
-    loading.value = false
-  }
+watch(fetchError, (e) => {
+  if (e) console.error('Error loading employees:', e)
 })
 </script>

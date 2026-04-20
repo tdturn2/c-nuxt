@@ -5,9 +5,10 @@
       <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 class="text-2xl font-bold text-gray-900 mb-6">Faculty Directory</h1>
 
-        <div v-if="loading" class="text-center py-12">
-          <div class="text-gray-500">Loading directory...</div>
-        </div>
+        <template v-if="loading">
+          <p class="sr-only">Loading faculty directory…</p>
+          <ConnectDirectorySkeleton />
+        </template>
 
         <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-md p-4">
           <div class="text-red-800 text-sm">{{ error }}</div>
@@ -89,10 +90,19 @@ type FacultyRow = {
   avatar: { url: string } | null
 }
 
-const loading = ref(true)
-const error = ref<string | null>(null)
-const faculty = ref<FacultyRow[]>([])
 const searchQuery = ref('')
+
+const { data: facultyPayload, pending: loading, error: fetchError } = useLazyFetch<{ faculty: FacultyRow[] }>(
+  '/api/faculty',
+)
+
+const faculty = computed(() => facultyPayload.value?.faculty ?? [])
+
+const error = computed(() => {
+  const e = fetchError.value as any
+  if (!e) return null
+  return e.data?.message || e.statusMessage || 'Failed to load directory'
+})
 
 const DEPARTMENT_LABELS: Record<string, string> = {
   '1': 'Academic Affairs',
@@ -121,24 +131,13 @@ const filteredFaculty = computed(() => {
     .split(/\s+/)
     .filter(Boolean)
   if (words.length === 0) return faculty.value
-  return faculty.value.filter((person) => {
+  return faculty.value.filter((person: FacultyRow) => {
     const name = (person.name ?? '').toLowerCase()
     return words.every((word) => name.includes(word))
   })
 })
 
-onMounted(async () => {
-  if (!import.meta.client) return
-  try {
-    loading.value = true
-    error.value = null
-    const res = await $fetch<{ faculty: FacultyRow[] }>('/api/faculty')
-    faculty.value = res.faculty ?? []
-  } catch (err: any) {
-    console.error('Error loading faculty:', err)
-    error.value = err.data?.message || 'Failed to load directory'
-  } finally {
-    loading.value = false
-  }
+watch(fetchError, (e) => {
+  if (e) console.error('Error loading faculty:', e)
 })
 </script>
