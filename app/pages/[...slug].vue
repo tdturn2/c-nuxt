@@ -628,7 +628,7 @@ function lexicalToHtml(node: any): string {
     }
 
     const title = parsedTitle || `Video ${vimeoId}`
-    return `<div class="connect-vimeo-video-block not-prose my-3 rounded border border-gray-200 bg-gray-50 p-3 text-sm"><button type="button" class="text-[rgba(13,94,130,1)] hover:underline text-left w-full font-normal bg-transparent border-0 p-0 cursor-pointer" data-connect-play-vimeo="${escapeHtml(vimeoId)}" data-connect-video-title="${escapeHtml(title)}">${escapeHtml(title)}</button></div>`
+    return `<p class="mb-4"><a href="#" data-connect-play-vimeo="${escapeHtml(vimeoId)}" data-connect-video-title="${escapeHtml(title)}" data-video-link="true">${escapeHtml(title)}</a></p>`
   }
 
   const buildConnectVimeoCollectionBlockHtml = (raw: string): string | null => {
@@ -681,7 +681,7 @@ function lexicalToHtml(node: any): string {
     }
     const list = rows
       .map((row) =>
-        `<li class="my-0.5"><button type="button" class="group flex w-full items-start gap-2 rounded px-1.5 py-1 text-left font-normal bg-transparent border-0 cursor-pointer hover:bg-white/70" data-connect-play-vimeo-collection="${escapeHtml(row.iframeUrl)}" data-connect-video-title="${escapeHtml(row.title)}"><span class="mt-[0.42rem] inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[rgba(13,94,130,1)]"></span><span class="text-[rgba(13,94,130,1)] group-hover:underline">${escapeHtml(row.title)}</span></button></li>`
+        `<li class="my-0.5"><button type="button" class="group flex w-full items-start gap-2 rounded px-1.5 py-1 text-left font-normal bg-transparent border-0 cursor-pointer hover:bg-white/70" data-connect-play-vimeo-collection="${escapeHtml(row.iframeUrl)}" data-connect-video-title="${escapeHtml(row.title)}"><span class="mt-[0.42rem] inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[rgba(13,94,130,1)]"></span><span class="text-[rgba(13,94,130,1)]" data-video-link="true">${escapeHtml(row.title)}</span></button></li>`
       )
       .join('')
     return `<div class="connect-vimeo-collection-block not-prose my-2 rounded border border-gray-200 bg-gray-50 px-3 py-2 text-sm"><ul class="m-0 p-0 space-y-0.5">${list}</ul></div>`
@@ -1134,5 +1134,31 @@ article .connect-page-body.prose li > p:last-child {
   margin-left: 0.2em;
   color: #6b7280; /* gray-500 */
   vertical-align: 0.08em;
+}
+
+.prose [data-video-link="true"],
+.prose [data-video-link="true"]:hover,
+.prose [data-video-link="true"]:focus-visible {
+  text-decoration: none;
+}
+
+.prose [data-video-link="true"]::after {
+  content: '\25B6';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.8em;
+  height: 1.25em;
+  margin-left: 0.44em;
+  border: 1px solid #6b7280; /* gray-500 */
+  border-radius: 0.32em;
+  padding-left: 0.12em;
+  padding-right: 0.04em;
+  font-size: 0.62em;
+  line-height: 1;
+  color: #4b5563; /* gray-600 */
+  vertical-align: middle;
+  position: relative;
+  top: -0.06em;
 }
 </style>
