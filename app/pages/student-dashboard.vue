@@ -13,12 +13,15 @@
           </p>
         </header>
 
-        <div v-if="pending" class="rounded-lg border border-gray-200 bg-white p-6 text-sm text-gray-600">
-          Loading student dashboard...
-        </div>
+        <UProgress
+          v-if="pending && hasAnyData"
+          animation="carousel"
+          color="primary"
+          size="xs"
+        />
 
         <div
-          v-else-if="error"
+          v-if="error && !hasAnyData"
           class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700"
         >
           {{ errorMessage }}
@@ -30,6 +33,22 @@
               <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700">Courses</h2>
               <a class="text-sm text-blue-700 hover:text-blue-900" :href="sectionLinks.courses" target="_blank" rel="noopener noreferrer">Open in Canvas</a>
             </div>
+            <article
+              v-if="showInitialSkeleton"
+              v-for="n in courseSkeletonCount"
+              :key="`course-skeleton-${n}`"
+              class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"
+            >
+              <USkeleton class="h-28 w-full" />
+              <div class="p-4 space-y-3">
+                <USkeleton class="h-3 w-20" />
+                <USkeleton class="h-5 w-3/4" />
+                <div class="flex items-center justify-between">
+                  <USkeleton class="h-3 w-24" />
+                  <USkeleton class="h-4 w-14" />
+                </div>
+              </div>
+            </article>
             <a
               v-for="course in courses"
               :key="`course-${course.id ?? course.name}`"
@@ -72,7 +91,18 @@
               </div>
             </div>
 
-            <div v-if="!assignmentsDueThisWeek.length" class="mt-4 text-sm text-blue-800">
+            <ul v-if="showInitialSkeleton" class="mt-4 space-y-3">
+              <li
+                v-for="n in 4"
+                :key="`assignment-skeleton-${n}`"
+                class="rounded-md border border-blue-200 bg-white px-4 py-3 space-y-2"
+              >
+                <USkeleton class="h-4 w-2/3" />
+                <USkeleton class="h-3 w-1/3" />
+              </li>
+            </ul>
+
+            <div v-else-if="!assignmentsDueThisWeek.length" class="mt-4 text-sm text-blue-800">
               No assignments due this week.
             </div>
 
@@ -106,7 +136,10 @@
                 <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-700">To-Do / Missing</h3>
                 <a class="text-sm text-blue-700 hover:text-blue-900" :href="sectionLinks.todo" target="_blank" rel="noopener noreferrer">Open in Canvas</a>
               </div>
-              <ul v-if="todoMissing.length" class="mt-3 space-y-2 text-sm">
+              <div v-if="showInitialSkeleton" class="mt-3 space-y-2">
+                <USkeleton v-for="n in 4" :key="`todo-skeleton-${n}`" class="h-8 w-full" />
+              </div>
+              <ul v-else-if="todoMissing.length" class="mt-3 space-y-2 text-sm">
                 <li v-for="item in todoMissing.slice(0, 6)" :key="`todo-${item.title}-${item.dueAt}`" class="border-b border-gray-100 pb-2 last:border-b-0">
                   <a
                     class="font-medium text-gray-900 hover:text-blue-700"
@@ -129,7 +162,10 @@
                 <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-700">Calendar / Schedule</h3>
                 <a class="text-sm text-blue-700 hover:text-blue-900" :href="sectionLinks.calendar" target="_blank" rel="noopener noreferrer">Open in Canvas</a>
               </div>
-              <ul v-if="calendar.length" class="mt-3 space-y-2 text-sm">
+              <div v-if="showInitialSkeleton" class="mt-3 space-y-2">
+                <USkeleton v-for="n in 4" :key="`calendar-skeleton-${n}`" class="h-8 w-full" />
+              </div>
+              <ul v-else-if="calendar.length" class="mt-3 space-y-2 text-sm">
                 <li v-for="event in calendar.slice(0, 6)" :key="`event-${event.id}`" class="border-b border-gray-100 pb-2 last:border-b-0">
                   <a
                     class="font-medium text-gray-900 hover:text-blue-700"
@@ -154,7 +190,10 @@
                 <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-700">Messages / Announcements</h3>
                 <a class="text-sm text-blue-700 hover:text-blue-900" :href="sectionLinks.messages" target="_blank" rel="noopener noreferrer">Open in Canvas</a>
               </div>
-              <div class="mt-3 space-y-4">
+              <div v-if="showInitialSkeleton" class="mt-3 space-y-2">
+                <USkeleton v-for="n in 5" :key="`messages-skeleton-${n}`" class="h-7 w-full" />
+              </div>
+              <div v-else class="mt-3 space-y-4">
                 <div>
                   <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Messages</p>
                   <ul v-if="messagesAnnouncements.messages.length" class="mt-2 space-y-2 text-sm">
@@ -191,7 +230,10 @@
                 <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-700">Recent Feedback</h3>
                 <a class="text-sm text-blue-700 hover:text-blue-900" :href="sectionLinks.feedback" target="_blank" rel="noopener noreferrer">Open in Canvas</a>
               </div>
-              <ul v-if="recentFeedback.length" class="mt-3 space-y-3 text-sm">
+              <div v-if="showInitialSkeleton" class="mt-3 space-y-3">
+                <USkeleton v-for="n in 3" :key="`feedback-skeleton-${n}`" class="h-20 w-full rounded-md" />
+              </div>
+              <ul v-else-if="recentFeedback.length" class="mt-3 space-y-3 text-sm">
                 <li
                   v-for="item in recentFeedback.slice(0, 6)"
                   :key="`feedback-${item.assignmentName}-${item.createdAt}`"
@@ -294,7 +336,12 @@ type StudentDashboardResponse = {
   }
 }
 
-const { data, pending, error } = await useFetch<StudentDashboardResponse>('/api/student-dashboard')
+const { data, pending, error } = useFetch<StudentDashboardResponse>('/api/student-dashboard', {
+  key: 'student-dashboard',
+  server: false,
+  lazy: true,
+  default: () => ({})
+})
 
 const dashboard = computed<StudentDashboardResponse>(() => data.value || {})
 const courses = computed(() => dashboard.value.courses || [])
@@ -303,6 +350,19 @@ const todoMissing = computed(() => dashboard.value.todoMissing || [])
 const messagesAnnouncements = computed(() => dashboard.value.messagesAnnouncements || { messages: [], announcements: [] })
 const recentFeedback = computed(() => dashboard.value.recentFeedback || [])
 const calendar = computed(() => dashboard.value.calendar || [])
+const hasAnyData = computed(() => {
+  return (
+    courses.value.length > 0 ||
+    assignmentsDueThisWeek.value.length > 0 ||
+    todoMissing.value.length > 0 ||
+    messagesAnnouncements.value.messages.length > 0 ||
+    messagesAnnouncements.value.announcements.length > 0 ||
+    recentFeedback.value.length > 0 ||
+    calendar.value.length > 0
+  )
+})
+const showInitialSkeleton = computed(() => pending.value && !hasAnyData.value && !error.value)
+const courseSkeletonCount = 6
 const sectionLinks = computed(() => {
   const links = dashboard.value.meta?.links
   return {
