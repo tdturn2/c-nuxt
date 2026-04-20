@@ -1,20 +1,41 @@
 import { ref, computed } from 'vue'
 
-/** Exactly one of `vimeoId` or `youtubeId` should be set. */
 export interface VideoTrack {
   title: string
   vimeoId?: string
   youtubeId?: string
+  mode?: 'vimeoVideo'
 }
 
-const currentVideo = ref<VideoTrack | null>(null)
+export interface VimeoCollectionTrack {
+  title: string
+  iframeUrl: string
+  mode: 'vimeoCollection'
+}
+
+export type PlayerTrack = VideoTrack | VimeoCollectionTrack
+
+const currentVideo = ref<PlayerTrack | null>(null)
 
 export const useVideoPlayer = () => {
   const playVideo = (video: VideoTrack) => {
     if (!video.vimeoId?.trim() && !video.youtubeId?.trim()) return
     const { stop: stopAudio } = useAudioPlayer()
     stopAudio()
-    currentVideo.value = video
+    currentVideo.value = {
+      ...video,
+      mode: 'vimeoVideo',
+    }
+  }
+
+  const playVimeoCollection = (video: Omit<VimeoCollectionTrack, 'mode'>) => {
+    if (!video.iframeUrl?.trim()) return
+    const { stop: stopAudio } = useAudioPlayer()
+    stopAudio()
+    currentVideo.value = {
+      ...video,
+      mode: 'vimeoCollection',
+    }
   }
 
   const close = () => {
@@ -24,6 +45,7 @@ export const useVideoPlayer = () => {
   return {
     currentVideo: computed(() => currentVideo.value),
     playVideo,
+    playVimeoCollection,
     close
   }
 }

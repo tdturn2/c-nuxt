@@ -610,7 +610,7 @@
             </UEditor>
             <div class="mt-3 space-y-2">
               <details class="rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
-                <summary class="cursor-pointer text-xs font-semibold text-gray-700">Special blocks in content (videos, FAQ, forms)</summary>
+                <summary class="cursor-pointer text-xs font-semibold text-gray-700">Special blocks in content (videos, Vimeo, FAQ, forms)</summary>
                 <p class="mt-2 text-xs text-gray-600 leading-relaxed">
                   FAQ and video lists are edited as <strong class="font-semibold text-gray-800">normal paragraph text</strong> (the <code class="text-[11px]">@connect-…</code> JSON) in this editor so they stay visible and editable after save.
                   The live site turns that line into accordions or video links — the dashboard is not WYSIWYG for that piece.
@@ -620,6 +620,10 @@
                 </p>
                 <p class="mt-2 text-[11px] font-semibold text-gray-700">Video list</p>
                 <pre class="mt-1 text-[11px] leading-snug overflow-auto max-h-32 whitespace-pre-wrap rounded border border-gray-200 bg-white p-2">@connect-videos [{"title":"Welcome","vimeoId":"123456789"}]</pre>
+                <p class="mt-3 text-[11px] font-semibold text-gray-700">Single Vimeo (bottom-right player)</p>
+                <pre class="mt-1 text-[11px] leading-snug overflow-auto max-h-24 whitespace-pre-wrap rounded border border-gray-200 bg-white p-2">@connect-vimeo-video {"title":"Welcome","vimeoId":"123456789"}</pre>
+                <p class="mt-3 text-[11px] font-semibold text-gray-700">Vimeo collection (bottom-right resizable iframe)</p>
+                <pre class="mt-1 text-[11px] leading-snug overflow-auto max-h-24 whitespace-pre-wrap rounded border border-gray-200 bg-white p-2">@connect-vimeo-collection {"title":"MDiv Video Library","url":"https://vimeo.com/showcase/1234567"}</pre>
                 <p class="mt-3 text-[11px] font-semibold text-gray-700">FAQ accordion</p>
                 <pre class="mt-1 text-[11px] leading-snug overflow-auto max-h-40 whitespace-pre-wrap rounded border border-gray-200 bg-white p-2">@connect-faq [
   {

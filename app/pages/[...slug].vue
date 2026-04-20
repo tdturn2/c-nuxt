@@ -152,6 +152,10 @@ import {
   normalizePayloadMediaUrl,
   resolveConnectPagesMediaFromLexicalValue,
 } from '~/utils/connectPagesDocImage'
+import {
+  normalizeVimeoCollectionIframeUrl,
+  normalizeVimeoVideoId,
+} from '~/utils/vimeoEmbed'
 
 const route = useRoute()
 const runtimeConfig = useRuntimeConfig()
@@ -162,7 +166,7 @@ function normalizeConnectPageMediaUrl(url: string): string {
     (import.meta.dev ? 'http://localhost:3002' : '')
   return normalizePayloadMediaUrl(url, base)
 }
-const { playVideo } = useVideoPlayer()
+const { playVideo, playVimeoCollection } = useVideoPlayer()
 
 type ConnectUser = {
   id: number | string
@@ -596,8 +600,99 @@ function lexicalToHtml(node: any): string {
     return `<section class="connect-faq-block not-prose my-6 space-y-2" aria-label="Frequently asked questions">${blocks}</section>`
   }
 
+  const buildConnectVimeoVideoBlockHtml = (raw: string): string | null => {
+    const t = raw.trim()
+    if (!t.toLowerCase().startsWith('@connect-vimeo-video')) return null
+    const payload = t.replace(/^@connect-vimeo-video\s*/i, '').trim()
+    if (!payload) {
+      return '<div class="connect-vimeo-video-block not-prose my-2 text-xs text-amber-800">@connect-vimeo-video: missing payload</div>'
+    }
+
+    let parsedTitle = ''
+    let parsedVideo = ''
+    if (payload.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(payload) as Record<string, unknown>
+        parsedTitle = String(parsed.title ?? '').trim()
+        parsedVideo = String(parsed.vimeoId ?? parsed.vimeo_id ?? parsed.videoId ?? '').trim()
+      } catch {
+        return '<div class="connect-vimeo-video-block not-prose my-2 text-xs text-red-600">@connect-vimeo-video: invalid JSON</div>'
+      }
+    } else {
+      parsedVideo = payload
+    }
+
+    const vimeoId = normalizeVimeoVideoId(parsedVideo)
+    if (!vimeoId) {
+      return '<div class="connect-vimeo-video-block not-prose my-2 text-xs text-red-600">@connect-vimeo-video: invalid vimeoId/url</div>'
+    }
+
+    const title = parsedTitle || `Video ${vimeoId}`
+    return `<div class="connect-vimeo-video-block not-prose my-3 rounded border border-gray-200 bg-gray-50 p-3 text-sm"><button type="button" class="text-[rgba(13,94,130,1)] hover:underline text-left w-full font-normal bg-transparent border-0 p-0 cursor-pointer" data-connect-play-vimeo="${escapeHtml(vimeoId)}" data-connect-video-title="${escapeHtml(title)}">${escapeHtml(title)}</button></div>`
+  }
+
+  const buildConnectVimeoCollectionBlockHtml = (raw: string): string | null => {
+    const t = raw.trim()
+    if (!t.toLowerCase().startsWith('@connect-vimeo-collection')) return null
+    const payload = t.replace(/^@connect-vimeo-collection\s*/i, '').trim()
+    if (!payload) {
+      return '<div class="connect-vimeo-collection-block not-prose my-2 text-xs text-amber-800">@connect-vimeo-collection: missing payload</div>'
+    }
+
+    const rows: Array<{ title: string; iframeUrl: string }> = []
+    if (payload.startsWith('{') || payload.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(payload) as unknown
+        if (Array.isArray(parsed)) {
+          for (const row of parsed) {
+            if (!row || typeof row !== 'object') continue
+            const item = row as Record<string, unknown>
+            const parsedTitle = String(item.title ?? '').trim()
+            const parsedUrl = String(item.url ?? item.vimeoUrl ?? '').trim()
+            const iframeUrl = normalizeVimeoCollectionIframeUrl(parsedUrl)
+            if (!iframeUrl) continue
+            rows.push({ title: parsedTitle || 'Vimeo Collection', iframeUrl })
+          }
+        } else if (parsed && typeof parsed === 'object') {
+          const item = parsed as Record<string, unknown>
+          const parsedTitle = String(item.title ?? '').trim()
+          const parsedUrl = String(item.url ?? item.vimeoUrl ?? '').trim()
+          const iframeUrl = normalizeVimeoCollectionIframeUrl(parsedUrl)
+          if (!iframeUrl) {
+            return '<div class="connect-vimeo-collection-block not-prose my-2 text-xs text-red-600">@connect-vimeo-collection: invalid collection url</div>'
+          }
+          rows.push({ title: parsedTitle || 'Vimeo Collection', iframeUrl })
+        } else {
+          return '<div class="connect-vimeo-collection-block not-prose my-2 text-xs text-red-600">@connect-vimeo-collection: invalid JSON</div>'
+        }
+      } catch {
+        return '<div class="connect-vimeo-collection-block not-prose my-2 text-xs text-red-600">@connect-vimeo-collection: invalid JSON</div>'
+      }
+    } else {
+      const iframeUrl = normalizeVimeoCollectionIframeUrl(payload)
+      if (!iframeUrl) {
+        return '<div class="connect-vimeo-collection-block not-prose my-2 text-xs text-red-600">@connect-vimeo-collection: invalid collection url</div>'
+      }
+      rows.push({ title: 'Vimeo Collection', iframeUrl })
+    }
+
+    if (!rows.length) {
+      return '<div class="connect-vimeo-collection-block not-prose my-2 text-xs text-gray-500">@connect-vimeo-collection: no valid items</div>'
+    }
+    const list = rows
+      .map((row) =>
+        `<li class="my-0.5"><button type="button" class="group flex w-full items-start gap-2 rounded px-1.5 py-1 text-left font-normal bg-transparent border-0 cursor-pointer hover:bg-white/70" data-connect-play-vimeo-collection="${escapeHtml(row.iframeUrl)}" data-connect-video-title="${escapeHtml(row.title)}"><span class="mt-[0.42rem] inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[rgba(13,94,130,1)]"></span><span class="text-[rgba(13,94,130,1)] group-hover:underline">${escapeHtml(row.title)}</span></button></li>`
+      )
+      .join('')
+    return `<div class="connect-vimeo-collection-block not-prose my-2 rounded border border-gray-200 bg-gray-50 px-3 py-2 text-sm"><ul class="m-0 p-0 space-y-0.5">${list}</ul></div>`
+  }
+
   const buildConnectMagicBlockHtml = (raw: string): string | null =>
-    buildConnectVideoCollectionHtml(raw) ?? buildConnectFaqHtml(raw) ?? buildConnectFormEmbedHtml(raw)
+    buildConnectVimeoVideoBlockHtml(raw) ??
+    buildConnectVimeoCollectionBlockHtml(raw) ??
+    buildConnectVideoCollectionHtml(raw) ??
+    buildConnectFaqHtml(raw) ??
+    buildConnectFormEmbedHtml(raw)
 
   /**
    * `@connect-form {"slug":"my-form"}`
@@ -659,6 +754,39 @@ function lexicalToHtml(node: any): string {
 
   const connectMagicJsonParses = (raw: string): boolean => {
     const t = raw.trim()
+    if (t.toLowerCase().startsWith('@connect-vimeo-video')) {
+      const payload = t.replace(/^@connect-vimeo-video\s*/i, '').trim()
+      if (!payload) return false
+      if (!payload.startsWith('{')) return normalizeVimeoVideoId(payload) != null
+      try {
+        const parsed = JSON.parse(payload) as any
+        const id = parsed?.vimeoId ?? parsed?.vimeo_id ?? parsed?.videoId ?? ''
+        return normalizeVimeoVideoId(id) != null
+      } catch {
+        return false
+      }
+    }
+    if (t.toLowerCase().startsWith('@connect-vimeo-collection')) {
+      const payload = t.replace(/^@connect-vimeo-collection\s*/i, '').trim()
+      if (!payload) return false
+      if (!payload.startsWith('{') && !payload.startsWith('[')) {
+        return normalizeVimeoCollectionIframeUrl(payload) != null
+      }
+      try {
+        const parsed = JSON.parse(payload) as any
+        if (Array.isArray(parsed)) {
+          return parsed.some((row) => {
+            if (!row || typeof row !== 'object') return false
+            const url = (row as any).url ?? (row as any).vimeoUrl ?? ''
+            return normalizeVimeoCollectionIframeUrl(url) != null
+          })
+        }
+        const url = parsed?.url ?? parsed?.vimeoUrl ?? ''
+        return normalizeVimeoCollectionIframeUrl(url) != null
+      } catch {
+        return false
+      }
+    }
     if (t.toLowerCase().startsWith('@connect-videos')) {
       const jsonStr = t.replace(/^@connect-videos\s*/i, '').trim()
       if (!jsonStr) return false
@@ -699,6 +827,8 @@ function lexicalToHtml(node: any): string {
     if (
       !low.startsWith('@connect-faq') &&
       !low.startsWith('@connect-videos') &&
+      !low.startsWith('@connect-vimeo-video') &&
+      !low.startsWith('@connect-vimeo-collection') &&
       !low.startsWith('@connect-form')
     ) return null
     let merged = firstPlain
@@ -800,6 +930,8 @@ function lexicalToHtml(node: any): string {
     const isCode = !!(format & IS_LEXICAL_CODE)
     const looksLikeMagic =
       raw.trim().startsWith('@connect-videos') ||
+      raw.trim().startsWith('@connect-vimeo-video') ||
+      raw.trim().startsWith('@connect-vimeo-collection') ||
       raw.trim().startsWith('@connect-faq') ||
       raw.trim().startsWith('@connect-form')
     if (isCode || looksLikeMagic) {
@@ -886,6 +1018,15 @@ function onContentClick(event: MouseEvent) {
     const id = playEl.getAttribute('data-connect-play-vimeo')?.trim()
     const title = playEl.getAttribute('data-connect-video-title')?.trim() || 'Video'
     if (id) playVideo({ vimeoId: id, title })
+    return
+  }
+
+  const collectionEl = target?.closest('[data-connect-play-vimeo-collection]') as HTMLElement | null
+  if (collectionEl) {
+    event.preventDefault()
+    const iframeUrl = collectionEl.getAttribute('data-connect-play-vimeo-collection')?.trim()
+    const title = collectionEl.getAttribute('data-connect-video-title')?.trim() || 'Vimeo Collection'
+    if (iframeUrl) playVimeoCollection({ iframeUrl, title })
     return
   }
 

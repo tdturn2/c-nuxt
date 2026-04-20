@@ -16,9 +16,24 @@
         </button>
       </div>
       <div class="px-3 pb-3">
-        <div class="plyr-slot">
-          <!-- No :key here. We manage the DOM manually. -->
-          <div ref="container" class="plyr-container rounded overflow-hidden bg-black" />
+        <div class="plyr-slot rounded overflow-hidden bg-black">
+          <div
+            v-if="isCollectionMode"
+            class="absolute inset-0 w-full h-full"
+          >
+            <iframe
+              :src="collectionIframeUrl"
+              class="w-full h-full border-0"
+              allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+              allowfullscreen
+              title="Vimeo collection player"
+            />
+          </div>
+          <div
+            v-else
+            ref="container"
+            class="plyr-container rounded overflow-hidden bg-black"
+          />
         </div>
       </div>
       <div
@@ -49,6 +64,11 @@ const PlyrPromise = import.meta.client
 const { currentVideo, close } = useVideoPlayer()
 const container = ref<HTMLElement | null>(null)
 let plyrInstance: import('plyr').default | null = null
+const isCollectionMode = computed(() => currentVideo.value?.mode === 'vimeoCollection')
+const collectionIframeUrl = computed(() => {
+  if (!isCollectionMode.value) return ''
+  return (currentVideo.value as any)?.iframeUrl || ''
+})
 
 const STORAGE_KEY = 'connect.videoPlayer.size.v1'
 const width = ref(520)
@@ -135,6 +155,7 @@ watch(
   embedRef,
   async (ref) => {
     destroyPlyr()
+    if (isCollectionMode.value) return
     if (!ref) return
     await nextTick()
     initPlyr(ref.kind, ref.id)
