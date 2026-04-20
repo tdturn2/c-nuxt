@@ -438,13 +438,58 @@
             <select
               v-model="itemForm.courseId"
               class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white"
-              :disabled="!!editingItem"
+              :disabled="!!editingItem || coursesListPending"
             >
-              <option :value="null">Select course</option>
+              <option :value="null">{{ coursesListPending ? 'Loading courses...' : 'Select course' }}</option>
               <option v-for="c in coursesList" :key="c.id" :value="c.id">
                 {{ c.code }} – {{ c.title }} ({{ c.credits ?? '?' }} cr)
               </option>
             </select>
+            <p v-if="coursesListError" class="mt-1 text-xs text-red-600">{{ coursesListError }}</p>
+            <p
+              v-else-if="!coursesListPending && !coursesList.length && !editingItem"
+              class="mt-1 text-xs text-amber-700"
+            >
+              No courses found in catalog. Add one below.
+            </p>
+          </div>
+          <div
+            v-if="!editingItem && !coursesListPending && !coursesList.length"
+            class="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-2"
+          >
+            <p class="text-xs font-medium text-amber-800 uppercase tracking-wide">Create course in catalog</p>
+            <div class="grid gap-2 sm:grid-cols-2">
+              <input
+                v-model="newCourseForm.code"
+                type="text"
+                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                placeholder="Code (e.g. OT501)"
+              />
+              <input
+                v-model="newCourseForm.credits"
+                type="number"
+                min="0"
+                step="0.5"
+                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                placeholder="Credits"
+              />
+            </div>
+            <input
+              v-model="newCourseForm.title"
+              type="text"
+              class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              placeholder="Course title"
+            />
+            <div class="flex justify-end">
+              <button
+                type="button"
+                class="rounded-md bg-[rgba(13,94,130,1)] px-3 py-1.5 text-sm font-medium text-white hover:bg-[rgba(10,69,92,1)] disabled:opacity-50"
+                :disabled="newCoursePending"
+                @click="createCourseAndSelect"
+              >
+                {{ newCoursePending ? 'Creating…' : 'Create course' }}
+              </button>
+            </div>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Order</label>
@@ -915,6 +960,14 @@ async function deleteSection(id: number) {
 
 // Section items (courses)
 const coursesList = ref<CourseOption[]>([])
+const coursesListPending = ref(false)
+const coursesListError = ref<string | null>(null)
+const newCoursePending = ref(false)
+const newCourseForm = ref<{ code: string; title: string; credits: string }>({
+  code: '',
+  title: '',
+  credits: '',
+})
 const itemModalOpen = ref(false)
 const itemSection = ref<{ id: number } | null>(null)
 const editingItem = ref<{ id: number; course?: { id: number }; order?: number } | null>(null)
@@ -923,11 +976,67 @@ const itemSavePending = ref(false)
 const itemError = ref<string | null>(null)
 
 async function loadCoursesList() {
+  coursesListPending.value = true
+  coursesListError.value = null
   try {
     const res = await $fetch<{ docs?: CourseOption[] }>('/api/courses/list')
     coursesList.value = res?.docs ?? []
-  } catch {
+  } catch (err: any) {
     coursesList.value = []
+    coursesListError.value = err?.data?.message ?? err?.message ?? 'Failed to load courses.'
+  } finally {
+    coursesListPending.value = false
+  }
+}
+
+async function createCourseAndSelect() {
+  coursesListError.value = null
+  const code = newCourseForm.value.code.trim().toUpperCase()
+  const title = newCourseForm.value.title.trim()
+  const creditsRaw = newCourseForm.value.credits.trim()
+  const credits =
+    creditsRaw === ''
+      ? undefined
+      : Number.isFinite(Number(creditsRaw))
+        ? Number(creditsRaw)
+        : NaN
+
+  if (!code) {
+    coursesListError.value = 'Course code is required.'
+    return
+  }
+  if (!title) {
+    coursesListError.value = 'Course title is required.'
+    return
+  }
+  if (Number.isNaN(credits)) {
+    coursesListError.value = 'Credits must be a valid number.'
+    return
+  }
+
+  newCoursePending.value = true
+  try {
+    const created = await $fetch<any>('/api/courses', {
+      method: 'POST',
+      body: {
+        code,
+        title,
+        credits,
+      },
+    })
+    await loadCoursesList()
+    const createdId = Number(created?.id)
+    if (Number.isFinite(createdId)) {
+      itemForm.value.courseId = createdId
+    } else {
+      const match = coursesList.value.find((c) => c.code?.toUpperCase() === code)
+      if (match) itemForm.value.courseId = match.id
+    }
+    newCourseForm.value = { code: '', title: '', credits: '' }
+  } catch (err: any) {
+    coursesListError.value = err?.data?.message ?? err?.message ?? 'Failed to create course.'
+  } finally {
+    newCoursePending.value = false
   }
 }
 
@@ -936,6 +1045,7 @@ function openAddItemModal(section: { id: number; items?: any[] }) {
   editingItem.value = null
   const items = sectionItems(section)
   itemForm.value = { courseId: null, order: items.length }
+  newCourseForm.value = { code: '', title: '', credits: '' }
   itemError.value = null
   itemModalOpen.value = true
   loadCoursesList()

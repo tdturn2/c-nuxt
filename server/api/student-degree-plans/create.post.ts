@@ -1,6 +1,6 @@
 // Create student degree plan in Payload.
 //
-// 1) If NUXT_RUNTIME payloadStudentDegreePlanSsoPath (PAYLOAD_STUDENT_DEGREE_PLAN_SSO_PATH) is set:
+// 1) Preferred: POST /api/student-degree-plans/create (or PAYLOAD_STUDENT_DEGREE_PLAN_SSO_PATH override):
 //    POST /api/<path> with { email, degree, status, startDate, expectedGraduation, specialization? }
 //    Implement that route in Payload (verify email, then create with overrideAccess if needed).
 //
@@ -84,7 +84,8 @@ export default defineEventHandler(async (event) => {
       ? raw.expectedGraduation.trim()
       : defaultExpectedGraduationIso()
 
-  const ssoPathRaw = (config.payloadStudentDegreePlanSsoPath as string | undefined) || ''
+  const ssoPathRaw =
+    (config.payloadStudentDegreePlanSsoPath as string | undefined) || 'student-degree-plans/create'
   const ssoPath = normalizeSsoPath(ssoPathRaw)
   if (ssoPath) {
     const ssoBody: Record<string, unknown> = {
@@ -103,15 +104,18 @@ export default defineEventHandler(async (event) => {
         body: ssoBody,
       })
     } catch (err: any) {
-      console.error('Student degree plan SSO create error:', err)
-      if (err.statusCode) {
-        throw err
+      // If custom route is unavailable, fall through to legacy REST create branch.
+      if (err?.statusCode !== 404 && err?.statusCode !== 405) {
+        console.error('Student degree plan SSO create error:', err)
+        if (err.statusCode) {
+          throw err
+        }
+        throw createError({
+          statusCode: err?.statusCode || err?.response?.status || 500,
+          statusMessage: err.statusMessage || 'Failed to create degree map',
+          data: err.data,
+        })
       }
-      throw createError({
-        statusCode: err?.statusCode || err?.response?.status || 500,
-        statusMessage: err.statusMessage || 'Failed to create degree map',
-        data: err.data,
-      })
     }
   }
 

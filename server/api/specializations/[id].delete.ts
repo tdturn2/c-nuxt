@@ -1,23 +1,27 @@
-// DELETE specialization. Auth: SSO. Forward to Payload DELETE /api/specializations/:id.
+// DELETE specialization. Auth: SSO. Forward to Payload DELETE /api/specializations/:id with email hint.
 import { defineEventHandler, createError, getRouterParam } from 'h3'
-import { authenticateWithPayloadCMS } from '../../utils/payloadAuth'
+import { authenticateWithPayloadCMS, getPayloadProxyHeaders } from '../../utils/payloadAuth'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'ID is required' })
 
-  const { token, email } = await authenticateWithPayloadCMS(event)
+  const auth = await authenticateWithPayloadCMS(event)
+  const { email } = auth
   if (!email) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
 
   const config = useRuntimeConfig()
-  const payloadBaseUrl = config.public.payloadBaseUrl || 'http://localhost:3002'
-  const headers: Record<string, string> = {}
-  if (token) headers['Authorization'] = `Bearer ${token}`
+  const payloadBaseUrl =
+    (config.payloadBaseUrl || config.public.payloadBaseUrl || '').trim() ||
+    (import.meta.dev ? 'http://localhost:3002' : '')
+  if (!payloadBaseUrl) throw createError({ statusCode: 500, statusMessage: 'Missing Payload base URL' })
+  const headers = getPayloadProxyHeaders(event, auth)
 
   try {
     return await $fetch<any>(`${payloadBaseUrl}/api/specializations/${id}`, {
       method: 'DELETE',
       headers,
+      query: { email },
     })
   } catch (err: any) {
     console.error('Specializations DELETE error:', err)
