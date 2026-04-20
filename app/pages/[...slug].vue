@@ -65,7 +65,7 @@
                 :key="c.id"
                 class="flex gap-3 sm:gap-4 px-4 py-3.5 sm:px-5 sm:py-4 min-w-0 transition-colors hover:bg-gray-50/90"
               >
-                <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 ring-1 ring-gray-200/60 shrink-0">
+                <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 ring-1 ring-gray-200/60 shrink-0">
                   <img
                     v-if="c.avatar?.url"
                     :src="c.avatar.url"
@@ -76,7 +76,7 @@
                   >
                   <div
                     v-else
-                    class="w-full h-full flex items-center justify-center text-xs font-semibold text-gray-500 tabular-nums"
+                    class="w-full h-full flex items-center justify-center text-sm font-semibold text-gray-500 tabular-nums"
                     aria-hidden="true"
                   >
                     {{ initialsForContact(c.name) }}
@@ -147,8 +147,21 @@
 <script setup lang="ts">
 import { fetchAllConnectPages, findConnectPageByPath, normalizeConnectPage, buildPagePathMap } from '~/composables/useConnectPagesTree'
 import ConnectInlineForm from '~/components/forms/ConnectInlineForm.vue'
+import {
+  CONNECT_PAGES_MEDIA_RELATION,
+  normalizePayloadMediaUrl,
+  resolveConnectPagesMediaFromLexicalValue,
+} from '~/utils/connectPagesDocImage'
 
 const route = useRoute()
+const runtimeConfig = useRuntimeConfig()
+
+function normalizeConnectPageMediaUrl(url: string): string {
+  const base =
+    (runtimeConfig.payloadBaseUrl || runtimeConfig.public.payloadBaseUrl || '').trim() ||
+    (import.meta.dev ? 'http://localhost:3002' : '')
+  return normalizePayloadMediaUrl(url, base)
+}
 const { playVideo } = useVideoPlayer()
 
 type ConnectUser = {
@@ -467,12 +480,20 @@ function lexicalToHtml(node: any): string {
       : ''
   )
 
+  const isExternalHttpHref = (href: string) =>
+    !isInternalConnectHref(href) && /^https?:\/\//i.test(href)
+
+  /** Keeps underline on link text only; ::after external arrow is not underlined. */
+  const wrapExternalAnchorInner = (href: string, innerHtml: string) =>
+    isExternalHttpHref(href) ? `<span class="connect-external-link-text">${innerHtml}</span>` : innerHtml
+
   const urlRegex = /\bhttps?:\/\/[^\s<>"')\]}]+/gi
   const linkifyEscapedText = (escapedText: string) =>
     escapedText.replace(urlRegex, (matchedUrl) => {
       const href = toViewerHref(matchedUrl, pdfTitleFromHref(matchedUrl))
       const target = isPdfUrl(matchedUrl) ? '' : ' target="_blank" rel="noopener noreferrer"'
-      return `<a href="${escapeHtml(href)}"${target}${pdfAttr(matchedUrl)}${externalAttr(matchedUrl)}>${matchedUrl}</a>`
+      const inner = wrapExternalAnchorInner(matchedUrl, escapeHtml(matchedUrl))
+      return `<a href="${escapeHtml(href)}"${target}${pdfAttr(matchedUrl)}${externalAttr(matchedUrl)}>${inner}</a>`
     })
 
   /** Lexical TextNode: IS_CODE = 1 << 4 = 16 */
@@ -753,7 +774,7 @@ function lexicalToHtml(node: any): string {
     const target = isPdfUrl(href)
       ? ''
       : (node?.fields?.newTab || node.newTab) ? ' target="_blank" rel="noopener noreferrer"' : ''
-    return `<a href="${safeHref}"${target}${pdfAttr(href)}${externalAttr(href)}>${inner}</a>`
+    return `<a href="${safeHref}"${target}${pdfAttr(href)}${externalAttr(href)}>${wrapExternalAnchorInner(href, inner)}</a>`
   }
   if (node.type === 'inlineCode') {
     const raw =
@@ -803,7 +824,16 @@ function lexicalToHtml(node: any): string {
     const href = escapeHtml(toViewerHref(hrefRaw, titleFromText))
     const fallbackInner = inner || href
     const target = isPdfUrl(hrefRaw) ? '' : ' target="_blank" rel="noopener noreferrer"'
-    return `<a href="${href}"${target}${pdfAttr(hrefRaw)}${externalAttr(hrefRaw)}>${fallbackInner}</a>`
+    return `<a href="${href}"${target}${pdfAttr(hrefRaw)}${externalAttr(hrefRaw)}>${wrapExternalAnchorInner(hrefRaw, fallbackInner)}</a>`
+  }
+  if (node.type === 'upload') {
+    if (node.relationTo !== CONNECT_PAGES_MEDIA_RELATION) return ''
+    const { url, alt } = resolveConnectPagesMediaFromLexicalValue(node.value)
+    const src = normalizeConnectPageMediaUrl(url)
+    if (!src) return ''
+    const safeSrc = escapeHtml(src)
+    const safeAlt = escapeHtml(alt || '')
+    return `<figure class="connect-page-media-figure not-prose my-6"><img src="${safeSrc}" alt="${safeAlt}" class="max-w-full h-auto rounded-lg border border-gray-200 shadow-sm" loading="lazy" decoding="async" /></figure>`
   }
   if (Array.isArray(node.children)) return node.children.map(lexicalToHtml).join('')
   return ''
@@ -908,6 +938,19 @@ article .connect-page-body.prose a {
   text-underline-offset: 0.2em;
 }
 article .connect-page-body.prose a:hover {
+  text-decoration-color: rgba(13, 94, 130, 0.75);
+}
+
+article .connect-page-body.prose a[data-external-link="true"] {
+  text-decoration: none;
+}
+article .connect-page-body.prose a[data-external-link="true"] .connect-external-link-text {
+  text-decoration: underline;
+  text-decoration-color: rgba(13, 94, 130, 0.38);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+article .connect-page-body.prose a[data-external-link="true"]:hover .connect-external-link-text {
   text-decoration-color: rgba(13, 94, 130, 0.75);
 }
 

@@ -63,6 +63,30 @@ export default defineNuxtConfig({
   },
   // Rollup warns when any chunk > 500 kB; Vercel logs often show `[warn]` with the message on the next lines (looks "empty").
   vite: {
+    /** One physical copy of TipTap / PM — avoids "Adding different instances of a keyed plugin" when Nuxt UI and the app resolve different node_modules trees. */
+    resolve: {
+      dedupe: [
+        '@tiptap/core',
+        '@tiptap/pm',
+        '@tiptap/vue-3',
+        '@tiptap/starter-kit',
+        '@tiptap/extension-image',
+        '@tiptap/extension-mention',
+        '@tiptap/extension-code',
+        '@tiptap/extension-horizontal-rule',
+        '@tiptap/extension-placeholder',
+        'prosemirror-state',
+        'prosemirror-view',
+        'prosemirror-model',
+        'prosemirror-transform',
+        'prosemirror-keymap',
+        'prosemirror-history',
+        'prosemirror-commands',
+        'prosemirror-dropcursor',
+        'prosemirror-gapcursor',
+        'prosemirror-schema-list',
+      ],
+    },
     server: {
       // macOS often has low default file-watch limits; aggressively ignore large folders.
       watch: {
@@ -110,6 +134,9 @@ export default defineNuxtConfig({
     azureAdClientId: process.env.AUTH_AZURE_AD_CLIENT_ID,
     azureAdClientSecret: process.env.AUTH_AZURE_AD_CLIENT_SECRET,
     azureAdTenantId: process.env.AUTH_AZURE_AD_TENANT_ID,
+    instructureBaseUrl: process.env.INSTRUCTURE_BASE_URL,
+    instructureApiId: process.env.INSTRUCTURE_API_ID,
+    instructureApiKey: process.env.INSTRUCTURE_API_KEY,
     // Public keys (exposed to client-side)
     public: {
       authAzureAdClientId: process.env.AUTH_AZURE_AD_CLIENT_ID,

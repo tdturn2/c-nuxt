@@ -435,7 +435,7 @@
             >
               <span class="text-sm font-semibold text-gray-900">Page media library</span>
               <p class="text-xs text-gray-500 mt-0.5">
-                Upload PDFs and other files, then copy the URL to paste as a link in the content below.
+                Upload PDFs and images. For <strong class="font-semibold text-gray-800">inline photos</strong>, use the image button in the content toolbar (uploads here and inserts the image). You can still copy a file URL to use as a regular link.
               </p>
             </summary>
             <div class="border-t border-gray-100 px-4 pb-4 pt-3">
@@ -581,6 +581,16 @@
             </summary>
             <div class="border-t border-gray-100 px-4 pb-4 pt-3">
             <!-- v-if: @tiptap/vue-3 creates the editor in onMounted; if USlideover keeps this in DOM while closed, it was initializing with invalid/empty doc and never picking up loaded content. -->
+            <input
+              :id="docsImageFileInputId"
+              ref="docsImageFileInputRef"
+              type="file"
+              class="sr-only"
+              accept="image/*"
+              tabindex="-1"
+              aria-hidden="true"
+              @change="onDocsImageFileInputChange"
+            >
             <UEditor
               ref="docsBodyUEditorRef"
               v-if="editorOpen"
@@ -675,8 +685,10 @@ import { fetchAllConnectPages, getConnectPageBreadcrumbLabel } from '~/composabl
 import { CONNECT_PAGE_CATEGORIES, type ConnectPageCategory } from '~/composables/useConnectPagesTree'
 import { buildPagePathMap, buildPageTree } from '~/composables/useConnectPagesTree'
 import { humanizeFilename } from '@shared/humanizeFilename'
+import { lexicalUploadNodeToTipTapImage, tipTapImageToLexicalUploadNode } from '~/utils/connectPagesDocImage'
 
 const route = useRoute()
+const runtimeConfig = useRuntimeConfig()
 const router = useRouter()
 
 type ConnectPage = {
@@ -969,7 +981,17 @@ function formatDate(value?: string) {
   return d.toLocaleString()
 }
 
-const editorToolbarItems = [
+function getPayloadBaseUrl(): string {
+  return (
+    (runtimeConfig.payloadBaseUrl || runtimeConfig.public.payloadBaseUrl || '') as string
+  ).trim() || (import.meta.dev ? 'http://localhost:3002' : '')
+}
+
+const docsImageFileInputId = useId()
+const docsImageFileInputRef = ref<HTMLInputElement | null>(null)
+const docsImageUploadPending = ref(false)
+
+const editorToolbarItems = computed(() => [
   [
     { kind: 'undo', icon: 'i-lucide-undo', tooltip: { text: 'Undo' } },
     { kind: 'redo', icon: 'i-lucide-redo', tooltip: { text: 'Redo' } },
@@ -1007,10 +1029,18 @@ const editorToolbarItems = [
   ],
   [
     { kind: 'link', icon: 'i-lucide-link', tooltip: { text: 'Link' } },
+    {
+      icon: 'i-lucide-image',
+      tooltip: { text: 'Image (upload)' },
+      disabled: docsImageUploadPending.value,
+      onClick: () => {
+        if (!docsImageUploadPending.value) docsImageFileInputRef.value?.click()
+      },
+    },
     { kind: 'horizontalRule', icon: 'i-lucide-separator-horizontal', tooltip: { text: 'Divider' } },
     { kind: 'clearFormatting', icon: 'i-lucide-rotate-ccw', tooltip: { text: 'Clear formatting' } },
   ],
-] satisfies any
+])
 
 /** Valid empty TipTap JSON. Use `paragraph` with `content: []` — ProseMirror forbids `{ type: 'text', text: '' }`. */
 const INITIAL_TIPTAP_DOC = {
@@ -1060,6 +1090,7 @@ function clearEditorDraft() {
   highlightedAssetId.value = null
   if (assetFileInputRef.value) assetFileInputRef.value.value = ''
   selectedAssetFileLabel.value = ''
+  if (docsImageFileInputRef.value) docsImageFileInputRef.value.value = ''
   saveError.value = null
   savePending.value = false
 }
@@ -1194,6 +1225,7 @@ function tipTapDocHasMeaningfulText(doc: any): boolean {
   const walk = (nodes: any[] | undefined): boolean => {
     if (!Array.isArray(nodes)) return false
     for (const n of nodes) {
+      if (n?.type === 'image') return true
       if (n?.type === 'text' && String(n.text || '').trim()) return true
       if (n?.content && walk(n.content)) return true
       if (n?.type === 'codeBlock' && Array.isArray(n.content) && walk(n.content)) return true
@@ -1303,6 +1335,10 @@ function lexicalToTipTap(lexical: any): any {
 
   const convert = (node: any): any[] => {
     if (!node) return []
+
+    if (node.type === 'upload') {
+      return lexicalUploadNodeToTipTapImage(node, getPayloadBaseUrl())
+    }
 
     if (node.type === 'text') {
       const marks: any[] = []
@@ -1628,6 +1664,31 @@ function tipTapToLexical(tipTap: any): any {
       }]
     }
 
+    if (node.type === 'image') {
+      const upload = tipTapImageToLexicalUploadNode(node)
+      if (upload) return [upload]
+      const src = typeof node.attrs?.src === 'string' ? node.attrs.src.trim() : ''
+      if (!src) return []
+      return [{
+        type: 'paragraph',
+        format: '',
+        indent: 0,
+        version: 1,
+        children: [{
+          mode: 'normal',
+          text: src,
+          type: 'text',
+          style: '',
+          detail: 0,
+          format: 0,
+          version: 1,
+        }],
+        direction: null,
+        textStyle: '',
+        textFormat: 0,
+      }]
+    }
+
     if (node.type === 'codeBlock') {
       const codeStr = tipTapFragmentPlainText(node.content)
       const textChildren = codeStr
@@ -1764,6 +1825,42 @@ function onAssetFileInputChange() {
   assetUploadError.value = null
   const el = assetFileInputRef.value
   selectedAssetFileLabel.value = el?.files?.[0]?.name ?? ''
+}
+
+async function onDocsImageFileInputChange(ev: Event) {
+  const input = ev.target as HTMLInputElement | null
+  const file = input?.files?.[0]
+  if (input) input.value = ''
+  if (!file || !file.type.startsWith('image/')) return
+
+  docsImageUploadPending.value = true
+  assetUploadError.value = null
+  try {
+    const body = new FormData()
+    body.append('file', file)
+    const alt = humanizeFilename(file.name)
+    body.append('alt', alt)
+    const res = await $fetch<{ id: unknown; filename: string; url: string }>('/api/connect-pages-media/upload', {
+      method: 'POST',
+      body,
+    })
+    const inst = docsBodyUEditorRef.value as any
+    const ed = inst?.editor != null ? unref(inst.editor) : null
+    if (ed && !ed.isDestroyed) {
+      ed.chain().focus().setImage({
+        src: res.url,
+        alt,
+      }).run()
+    }
+    await refreshConnectPagesMedia()
+    assetLibrarySuccess.value = `Inserted image “${res.filename || file.name}”.`
+    clearAssetLibrarySuccessSoon(4000)
+  } catch (e: unknown) {
+    const err = e as { data?: unknown; statusMessage?: string; message?: string }
+    assetUploadError.value = formatPayloadErrorData(err.data) || err.statusMessage || err.message || 'Image upload failed'
+  } finally {
+    docsImageUploadPending.value = false
+  }
 }
 
 async function uploadPageAsset() {

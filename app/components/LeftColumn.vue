@@ -24,21 +24,28 @@ function filterMenuByLabel(item: NavigationMenuItem, query: string): NavigationM
 
 const isPodcastsActive = computed(() => /^\/media\/(wesworld|elementary|chapel)$/.test(route.path))
 const isDirectoriesActive = computed(() => /^\/(student|faculty|employee)-directory$/.test(route.path))
+const isStudentsActive = computed(() => /^\/(student-dashboard|class-search|user\/degree-map)$/.test(route.path))
 
 const mainNavItems = computed<NavigationMenuItem[]>(() => [
   {
     label: 'Home',
     icon: 'i-lucide-house',
     to: '/',
-  }, {
-    label: 'Class Search',
-    icon: 'i-lucide-search',
-    to: '/class-search'
   },
   {
-    label: 'Degree Map',
-    icon: 'i-lucide-map',
-    to: '/user/degree-map'
+    label: 'Students',
+    icon: 'i-lucide-graduation-cap',
+    defaultOpen: isStudentsActive.value,
+    children: [{
+      label: 'My Dashboard',
+      to: '/student-dashboard'
+    }, {
+      label: 'Class Search',
+      to: '/class-search'
+    }, {
+      label: 'Degree Map',
+      to: '/user/degree-map'
+    }]
   },
   {
     label: 'Media',
