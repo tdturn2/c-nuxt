@@ -9,7 +9,7 @@
         method="POST" 
         action="/api/auth/signin/azure-ad"
       >
-        <input type="hidden" name="callbackUrl" value="/" />
+        <input type="hidden" name="callbackUrl" :value="callbackUrl" />
         <input type="hidden" name="csrfToken" :value="csrfToken" />
         <input type="hidden" name="redirect" value="true" />
         <UButton 
@@ -33,9 +33,27 @@ definePageMeta({
 })
 
 const { status, signIn: authSignIn, getCsrfToken } = useAuth()
+const route = useRoute()
 const isRedirecting = ref(false)
 const signInForm = ref<HTMLFormElement | null>(null)
 const csrfToken = ref<string>('')
+const callbackUrl = computed(() => {
+  const raw = route.query.callbackUrl
+  const value = Array.isArray(raw) ? raw[0] : raw
+  const fallback = '/'
+  if (!value || typeof value !== 'string') return fallback
+  // Keep redirects on-origin only and preserve deep links.
+  if (value.startsWith('/')) return value
+  try {
+    const parsed = new URL(value, window.location.origin)
+    if (parsed.origin === window.location.origin) {
+      return `${parsed.pathname}${parsed.search}${parsed.hash}`
+    }
+  } catch {
+    // fall through
+  }
+  return fallback
+})
 
 // Get CSRF token on mount
 onMounted(async () => {
@@ -43,7 +61,7 @@ onMounted(async () => {
   
   // Check if already authenticated AFTER mount
   if (status.value === 'authenticated') {
-    navigateTo('/')
+    navigateTo(callbackUrl.value || '/')
   }
 })
 
