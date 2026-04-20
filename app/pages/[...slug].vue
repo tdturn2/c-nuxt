@@ -232,7 +232,7 @@ type ConnectPageDoc = {
 
 const { data: fetchData, pending, error } = await useAsyncData<
   { docs?: ConnectPageDoc[] }
->(() => `connect-page-catchall-${route.path}`, () => fetchAllConnectPages({
+>('connect-page-catchall-tree', () => fetchAllConnectPages({
   limit: 100,
   depth: 2,
   sort: 'order,title',
@@ -249,15 +249,25 @@ const currentPageId = computed(() => {
   return String(id).trim()
 })
 
+const hasPageDetailInTree = computed(() => {
+  const current = page.value as any
+  if (!current || typeof current !== 'object') return false
+  const hasContent = current.content != null
+  const hasContacts = Array.isArray(current.contacts)
+  const hasContactsHeading = typeof current.contactsHeading === 'string'
+  return hasContent || hasContacts || hasContactsHeading
+})
+
 const { data: pageDetail } = await useAsyncData<any>(
   () => `connect-page-detail-${currentPageId.value}`,
   async () => {
     if (!currentPageId.value) return null
+    if (hasPageDetailInTree.value) return page.value
     return await $fetch(`/api/connect-pages/${encodeURIComponent(currentPageId.value)}`, {
       query: { depth: 2 },
     })
   },
-  { watch: [currentPageId] }
+  { watch: [currentPageId, hasPageDetailInTree] }
 )
 
 const childPages = computed(() => {
