@@ -24,12 +24,14 @@
             >
               Add degree map
             </button>
-            <NuxtLink
-              to="/class-search"
-              class="rounded-md border border-[rgba(13,94,130,1)] bg-white px-4 py-2 text-sm font-medium text-[rgba(13,94,130,1)] hover:bg-[rgba(13,94,130,0.08)]"
+            <button
+              type="button"
+              class="rounded-md border border-[rgba(13,94,130,1)] bg-white px-4 py-2 text-sm font-medium text-[rgba(13,94,130,1)] hover:bg-[rgba(13,94,130,0.08)] disabled:opacity-50"
+              :disabled="plannerPending"
+              @click="plannerOpen = true"
             >
               Open planner
-            </NuxtLink>
+            </button>
           </div>
 
           <div
@@ -366,6 +368,14 @@
             </div>
           </template>
         </USlideover>
+        <ClassPlannerSlideover
+          v-model:open="plannerOpen"
+          :items="plannerItems"
+          :pending="plannerPending"
+          :error="plannerError"
+          @remove="removePlannerItem"
+          @update-note="updatePlannerNote"
+        />
       </div>
     </main>
   </div>
@@ -396,6 +406,8 @@ const createPlanPending = ref(false)
 const createPlanError = ref<string | null>(null)
 const degreeCatalog = ref<{ id: number; label: string }[]>([])
 const selectedDegreeId = ref('')
+const plannerOpen = ref(false)
+const { plannerItems, plannerPending, plannerError, plannerLoaded, refreshPlanner, removeItem, updateNote } = useClassPlanner()
 
 async function loadDegreeCatalog() {
   try {
@@ -689,4 +701,18 @@ async function saveEditCourse() {
     savingEdit.value = false
   }
 }
+
+async function removePlannerItem(id: number) {
+  await removeItem(id)
+}
+
+async function updatePlannerNote(id: number, note: string) {
+  await updateNote(id, note)
+}
+
+onMounted(async () => {
+  if (!plannerLoaded.value) {
+    await refreshPlanner()
+  }
+})
 </script>
