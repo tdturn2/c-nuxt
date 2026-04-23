@@ -35,7 +35,18 @@
               :to="`/user/${getUsernameFromEmail(displayUser.email)}`"
               class="block"
             >
-              <h3 class="font-semibold text-gray-900 truncate">{{ displayUser.name }}</h3>
+              <div class="flex items-center gap-2 min-w-0">
+                <h3 class="font-semibold text-gray-900 truncate">{{ displayUser.name }}</h3>
+                <div v-if="displayRoleBadges.length" class="flex items-center gap-1 shrink-0">
+                  <span
+                    v-for="role in displayRoleBadges"
+                    :key="role"
+                    :class="['inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide', roleBadgeClass(role)]"
+                  >
+                    {{ role }}
+                  </span>
+                </div>
+              </div>
             </NuxtLink>
             <p class="text-xs text-gray-500">{{ formatDate(post.createdAt) }}</p>
           </div>
@@ -641,6 +652,7 @@ interface Author {
   avatar: string | null
   bio: string
   email: string
+  roles?: string[]
 }
 
 interface User {
@@ -653,6 +665,7 @@ interface User {
   } | null
   bio: string
   email: string
+  roles?: string[]
 }
 
 interface Image {
@@ -1550,6 +1563,27 @@ const handleRemoveReaction = async () => {
 }
 
 const displayUser = computed(() => props.user || props.post.author)
+
+const badgeRoleOrder = ['student', 'staff', 'faculty', 'alumni'] as const
+type BadgeRole = typeof badgeRoleOrder[number]
+
+const roleClasses: Record<BadgeRole, string> = {
+  student: 'bg-blue-100 text-blue-800',
+  staff: 'bg-emerald-100 text-emerald-800',
+  faculty: 'bg-violet-100 text-violet-800',
+  alumni: 'bg-amber-100 text-amber-800',
+}
+
+const displayRoleBadges = computed<BadgeRole[]>(() => {
+  const rawRoles = (displayUser.value as { roles?: string[] } | null)?.roles
+  if (!Array.isArray(rawRoles) || rawRoles.length === 0) return []
+  const normalized = new Set(rawRoles.map((r) => String(r).toLowerCase().trim()))
+  return badgeRoleOrder.filter((role) => normalized.has(role))
+})
+
+function roleBadgeClass(role: BadgeRole): string {
+  return roleClasses[role]
+}
 
 const avatarUrl = computed(() => {
   // Use user avatar if available

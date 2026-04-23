@@ -23,7 +23,7 @@ function filterMenuByLabel(item: NavigationMenuItem, query: string): NavigationM
 }
 
 const isPodcastsActive = computed(() => /^\/media\/(wesworld|elementary|chapel)$/.test(route.path))
-const isDirectoriesActive = computed(() => /^\/(student|faculty|employee)-directory$/.test(route.path))
+const isDirectoriesActive = computed(() => /^\/((student|faculty|employee|alumni)-directory|alumni-wall)$/.test(route.path))
 const isStudentsActive = computed(() => /^\/(student-dashboard|class-search|user\/degree-map)$/.test(route.path))
 
 const mainNavItems = computed<NavigationMenuItem[]>(() => [
@@ -75,6 +75,12 @@ const mainNavItems = computed<NavigationMenuItem[]>(() => [
     }, {
       label: 'Employee Directory',
       to: '/employee-directory'
+    }, {
+      label: 'Alumni Directory',
+      to: '/alumni-directory'
+    }, {
+      label: 'Alumni Wall',
+      to: '/alumni-wall'
     }
   ]
   },

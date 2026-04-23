@@ -1,5 +1,5 @@
 import { defineEventHandler, getRouterParam, createError } from 'h3'
-import { authenticateWithPayloadCMS } from '../../../utils/payloadAuth'
+import { authenticateWithPayloadCMS, getPayloadProxyHeaders } from '../../../utils/payloadAuth'
 
 export default defineEventHandler(async (event) => {
   const postId = getRouterParam(event, 'postId')
@@ -8,7 +8,8 @@ export default defineEventHandler(async (event) => {
   
   try {
     // Authenticate with PayloadCMS using SSO email
-    const { token, email } = await authenticateWithPayloadCMS(event)
+    const auth = await authenticateWithPayloadCMS(event)
+    const { token, email } = auth
     
     if (!email) {
       throw createError({
@@ -18,14 +19,7 @@ export default defineEventHandler(async (event) => {
     }
     
     // Build headers with PayloadCMS authentication
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    }
-    
-    // Add auth token if available
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`
-    }
+    const headers = getPayloadProxyHeaders(event, auth)
     
     // Include email in request body for email-based SSO authentication
     const requestBody = email ? { email } : undefined

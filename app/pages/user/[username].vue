@@ -53,6 +53,21 @@
       </div>
 
       <!-- Student Profile: only these slugs, in this order, with these labels -->
+      <div v-if="alumniDegreeEntries.length > 0 || alumniContactEntries.length > 0" class="border-t border-gray-200 pt-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">Alumni Profile</h2>
+        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
+          <template v-for="entry in alumniDegreeEntries" :key="entry.key">
+            <dt class="text-sm font-medium text-gray-500">{{ entry.label }}</dt>
+            <dd class="text-gray-900 text-sm">{{ entry.value }}</dd>
+          </template>
+          <template v-for="entry in alumniContactEntries" :key="entry.key">
+            <dt class="text-sm font-medium text-gray-500">{{ entry.label }}</dt>
+            <dd class="text-gray-900 text-sm">{{ entry.value }}</dd>
+          </template>
+        </dl>
+      </div>
+
+      <!-- Student Profile: only these slugs, in this order, with these labels -->
       <div v-if="studentProfileEntries.length > 0" class="border-t border-gray-200 pt-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-3">Student Profile</h2>
         <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
@@ -84,6 +99,15 @@ const user = ref<{
   location?: string | null
   department?: string | null
   section?: string | null
+  alumniOptIn?: boolean
+  alumniDegrees?: Array<{ degree?: string | null; graduationYear?: number | null }> | null
+  alumniContact?: {
+    email?: string | null
+    phone?: string | null
+    facebook?: string | null
+    x?: string | null
+    instagram?: string | null
+  } | null
 } | null>(null)
 
 const studentProfile = ref<{ answers: Record<string, unknown>; updatedAt: string } | null>(null)
@@ -148,6 +172,43 @@ const employeeProfileEntries = computed(() => {
     }
     return { key, label, value }
   })
+})
+
+const alumniDegreeEntries = computed(() => {
+  const entries = user.value?.alumniDegrees
+  if (!Array.isArray(entries)) return []
+  return entries
+    .map((entry, index) => {
+      const degree = String(entry.degree || '').trim()
+      const year = entry.graduationYear
+      if (!degree) return null
+      return {
+        key: `degree-${index}`,
+        label: index === 0 ? 'Degrees' : ' ',
+        value: year ? `${degree} (${year})` : degree,
+      }
+    })
+    .filter((entry): entry is { key: string; label: string; value: string } => Boolean(entry))
+})
+
+const alumniContactEntries = computed(() => {
+  if (!user.value?.alumniOptIn || !user.value?.alumniContact) return []
+  const contact = user.value.alumniContact
+  const rowConfig = [
+    { key: 'email', label: 'Email' },
+    { key: 'phone', label: 'Phone' },
+    { key: 'facebook', label: 'Facebook' },
+    { key: 'x', label: 'X' },
+    { key: 'instagram', label: 'Instagram' },
+  ] as const
+
+  return rowConfig
+    .map((row) => {
+      const value = String(contact[row.key] ?? '').trim()
+      if (!value) return null
+      return { key: row.key, label: row.label, value }
+    })
+    .filter((entry): entry is { key: string; label: string; value: string } => Boolean(entry))
 })
 
 // Control exactly which answers show, in what order, and with what label. Add/remove/reorder as needed.

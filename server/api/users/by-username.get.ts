@@ -1,4 +1,5 @@
 import { defineEventHandler, getQuery, createError } from 'h3'
+import { sanitizeAlumniContact } from '../../utils/alumniProfile'
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
@@ -29,6 +30,15 @@ export default defineEventHandler(async (event) => {
       email: string
       bio: string | null
       avatar?: { url: string } | null
+      alumniOptIn?: boolean
+      alumniDegrees?: Array<{ degree?: string; graduationYear?: number | string }>
+      alumniContact?: {
+        email?: string | null
+        phone?: string | null
+        facebook?: string | null
+        x?: string | null
+        instagram?: string | null
+      } | null
     }> }
     
     const user = response?.docs?.[0]
@@ -50,6 +60,15 @@ export default defineEventHandler(async (event) => {
       } else {
         user.avatar.url = `${payloadBaseUrl}/${user.avatar.url}`
       }
+    }
+
+    const normalizedContact = sanitizeAlumniContact(user.alumniContact)
+    user.alumniContact = user.alumniOptIn ? normalizedContact : {
+      email: null,
+      phone: null,
+      facebook: null,
+      x: null,
+      instagram: null,
     }
     
     return user

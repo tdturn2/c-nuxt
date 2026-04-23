@@ -71,19 +71,24 @@ export async function syncUserToPayload(user: {
     })
     console.log(`[User Sync] Successfully synced user: ${user.email}`)
 
-    // Update roles via dedicated endpoint (PATCH /api/connect-users/me/roles)
-    const roles = user.groups?.length ? deriveRolesFromGroups(user.groups) : []
-    const rolesUrl = `${payloadBaseUrl}/api/connect-users/me/roles`
-    try {
-      await $fetch(rolesUrl, {
-        method: 'PATCH',
-        headers,
-        body: { roles, email: user.email },
-      })
-      console.log(`[User Sync] Updated roles for ${user.email}:`, roles)
-    } catch (rolesError: any) {
-      console.error(`[User Sync] Failed to update roles for ${user.email}:`, rolesError)
-      // Don't fail sync if roles update fails
+    // Only update roles when group claims are present.
+    // Mobile/native tokens may omit groups; writing [] would unintentionally clear roles.
+    if (user.groups && user.groups.length > 0) {
+      const roles = deriveRolesFromGroups(user.groups)
+      const rolesUrl = `${payloadBaseUrl}/api/connect-users/me/roles`
+      try {
+        await $fetch(rolesUrl, {
+          method: 'PATCH',
+          headers,
+          body: { roles, email: user.email },
+        })
+        console.log(`[User Sync] Updated roles for ${user.email}:`, roles)
+      } catch (rolesError: any) {
+        console.error(`[User Sync] Failed to update roles for ${user.email}:`, rolesError)
+        // Don't fail sync if roles update fails
+      }
+    } else {
+      console.log(`[User Sync] No groups claim for ${user.email}; preserving existing roles.`)
     }
 
     return result

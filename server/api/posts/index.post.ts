@@ -10,6 +10,7 @@ export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event) as {
       content: any
+      mentions?: Array<string | number>
       audience?: string[]
       images?: any
       imagesConnectUserMedia?: any
@@ -62,6 +63,10 @@ export default defineEventHandler(async (event) => {
     const postData: any = {
       author: authorId,
       content: body.content
+    }
+
+    if (Array.isArray(body.mentions)) {
+      postData.mentions = body.mentions
     }
 
     // Include audience if provided

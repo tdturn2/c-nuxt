@@ -30,6 +30,21 @@ export default defineEventHandler(async (event) => {
       facultyPhotoSmall?: number | null
       expertise?: Array<{ id: string; item: string }> | null
       education?: Array<{ id: string; item: string }> | null
+      alumniOptIn?: boolean
+      alumniDegrees?: Array<{
+        id?: string
+        degree?: string | null
+        graduationYear?: number | string | null
+        institution?: string | null
+        honors?: string | null
+      }> | null
+      alumniContact?: {
+        email?: string | null
+        phone?: string | null
+        facebook?: string | null
+        x?: string | null
+        instagram?: string | null
+      } | null
     }
 
     const headers: Record<string, string> = {
@@ -58,6 +73,30 @@ export default defineEventHandler(async (event) => {
     if (body.facultyPhotoSmall !== undefined) updateData.facultyPhotoSmall = body.facultyPhotoSmall
     if (body.expertise !== undefined) updateData.expertise = body.expertise
     if (body.education !== undefined) updateData.education = body.education
+    if (body.alumniOptIn !== undefined) updateData.alumniOptIn = Boolean(body.alumniOptIn)
+    if (body.alumniDegrees !== undefined) {
+      updateData.alumniDegrees = Array.isArray(body.alumniDegrees)
+        ? body.alumniDegrees
+            .map((entry) => ({
+              degree: (entry.degree || '').trim(),
+              graduationYear: entry.graduationYear,
+              institution: entry.institution?.trim() || null,
+              honors: entry.honors?.trim() || null,
+            }))
+            .filter((entry) => entry.degree.length > 0)
+        : []
+    }
+    if (body.alumniContact !== undefined) {
+      updateData.alumniContact = body.alumniContact
+        ? {
+            email: body.alumniContact.email?.trim() || null,
+            phone: body.alumniContact.phone?.trim() || null,
+            facebook: body.alumniContact.facebook?.trim() || null,
+            x: body.alumniContact.x?.trim() || null,
+            instagram: body.alumniContact.instagram?.trim() || null,
+          }
+        : null
+    }
 
     // Use /profile endpoint for SSO users - match the exact pattern from working endpoints
     const response = await $fetch(`${payloadBaseUrl}/api/connect-users/profile`, {

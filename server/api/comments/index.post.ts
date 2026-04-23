@@ -1,5 +1,5 @@
 import { defineEventHandler, readBody, createError } from 'h3'
-import { authenticateWithPayloadCMS } from '../../utils/payloadAuth'
+import { authenticateWithPayloadCMS, getPayloadProxyHeaders } from '../../utils/payloadAuth'
 import { getUserIdFromEmail } from '../../utils/getUserIdFromEmail'
 
 export default defineEventHandler(async (event) => {
@@ -29,7 +29,8 @@ export default defineEventHandler(async (event) => {
     }
 
     // Authenticate with PayloadCMS using SSO email
-    const { token, email } = await authenticateWithPayloadCMS(event)
+    const auth = await authenticateWithPayloadCMS(event)
+    const { token, email } = auth
 
     if (!email) {
       throw createError({
@@ -41,14 +42,7 @@ export default defineEventHandler(async (event) => {
     // Get PayloadCMS user ID from email (shared utility)
     const authorId = await getUserIdFromEmail(email, payloadBaseUrl)
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    }
-
-    // Add auth token if available
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`
-    }
+    const headers = getPayloadProxyHeaders(event, auth)
 
     // Prepare comment data with author field
     const commentData: any = {

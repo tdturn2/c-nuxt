@@ -16,6 +16,7 @@
         v-else
         class="mt-4"
         :fields="fields"
+        :rules="schema?.rules || []"
         v-model="answers"
         :submitting="submitting"
         :error="submitError"
@@ -61,11 +62,37 @@ function normalizeRendererFieldType(raw: unknown): string {
   if (t === 'email' || t === 'e-mail') return 'email'
   if (t === 'number' || t === 'numeric' || t === 'integer' || t === 'decimal') return 'number'
   if (t === 'date' || t === 'datetime' || t === 'date_time') return 'date'
+  if (t === 'time' || t === 'datetime-local' || t === 'datetime_local') return 'time'
+  if (t === 'section') return 'section'
   if (t === 'select' || t === 'dropdown') return 'select'
   if (t === 'radio' || t === 'radio-group' || t === 'radiogroup') return 'radio'
   if (t === 'checkbox' || t === 'multi_select' || t === 'multiselect') return 'checkbox'
   if (t === 'file' || t === 'upload') return 'file'
   return t
+}
+
+function normalizeTimeString(value: unknown): string {
+  const raw = String(value ?? '').trim()
+  if (!raw) return ''
+  const full = raw.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/)
+  if (full) return `${full[1]} ${full[2]}:${full[3]}:${full[4] || '00'}`
+  const hm = raw.match(/^(\d{2}):(\d{2})(?::(\d{2}))?$/)
+  if (hm) {
+    const today = new Date().toISOString().slice(0, 10)
+    return `${today} ${hm[1]}:${hm[2]}:${hm[3] || '00'}`
+  }
+  return raw
+}
+
+function normalizeAnswersForSubmit(rawAnswers: Record<string, unknown>) {
+  const out: Record<string, unknown> = { ...rawAnswers }
+  const s = schema.value
+  if (!s) return out
+  for (const field of s.fields) {
+    if (field.type !== 'time') continue
+    out[field.id] = normalizeTimeString(out[field.id])
+  }
+  return out
 }
 
 const fields = computed(() => {
@@ -88,11 +115,24 @@ const validationErrors = ref<string[]>([])
 const uploadProgress = ref<Record<string, number>>({})
 const success = ref(false)
 
-async function submit(payload: { answers: Record<string, unknown>; files: Record<string, File | null> }) {
+function validateVisibleAnswers(
+  schemaValue: NonNullable<typeof schema.value>,
+  answersValue: Record<string, unknown>,
+  visibleFieldKeys: string[],
+) {
+  const visibleSet = new Set(visibleFieldKeys)
+  const filteredSchema = {
+    ...schemaValue,
+    fields: schemaValue.fields.filter((field: any) => visibleSet.has(String(field.id || ''))),
+  }
+  return validateAnswersAgainstSchema(filteredSchema as any, answersValue)
+}
+
+async function submit(payload: { answers: Record<string, unknown>; files: Record<string, File | null>; visibleFieldKeys: string[] }) {
   if (!formDoc.value || !schema.value) return
   submitError.value = null
   validationErrors.value = []
-  const validated = validateAnswersAgainstSchema(schema.value, payload.answers)
+  const validated = validateVisibleAnswers(schema.value, payload.answers, payload.visibleFieldKeys || [])
   if (!validated.valid) {
     validationErrors.value = validated.errors
     return
@@ -100,11 +140,12 @@ async function submit(payload: { answers: Record<string, unknown>; files: Record
 
   submitting.value = true
   try {
+    const normalizedAnswers = normalizeAnswersForSubmit(payload.answers)
     const submitted: any = await $fetch('/api/form-submissions/submit', {
       method: 'POST',
       body: {
         formSlug: formDoc.value.slug,
-        answers: payload.answers,
+        answers: normalizedAnswers,
       },
     })
     const id = submitted?.submissionId ?? submitted?.doc?.id ?? submitted?.id ?? null

@@ -26,6 +26,24 @@ type SavePayload = {
   viewerGroups?: unknown[]
 }
 
+type GravityImportResponse = {
+  mode: 'dryRun' | 'commit'
+  totals: {
+    parsedForms: number
+    validForms: number
+    blockedForms: number
+  }
+  forms: Array<{
+    gravityFormId: string
+    title: string
+    slug: string
+    blockers: Array<{ code: string; message: string; path?: string }>
+    warnings: Array<{ code: string; message: string; path?: string }>
+    candidate: null | { gravityFormId: string; slug: string; title: string }
+  }>
+  created?: Array<{ gravityFormId: string; id: string | number; slug: string }>
+}
+
 export function useDashboardForms() {
   async function listForms(query: ListQuery = {}) {
     try {
@@ -77,11 +95,26 @@ export function useDashboardForms() {
     }
   }
 
+  async function importGravityJson(file: File, mode: 'dryRun' | 'commit' = 'dryRun') {
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('mode', mode)
+      return await $fetch<GravityImportResponse>('/api/dashboard/forms/import', {
+        method: 'POST',
+        body: formData,
+      })
+    } catch (error: any) {
+      throw normalizeApiError(error, mode === 'commit' ? 'Failed to import forms.' : 'Failed to analyze import.')
+    }
+  }
+
   return {
     listForms,
     getFormById,
     createForm,
     updateForm,
     setFormStatus,
+    importGravityJson,
   }
 }

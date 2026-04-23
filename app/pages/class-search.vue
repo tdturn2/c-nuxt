@@ -3,7 +3,16 @@
       <LeftColumn />
     <main class="flex-1 min-w-0 overflow-y-auto">
         <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 class="text-2xl font-bold text-gray-900 mb-6">Class Search</h1>
+      <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 class="text-2xl font-bold text-gray-900">Class Search</h1>
+        <button
+          type="button"
+          class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          @click="plannerOpen = true"
+        >
+          My Degree Planner ({{ plannerItems.length }})
+        </button>
+      </div>
 
       <div class="flex flex-wrap items-center gap-3 sm:gap-4 mb-6">
         <div class="flex flex-wrap items-center gap-2 sm:gap-3">
@@ -99,9 +108,30 @@
                   <span class="text-sm text-gray-500">{{ c.section }}</span>
                   <span class="text-sm text-gray-500">{{ c.class_credits }} cr</span>
                 </div>
-                <p class="mt-0.5 text-sm text-gray-900 line-clamp-2">{{ c.short_description }}</p>
+                <div class="mt-0.5 flex items-start gap-1">
+                  <p class="text-sm text-gray-900 line-clamp-2">{{ c.short_description }}</p>
+                  <UIcon
+                    v-if="courseOfferingBadge(c)"
+                    :name="courseOfferingBadge(c)!.icon"
+                    :class="['w-4 h-4 mt-0.5 shrink-0', courseOfferingBadge(c)!.className]"
+                    :title="courseOfferingBadge(c)!.label"
+                    :aria-label="courseOfferingBadge(c)!.label"
+                  />
+                </div>
                 <p class="mt-1 text-sm text-gray-600">{{ formatInstructor(c.instructor) }}</p>
                 <p class="mt-0.5 text-xs text-gray-500">{{ c.delivery_method }} · {{ c.location }}</p>
+                <div class="mt-2">
+                  <button
+                    type="button"
+                    class="inline-flex items-center justify-center rounded border p-1.5"
+                    :class="isSaved(c) ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'"
+                    @click.stop="togglePlanner(c)"
+                    :title="isSaved(c) ? 'Saved to planner' : 'Save to planner'"
+                    :aria-label="isSaved(c) ? 'Saved to planner' : 'Save to planner'"
+                  >
+                    <UIcon :name="isSaved(c) ? 'i-heroicons-bookmark-solid' : 'i-heroicons-bookmark'" class="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </button>
             <div v-if="expandedId === c.full_class_id" class="border-t border-gray-100 bg-gray-50/80 px-4 py-4">
@@ -121,6 +151,10 @@
                 <div v-if="c.day_time"><span class="font-medium text-gray-700">Day & time</span><p class="mt-1 text-gray-600">{{ c.day_time }}</p></div>
                 <div v-if="c.building"><span class="font-medium text-gray-700">Building & room</span><p class="mt-1 text-gray-600">{{ c.building }}</p></div>
                 <div v-if="c.sched_comment"><span class="font-medium text-gray-700">Class comments</span><p class="mt-1 text-gray-600">{{ c.sched_comment }}</p></div>
+                <div v-if="savedUsersCount(c) > 0">
+                  <span class="font-medium text-gray-700">Saved</span>
+                  <p class="mt-1 text-gray-600">{{ savedUsersDescription(c) }}</p>
+                </div>
               </div>
             </div>
           </div>
@@ -139,6 +173,7 @@
                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Delivery</th>
                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Location</th>
                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Credits</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Planner</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-200">
@@ -159,14 +194,37 @@
                 </td>
                 <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ c.short_name }}</td>
                 <td class="px-4 py-3 text-sm text-gray-600">{{ c.section }}</td>
-                <td class="px-4 py-3 text-sm text-gray-900 max-w-xs truncate" :title="c.short_description">{{ c.short_description }}</td>
+                <td class="px-4 py-3 text-sm text-gray-900 max-w-xs" :title="c.short_description">
+                  <div class="flex items-center gap-1 min-w-0">
+                    <p class="truncate">{{ c.short_description }}</p>
+                    <UIcon
+                      v-if="courseOfferingBadge(c)"
+                      :name="courseOfferingBadge(c)!.icon"
+                      :class="['w-4 h-4 shrink-0', courseOfferingBadge(c)!.className]"
+                      :title="courseOfferingBadge(c)!.label"
+                      :aria-label="courseOfferingBadge(c)!.label"
+                    />
+                  </div>
+                </td>
                 <td class="px-4 py-3 text-sm text-gray-600">{{ formatInstructor(c.instructor) }}</td>
                 <td class="px-4 py-3 text-sm text-gray-600">{{ c.delivery_method }}</td>
                 <td class="px-4 py-3 text-sm text-gray-600">{{ c.location }}</td>
                 <td class="px-4 py-3 text-sm text-gray-600">{{ c.class_credits }}</td>
+                <td class="px-4 py-3 text-sm text-gray-600">
+                  <button
+                    type="button"
+                    class="inline-flex items-center justify-center rounded border p-1.5"
+                    :class="isSaved(c) ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'"
+                    @click="togglePlanner(c)"
+                    :title="isSaved(c) ? 'Saved' : 'Save'"
+                    :aria-label="isSaved(c) ? 'Saved' : 'Save'"
+                  >
+                    <UIcon :name="isSaved(c) ? 'i-heroicons-bookmark-solid' : 'i-heroicons-bookmark'" class="w-4 h-4" />
+                  </button>
+                </td>
               </tr>
               <tr v-if="expandedId === c.full_class_id" class="bg-gray-50/80">
-                <td colspan="8" class="px-4 py-4">
+                <td colspan="9" class="px-4 py-4">
                   <div class="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
                     <div v-if="c.full_description" class="sm:col-span-2 lg:col-span-3">
                       <span class="font-medium text-gray-700">Description</span>
@@ -205,6 +263,10 @@
                       <span class="font-medium text-gray-700">Class comments</span>
                       <p class="mt-1 text-gray-600">{{ c.sched_comment }}</p>
                     </div>
+                    <div v-if="savedUsersCount(c) > 0">
+                      <span class="font-medium text-gray-700">Saved</span>
+                      <p class="mt-1 text-gray-600">{{ savedUsersDescription(c) }}</p>
+                    </div>
                   </div>
                 </td>
               </tr>
@@ -235,6 +297,14 @@
         </div>
       </div>
       </div>
+      <ClassPlannerSlideover
+        v-model:open="plannerOpen"
+        :items="plannerItems"
+        :pending="plannerPending"
+        :error="plannerError"
+        @remove="removePlannerItem"
+        @update-note="updatePlannerNote"
+      />
     </main>
   </div>
 </template>
@@ -257,6 +327,15 @@ interface ClassRow {
   class_status?: string
   sched_comment?: string
 }
+type OfferingPattern = {
+  offerCountYears: number
+  yearsOffered: number
+  yearCounts: Record<string, number>
+  lastOfferedTerm: string | null
+  pattern: 'annual' | 'every_other_year' | 'rare' | 'irregular'
+  risk: 'low' | 'medium' | 'high'
+}
+type PlannerSaveRow = Pick<ClassRow, 'full_class_id'>
 
 const expandedId = ref<string | null>(null)
 function toggleExpand(id: string) {
@@ -273,6 +352,8 @@ function formatInstructor(raw: string): string {
 
 const termOptions = (() => {
   const terms: { label: string; value: string }[] = []
+  terms.push({ label: 'Fall 2026', value: 'FA26' })
+  terms.push({ label: 'Summer 2026', value: 'SU26' })
   terms.push({ label: 'Spring 2026', value: 'SP26' })
   for (let y = 25; y >= 17; y--) {
     const year = 2000 + y
@@ -284,12 +365,22 @@ const termOptions = (() => {
 })()
 
 const selectedTerm = ref(termOptions[0])
+const plannerOpen = ref(false)
 
 const termSlug = computed(() => selectedTerm.value?.value ?? 'SP26')
+const { plannerItems, plannerPending, plannerError, plannerLoaded, refreshPlanner, saveCourse, removeItem, updateNote } = useClassPlanner()
+const { data: offeringPatternsData } = await useFetch<{ courses?: Record<string, OfferingPattern> }>(
+  '/api/course-offering-patterns',
+  { key: 'course-offering-patterns' },
+)
 
 const { data: classesData, pending, error } = await useFetch<ClassRow[]>(
   () => `/api/class-list/${termSlug.value}`,
   { key: () => `class-list-${termSlug.value}` }
+)
+const { data: plannerCountsData } = await useFetch<{ counts?: Record<string, number> }>(
+  () => `/api/class-planner/counts?term=${encodeURIComponent(termSlug.value)}`,
+  { key: () => `class-planner-counts-${termSlug.value}` },
 )
 
 const classes = computed(() => {
@@ -362,6 +453,10 @@ const filteredClasses = computed(() => {
     return words.every((word) => searchable.includes(word))
   })
 })
+const offeringPatterns = computed<Record<string, OfferingPattern>>(
+  () => offeringPatternsData.value?.courses ?? {},
+)
+const plannerCounts = computed<Record<string, number>>(() => plannerCountsData.value?.counts ?? {})
 
 const totalPages = computed(() => Math.max(1, Math.ceil(filteredClasses.value.length / PAGE_SIZE)))
 
@@ -386,5 +481,84 @@ watch(termSlug, () => {
 })
 watch(totalPages, (max) => {
   if (currentPage.value > max) currentPage.value = max
+})
+
+const plannerBySection = computed(() => {
+  const map = new Map<string, number>()
+  for (const item of plannerItems.value) {
+    map.set(item.sectionKey, item.id)
+  }
+  return map
+})
+
+function isSaved(course: PlannerSaveRow): boolean {
+  return plannerBySection.value.has(course.full_class_id)
+}
+
+function courseOfferingBadge(course: ClassRow): { icon: string; label: string; className: string } | null {
+  const code = String(course.short_name || '').trim().toUpperCase()
+  const summary = offeringPatterns.value[code]
+  if (!summary) return null
+  const avgPerYear = summary.offerCountYears / 4
+  if (avgPerYear >= 2) {
+    return {
+      icon: 'i-heroicons-arrow-path',
+      label: 'Offered twice per year',
+      className: 'text-emerald-600',
+    }
+  }
+  if (summary.yearsOffered >= 3) {
+    return {
+      icon: 'i-heroicons-calendar-days',
+      label: 'Offered once per year',
+      className: 'text-blue-600',
+    }
+  }
+  if (summary.pattern === 'every_other_year') {
+    return {
+      icon: 'i-heroicons-exclamation-triangle',
+      label: 'Offered once every 2 years',
+      className: 'text-amber-600',
+    }
+  }
+  return null
+}
+
+function savedUsersCount(course: PlannerSaveRow): number {
+  const sectionKey = String(course.full_class_id || '').trim().toUpperCase()
+  if (!sectionKey) return 0
+  const count = plannerCounts.value[sectionKey] ?? 0
+  if (count > 0) return count
+  // Fallback for local testing: if current user saved this section, show at least 1.
+  return isSaved(course) ? 1 : 0
+}
+
+function savedUsersDescription(course: PlannerSaveRow): string {
+  const count = savedUsersCount(course)
+  if (count === 1) return 'This course has been saved by 1 user.'
+  return `This course has been saved by ${count} users.`
+}
+
+async function togglePlanner(course: PlannerSaveRow) {
+  const existingId = plannerBySection.value.get(course.full_class_id)
+  if (existingId) {
+    await removeItem(existingId)
+    return
+  }
+  await saveCourse(course.full_class_id, '')
+}
+
+async function removePlannerItem(id: number) {
+  await removeItem(id)
+}
+
+async function updatePlannerNote(id: number, note: string) {
+  await updateNote(id, note)
+}
+
+onMounted(async () => {
+  if (!plannerLoaded.value) {
+    await refreshPlanner()
+  }
 })
 </script>

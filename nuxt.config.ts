@@ -132,8 +132,10 @@ export default defineNuxtConfig({
     // Private keys (only available on server-side)
     authSecret: process.env.AUTH_SECRET,
     azureAdClientId: process.env.AUTH_AZURE_AD_CLIENT_ID,
+    azureAdMobileClientId: process.env.AUTH_AZURE_AD_MOBILE_CLIENT_ID,
     azureAdClientSecret: process.env.AUTH_AZURE_AD_CLIENT_SECRET,
     azureAdTenantId: process.env.AUTH_AZURE_AD_TENANT_ID,
+    mobileAuthJwtSecret: process.env.MOBILE_AUTH_JWT_SECRET,
     instructureBaseUrl: process.env.INSTRUCTURE_BASE_URL,
     instructureApiId: process.env.INSTRUCTURE_API_ID,
     instructureApiKey: process.env.INSTRUCTURE_API_KEY,

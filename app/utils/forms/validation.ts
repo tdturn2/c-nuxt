@@ -7,8 +7,10 @@ const FORM_FIELD_TYPES = new Set<FormFieldType>([
   'radio',
   'checkbox',
   'date',
+  'time',
   'number',
   'file',
+  'section',
 ])
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
@@ -89,7 +91,7 @@ export function validateAnswersAgainstSchema(
       continue
     }
 
-    if (field.type === 'file') {
+    if (field.type === 'file' || field.type === 'section') {
       continue
     }
 

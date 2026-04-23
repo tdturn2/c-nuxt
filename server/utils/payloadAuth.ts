@@ -1,5 +1,6 @@
 // Shared utility for authenticating with PayloadCMS using SSO email
 import { getHeader } from 'h3'
+import { verifyMobileAccessToken } from './mobileAuth'
 
 export type PayloadAuthResult = {
   token: string | null
@@ -51,6 +52,53 @@ export async function authenticateWithPayloadCMS(event: any): Promise<PayloadAut
   const none = (): PayloadAuthResult => ({ token: null, email: null, payloadSessionCookie: null })
 
   try {
+    const config = useRuntimeConfig()
+    const payloadBaseUrl =
+      (config.payloadBaseUrl || config.public.payloadBaseUrl || '').trim() ||
+      (import.meta.dev ? 'http://localhost:3002' : '')
+
+    const syncIntoPayload = async (identity: { email: string; name?: string | null; avatar?: string | null }) => {
+      if (!payloadBaseUrl) {
+        return { token: null, email: identity.email, payloadSessionCookie: null }
+      }
+      try {
+        const res = await $fetch.raw(`${payloadBaseUrl}/api/connect-users/sync`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: {
+            email: identity.email,
+            name: identity.name ?? undefined,
+            avatar: identity.avatar ?? undefined,
+          },
+        })
+
+        const syncResponse: any = await res.json().catch(() => null)
+        const token = typeof syncResponse?.token === 'string' ? syncResponse.token : null
+        const payloadSessionCookie = setCookieLinesToCookieHeader(readSetCookieHeaders(res))
+        return { token, email: identity.email, payloadSessionCookie }
+      } catch (authError) {
+        console.error('Error syncing with PayloadCMS:', authError)
+        return { token: null, email: identity.email, payloadSessionCookie: null }
+      }
+    }
+
+    // Mobile app support: if Authorization bearer is a Connect mobile token, use claims as identity.
+    const authHeader = getHeader(event, 'authorization') || ''
+    const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i)
+    if (bearerMatch?.[1]) {
+      try {
+        const mobileClaims = await verifyMobileAccessToken(bearerMatch[1])
+        if (mobileClaims.email) {
+          return await syncIntoPayload({
+            email: mobileClaims.email,
+            name: mobileClaims.name ?? undefined,
+          })
+        }
+      } catch {
+        // Not a valid mobile token; continue to web-session flow.
+      }
+    }
+
     const cookieHeader = getHeader(event, 'cookie') || ''
     // Get SSO session
     const session: any = await event
@@ -67,45 +115,11 @@ export async function authenticateWithPayloadCMS(event: any): Promise<PayloadAut
       return none()
     }
 
-    const config = useRuntimeConfig()
-    const payloadBaseUrl =
-      (config.payloadBaseUrl || config.public.payloadBaseUrl || '').trim() ||
-      (import.meta.dev ? 'http://localhost:3002' : '')
-    if (!payloadBaseUrl) {
-      // In production, avoid forcing localhost fallback and let callers continue with SSO email.
-      return { token: null, email: session.user.email, payloadSessionCookie: null }
-    }
-
-    // SSO only: call /sync with email (and name/avatar if we have them). Do not call /login (email+password only).
-    try {
-      const res = await $fetch.raw(`${payloadBaseUrl}/api/connect-users/sync`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: {
-          email: session.user.email,
-          name: session.user.name ?? undefined,
-          avatar: session.user.image ?? undefined,
-        },
-      })
-
-      const syncResponse: any = await res.json().catch(() => null)
-
-      let token: string | null = null
-      if (syncResponse?.token) {
-        token = typeof syncResponse.token === 'string' ? syncResponse.token : null
-      }
-
-      const payloadSessionCookie = setCookieLinesToCookieHeader(readSetCookieHeaders(res))
-
-      return {
-        token,
-        email: session.user.email,
-        payloadSessionCookie,
-      }
-    } catch (authError) {
-      console.error('Error syncing with PayloadCMS:', authError)
-      return { token: null, email: session.user.email, payloadSessionCookie: null }
-    }
+    return await syncIntoPayload({
+      email: session.user.email,
+      name: session.user.name ?? undefined,
+      avatar: session.user.image ?? undefined,
+    })
   } catch (error) {
     console.error('Error getting session for PayloadCMS:', error)
     return none()

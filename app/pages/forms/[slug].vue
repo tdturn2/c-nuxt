@@ -30,6 +30,7 @@
           <ConnectFormRenderer
             v-else
             :fields="fields"
+            :rules="resolvedSchema?.rules || []"
             v-model="answers"
             :submitting="submitting"
             :error="submitError"
@@ -157,6 +158,8 @@ function toField(f: any): Field | null {
   if (type === 'email') type = 'email'
   else if (type === 'number') type = 'number'
   else if (type === 'textarea') type = 'textarea'
+  else if (type === 'time') type = 'time'
+  else if (type === 'section') type = 'section'
   else if (type === 'select') type = 'select'
   else if (type === 'radio') type = 'radio'
   else if (type === 'checkbox') type = 'checkbox'
@@ -164,6 +167,28 @@ function toField(f: any): Field | null {
   else type = 'text'
 
   return { key, label, description, type, required, choices: choices.length ? choices : undefined }
+}
+
+function normalizeTimeString(value: unknown): string {
+  const raw = String(value ?? '').trim()
+  if (!raw) return ''
+  const full = raw.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/)
+  if (full) return `${full[1]} ${full[2]}:${full[3]}:${full[4] || '00'}`
+  const hm = raw.match(/^(\d{2}):(\d{2})(?::(\d{2}))?$/)
+  if (hm) {
+    const today = new Date().toISOString().slice(0, 10)
+    return `${today} ${hm[1]}:${hm[2]}:${hm[3] || '00'}`
+  }
+  return raw
+}
+
+function normalizeAnswersForSubmit(schema: FormSchemaV1, answers: Record<string, unknown>) {
+  const out: Record<string, unknown> = { ...answers }
+  for (const field of schema.fields) {
+    if (field.type !== 'time') continue
+    out[field.id] = normalizeTimeString(out[field.id])
+  }
+  return out
 }
 
 const fields = computed<Field[]>(() => {
@@ -185,33 +210,53 @@ const fields = computed<Field[]>(() => {
     .filter((x): x is Field => x != null)
 })
 
+const resolvedSchema = computed<FormSchemaV1 | null>(() => {
+  const doc = formDoc.value
+  if (!doc) return null
+  return getFormSchema(doc)
+})
+
 const answers = ref<Record<string, unknown>>({})
 const submitting = ref(false)
 const submitError = ref<string | null>(null)
 const success = ref(false)
 const submissionId = ref<number | string | null>(null)
 
-async function handleSubmit(payload: { answers: Record<string, unknown>; files: Record<string, File | null> }) {
+function validateVisibleAnswers(
+  schemaValue: FormSchemaV1,
+  answersValue: Record<string, unknown>,
+  visibleFieldKeys: string[],
+) {
+  const visibleSet = new Set(visibleFieldKeys)
+  const filteredSchema: FormSchemaV1 = {
+    ...schemaValue,
+    fields: schemaValue.fields.filter((field) => visibleSet.has(String(field.id || ''))),
+  }
+  return validateAnswersAgainstSchema(filteredSchema, answersValue)
+}
+
+async function handleSubmit(payload: { answers: Record<string, unknown>; files: Record<string, File | null>; visibleFieldKeys: string[] }) {
   if (!formDoc.value) return
   submitError.value = null
   submitValidationErrors.value = []
-  const schema = getFormSchema(formDoc.value)
+  const schema = resolvedSchema.value
   if (!schema) {
     submitError.value = 'This form schema is invalid.'
     return
   }
-  const checkedAnswers = validateAnswersAgainstSchema(schema, payload.answers)
+  const checkedAnswers = validateVisibleAnswers(schema, payload.answers, payload.visibleFieldKeys || [])
   if (!checkedAnswers.valid) {
     submitValidationErrors.value = checkedAnswers.errors
     return
   }
   submitting.value = true
   try {
+    const normalizedAnswers = normalizeAnswersForSubmit(schema, payload.answers)
     const submitted: any = await $fetch('/api/form-submissions/submit', {
       method: 'POST',
       body: {
         formSlug: formDoc.value.slug,
-        answers: payload.answers,
+        answers: normalizedAnswers,
         rootSubmissionId: formDoc.value.editableMode === 'versioned' ? rootSubmissionId.value : undefined,
       },
     })

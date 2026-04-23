@@ -8,8 +8,10 @@ export const FORM_FIELD_TYPES = new Set([
   'radio',
   'checkbox',
   'date',
+  'time',
   'number',
   'file',
+  'section',
 ] as const)
 
 export type FormFieldType = (typeof FORM_FIELD_TYPES extends Set<infer T> ? T : never) & string
@@ -18,6 +20,7 @@ export type DashboardFormField = {
   id: string
   type: FormFieldType
   label?: string
+  description?: string
   required?: boolean
   accept?: string[]
   options?: Array<{ label?: string; value?: string }>
@@ -47,7 +50,11 @@ export function toProxyError(err: any, fallbackMessage: string) {
     err?.status ??
     500
   const data = err?.data ?? err?.response?._data ?? err?.response?.data
-  const statusMessage = data?.message ?? err?.statusMessage ?? err?.message ?? fallbackMessage
+  const payloadErrorMessage =
+    Array.isArray(data?.errors) && data.errors.length && typeof data.errors[0]?.message === 'string'
+      ? data.errors[0].message
+      : undefined
+  const statusMessage = payloadErrorMessage ?? data?.message ?? err?.statusMessage ?? err?.message ?? fallbackMessage
   return createError({ statusCode, statusMessage, data })
 }
 
@@ -166,6 +173,7 @@ export function normalizeDashboardFormSchema(schema: unknown): DashboardFormSche
       id,
       type: type as FormFieldType,
       label: typeof fieldObj.label === 'string' ? fieldObj.label : undefined,
+      description: typeof fieldObj.description === 'string' ? fieldObj.description : undefined,
       required: !!fieldObj.required,
     }
 
@@ -211,7 +219,16 @@ export function normalizeFormMetadata(input: Record<string, any>) {
   }
 
   const indexedFields = Array.isArray(input.indexedFields)
-    ? input.indexedFields.map((v: unknown) => String(v || '').trim()).filter(Boolean)
+    ? input.indexedFields
+        .map((v: unknown) => {
+          if (v && typeof v === 'object' && 'key' in (v as Record<string, unknown>)) {
+            const key = String((v as Record<string, unknown>).key || '').trim()
+            return key ? { key } : null
+          }
+          const key = String(v || '').trim()
+          return key ? { key } : null
+        })
+        .filter((v): v is { key: string } => v != null)
     : []
 
   const viewerGroups = Array.isArray(input.viewerGroups) ? input.viewerGroups : []

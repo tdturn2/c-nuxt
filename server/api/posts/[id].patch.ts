@@ -16,6 +16,7 @@ export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event) as {
       content?: any
+      mentions?: Array<string | number>
       categories?: any
       audience?: any
       images?: any
@@ -38,6 +39,7 @@ export default defineEventHandler(async (event) => {
     // Build update payload - content, categories, audience, images. Email for SSO auth.
     const payload: any = { email }
     if (body.content) payload.content = body.content
+    if (body.mentions !== undefined) payload.mentions = body.mentions
     if (body.categories !== undefined) payload.categories = body.categories
     if (body.audience !== undefined) payload.audience = body.audience
     if (body.imagesConnectUserMedia !== undefined) {

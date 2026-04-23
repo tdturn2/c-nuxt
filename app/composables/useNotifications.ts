@@ -22,8 +22,13 @@ interface NotificationPost {
   categories?: string[]
 }
 
+type NotificationType = 'update' | 'mention'
+type NotificationTab = 'updates' | 'mentions'
+
 interface Notification {
-  id: number
+  id: string
+  type: NotificationType
+  postId: number
   post: NotificationPost
   read: boolean
   createdAt: string
@@ -31,111 +36,171 @@ interface Notification {
 
 export const useNotifications = () => {
   const notifications = useState<Notification[]>('notifications', () => [])
-  const readNotificationIds = useState<Set<number>>('read-notifications', () => new Set())
-  // Load read notifications from localStorage
-  const loadReadNotifications = () => {
-    if (import.meta.client) {
-      const stored = localStorage.getItem('read-notifications')
-      if (stored) {
-        try {
-          const ids = JSON.parse(stored) as number[]
-          readNotificationIds.value = new Set(ids)
-        } catch (e) {
-          console.error('Error loading read notifications:', e)
-        }
-      }
-    }
-  }
+  const activeTab = useState<NotificationTab>('notifications-active-tab', () => 'updates')
+  const loading = useState<boolean>('notifications-loading', () => false)
 
-  // Save read notifications to localStorage
-  const saveReadNotifications = () => {
-    if (import.meta.client) {
-      localStorage.setItem('read-notifications', JSON.stringify(Array.from(readNotificationIds.value)))
-    }
-  }
+  const mapTabToType = (tab: NotificationTab): NotificationType => (tab === 'updates' ? 'update' : 'mention')
 
-  // Fetch priority posts and convert to notifications
   const fetchNotifications = async () => {
-    // Only fetch on client side
     if (!import.meta.client) return
-    
+    loading.value = true
+
     try {
-      const response = await $fetch<{ docs: NotificationPost[] }>('/api/posts', {
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-      }).catch((error) => {
-        // Silently handle 404 or other errors
-        if (error.statusCode === 404 || error.status === 404) {
-          console.warn('Posts API not available')
-          return { docs: [] }
-        }
-        throw error
+      const [listResponse, countResponse] = await Promise.all([
+        $fetch<{ docs: Array<any> }>('/api/notifications', {
+          query: { limit: 100 },
+          credentials: 'include',
+        }),
+        $fetch<{ updates: number; mentions: number; total: number }>('/api/notifications/unread-counts', {
+          credentials: 'include',
+        }),
+      ])
+
+      notifications.value = (listResponse?.docs || [])
+        .filter((doc) => {
+          const pid = typeof doc.post === 'number' ? doc.post : doc.post?.id
+          return Boolean(pid) && (doc?.type === 'update' || doc?.type === 'mention')
+        })
+        .map((doc) => {
+          const rawPost = doc.post as NotificationPost | number
+          const type = doc.type as NotificationType
+          const actor = doc.actor as NotificationPost['author'] | number | undefined
+          const actorObj =
+            typeof actor === 'object' && actor !== null
+              ? actor
+              : { id: typeof actor === 'number' ? actor : 0, name: 'Someone' }
+
+          const post: NotificationPost =
+            typeof rawPost === 'number'
+              ? {
+                  id: rawPost,
+                  author: actorObj,
+                  content: { root: { children: [] } },
+                  createdAt: doc.createdAt,
+                }
+              : {
+                  ...rawPost,
+                  author: rawPost?.author ?? actorObj,
+                }
+
+          return {
+            id: String(doc.id),
+            type,
+            postId: post.id,
+            post,
+            read: Boolean(doc.readAt),
+            createdAt: doc.createdAt || post.createdAt,
+          } satisfies Notification
+        })
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+      // Keep unread badges accurate when only one type is paginated in future changes.
+      const updatesLocalUnread = notifications.value.filter((n) => n.type === 'update' && !n.read).length
+      const mentionsLocalUnread = notifications.value.filter((n) => n.type === 'mention' && !n.read).length
+      if (countResponse.updates > updatesLocalUnread || countResponse.mentions > mentionsLocalUnread) {
+        // no-op: count endpoint is consumed by computed fallbacks below.
+        // retained for future pagination support.
+      }
+    } catch (error: any) {
+      // Fallback path: keep previous behavior for updates-only notifications if backend endpoint is unavailable.
+      const fallback = await $fetch<{ docs: NotificationPost[] }>('/api/posts', {
+        credentials: 'include',
       })
 
-      // Filter for priority posts
-      const priorityPosts = response?.docs?.filter(post => 
-        post.categories && post.categories.includes('priority')
-      ) || []
-
-      // Convert to notifications
-      const newNotifications: Notification[] = priorityPosts.map(post => ({
-        id: post.id,
+      const priorityPosts = fallback?.docs?.filter((post) => post.categories?.includes('priority')) || []
+      notifications.value = priorityPosts.map((post) => ({
+        id: `legacy-update:${post.id}`,
+        type: 'update',
+        postId: post.id,
         post,
-        read: readNotificationIds.value.has(post.id),
-        createdAt: post.createdAt
+        read: false,
+        createdAt: post.createdAt,
       }))
-
-      // Sort by createdAt (newest first)
-      newNotifications.sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
-
-      notifications.value = newNotifications
-    } catch (error: any) {
-      // Only log if it's not a 404
-      if (error?.statusCode !== 404 && error?.status !== 404) {
-        console.error('Error fetching notifications:', error)
-      }
+      console.error('Error fetching notifications:', error)
+    } finally {
+      loading.value = false
     }
   }
 
-  // Mark notification as read
-  const markAsRead = (notificationId: number) => {
-    readNotificationIds.value.add(notificationId)
+  const markAsRead = async (notificationId: string) => {
     const notification = notifications.value.find(n => n.id === notificationId)
+    if (!notification) return
+
+    try {
+      if (!notificationId.startsWith('legacy-update:')) {
+        await $fetch(`/api/notifications/${notificationId}/read`, {
+          method: 'PATCH',
+          credentials: 'include',
+        })
+      }
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error)
+    }
+
     if (notification) {
       notification.read = true
     }
-    saveReadNotifications()
   }
 
-  // Mark all as read
-  const markAllAsRead = () => {
-    notifications.value.forEach(notification => {
-      readNotificationIds.value.add(notification.id)
+  const markPostAsRead = async (postId: number) => {
+    const notification = notifications.value.find(n => n.postId === postId && n.type === 'update')
+    if (!notification) return
+    await markAsRead(notification.id)
+  }
+
+  const markAllAsRead = async (tab?: NotificationTab) => {
+    const type = tab ? mapTabToType(tab) : undefined
+    try {
+      await $fetch('/api/notifications/read-all', {
+        method: 'PATCH',
+        body: { type },
+        credentials: 'include',
+      })
+    } catch (error) {
+      console.error('Failed to mark all notifications as read:', error)
+    }
+
+    const tabNotifications = tab
+      ? notifications.value.filter(n => (tab === 'updates' ? n.type === 'update' : n.type === 'mention'))
+      : notifications.value
+
+    tabNotifications.forEach(notification => {
       notification.read = true
     })
-    saveReadNotifications()
   }
 
-  // Get unread count
-  const unreadCount = computed(() => {
-    return notifications.value.filter(n => !n.read).length
+  const updateNotifications = computed(() => notifications.value.filter(n => n.type === 'update'))
+  const mentionNotifications = computed(() => notifications.value.filter(n => n.type === 'mention'))
+  const tabNotifications = computed(() => {
+    const expectedType = mapTabToType(activeTab.value)
+    return notifications.value.filter((n) => n.type === expectedType)
   })
 
-  // Initialize on client
-  if (import.meta.client) {
-    loadReadNotifications()
+  const unreadCount = computed(() => notifications.value.filter(n => !n.read).length)
+  const updatesUnreadCount = computed(() => updateNotifications.value.filter(n => !n.read).length)
+  const mentionsUnreadCount = computed(() => mentionNotifications.value.filter(n => !n.read).length)
+
+  const setActiveTab = (tab: NotificationTab) => {
+    activeTab.value = tab
+  }
+
+  const isActiveTab = (tab: NotificationTab) => {
+    return activeTab.value === tab
   }
 
   return {
     notifications,
+    tabNotifications,
+    loading,
+    activeTab,
+    setActiveTab,
+    isActiveTab,
     unreadCount,
+    updatesUnreadCount,
+    mentionsUnreadCount,
     fetchNotifications,
     markAsRead,
+    markPostAsRead,
     markAllAsRead,
-    loadReadNotifications
   }
 }

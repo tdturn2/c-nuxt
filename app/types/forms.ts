@@ -7,8 +7,10 @@ export type FormFieldType =
   | 'radio'
   | 'checkbox'
   | 'date'
+  | 'time'
   | 'number'
   | 'file'
+  | 'section'
 
 export type FormFieldOptionV1 = {
   label: string

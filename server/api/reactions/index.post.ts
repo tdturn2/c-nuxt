@@ -1,5 +1,5 @@
 import { defineEventHandler, readBody, createError } from 'h3'
-import { authenticateWithPayloadCMS } from '../../utils/payloadAuth'
+import { authenticateWithPayloadCMS, getPayloadProxyHeaders } from '../../utils/payloadAuth'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -10,7 +10,8 @@ export default defineEventHandler(async (event) => {
     const body = await readBody(event) as { post: number; user?: number; reactionType: string }
     
     // Authenticate with PayloadCMS using SSO email
-    const { token, email } = await authenticateWithPayloadCMS(event)
+    const auth = await authenticateWithPayloadCMS(event)
+    const { token, email } = auth
     
     if (!email) {
       throw createError({
@@ -31,14 +32,7 @@ export default defineEventHandler(async (event) => {
       reactBody.email = email
     }
     
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    }
-    
-    // Add auth token if available
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`
-    }
+    const headers = getPayloadProxyHeaders(event, auth)
     
     const response = await $fetch(payloadApiUrl, {
       method: 'POST',

@@ -45,13 +45,76 @@
           :ui="{ content: 'min-w-[320px]' }"
         />
         
-        <!-- Notification Bell Icon Dropdown -->
-        <UNavigationMenu 
-          :items="notificationMenuItems" 
-          content-orientation="vertical" 
-          class="flex items-center [&>div>div]:min-w-[320px]"
-          :ui="{ content: 'min-w-[320px]' }"
-        />
+        <!-- Notification Bell Popover -->
+        <UPopover :popper="{ placement: 'bottom-end' }">
+          <button
+            type="button"
+            class="relative mt-0.5 mr-2 w-9 h-9 flex items-center justify-center rounded-md text-white/90 hover:text-white hover:bg-white/10 transition-colors"
+            aria-label="Notifications"
+          >
+            <UIcon name="i-heroicons-bell" class="w-5 h-5" />
+            <span
+              v-if="unreadCount > 0"
+              class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold flex items-center justify-center leading-none"
+            >
+              {{ unreadCount > 99 ? '99+' : unreadCount }}
+            </span>
+          </button>
+
+          <template #content>
+            <div class="w-[360px] p-2">
+              <div class="flex items-center gap-2 border-b border-gray-200 pb-2 mb-2">
+                <button
+                  type="button"
+                  :class="[
+                    'px-3 py-1.5 rounded-md text-sm transition-colors',
+                    isActiveTab('updates') ? 'bg-blue-100 text-blue-800 font-semibold' : 'text-gray-600 hover:bg-gray-100'
+                  ]"
+                  @click="setActiveTab('updates')"
+                >
+                  Updates
+                  <span v-if="updatesUnreadCount > 0" class="ml-1 text-xs">({{ updatesUnreadCount }})</span>
+                </button>
+                <button
+                  type="button"
+                  :class="[
+                    'px-3 py-1.5 rounded-md text-sm transition-colors',
+                    isActiveTab('mentions') ? 'bg-blue-100 text-blue-800 font-semibold' : 'text-gray-600 hover:bg-gray-100'
+                  ]"
+                  @click="setActiveTab('mentions')"
+                >
+                  Mentions
+                  <span v-if="mentionsUnreadCount > 0" class="ml-1 text-xs">({{ mentionsUnreadCount }})</span>
+                </button>
+              </div>
+
+              <div v-if="tabNotifications.length === 0" class="py-6 text-center text-sm text-gray-500">
+                {{ isActiveTab('updates') ? 'No priority updates' : 'No mentions yet' }}
+              </div>
+
+              <div v-else class="max-h-80 overflow-y-auto space-y-1">
+                <button
+                  v-for="notification in tabNotifications"
+                  :key="notification.id"
+                  type="button"
+                  class="w-full text-left px-3 py-2 rounded-md hover:bg-gray-50 transition-colors"
+                  :class="notification.read ? '' : 'bg-blue-50'"
+                  @click="openPostModal(notification.post.id, notification.id)"
+                >
+                  <div class="flex items-center justify-between gap-2">
+                    <p class="text-sm font-medium text-gray-900 truncate">
+                      {{ notification.post.author.name }}
+                    </p>
+                    <span class="text-xs text-gray-500 shrink-0">{{ formatNotificationTime(notification.createdAt) }}</span>
+                  </div>
+                  <p class="text-xs text-gray-600 mt-0.5">
+                    {{ getPostPreview(notification.post.content).substring(0, 100) }}
+                  </p>
+                </button>
+              </div>
+            </div>
+          </template>
+        </UPopover>
 
         <!-- Post Modal -->
         <PostModal 
@@ -107,7 +170,17 @@ function isActive(path: string): boolean {
   if (path === '/') return route.path === '/'
   return route.path.startsWith(path)
 }
-const { notifications, unreadCount, fetchNotifications, markAsRead, markAllAsRead } = useNotifications()
+const {
+  tabNotifications,
+  unreadCount,
+  updatesUnreadCount,
+  mentionsUnreadCount,
+  setActiveTab,
+  isActiveTab,
+  fetchNotifications,
+  markAsRead,
+  markPostAsRead,
+} = useNotifications()
 const { fetchUser } = useUsers()
 const { data: session, getCsrfToken } = useAuth()
 const { user: meUser } = useMe()
@@ -264,31 +337,6 @@ const mediaMenuItems = ref<NavigationMenuItem[]>([
   }
 ])
 
-// Notification menu items - reactive based on notifications
-const notificationMenuItems = computed<NavigationMenuItem[]>(() => [
-  {
-    label: '',
-    icon: 'i-heroicons-bell',
-    badge: unreadCount.value > 0 ? (unreadCount.value > 99 ? '99+' : unreadCount.value.toString()) : undefined,
-    children: [
-      ...(notifications.value.length === 0 
-        ? [{
-            type: 'label',
-            label: 'No new notifications',
-            class: 'py-4 text-center text-sm text-gray-500'
-          }]
-        : notifications.value.map(notification => ({
-            label: `${notification.post.author.name} • ${formatNotificationTime(notification.createdAt)}`,
-            description: getPostPreview(notification.post.content).substring(0, 80) + (getPostPreview(notification.post.content).length > 80 ? '...' : ''),
-            badge: !notification.read ? 'New' : undefined,
-            class: notification.read ? '' : 'bg-blue-50',
-            onClick: () => openPostModal(notification.post.id)
-          }))
-      )
-    ]
-  }
-])
-
 // Account dropdown items (avatar trigger, user label + profile links)
 const accountDropdownItems = computed<DropdownMenuItem[][]>(() => {
   const labelAvatar = userAvatarUrl.value ? { src: userAvatarUrl.value } : undefined
@@ -302,6 +350,7 @@ const accountDropdownItems = computed<DropdownMenuItem[][]>(() => {
   ],
   [
     { label: 'Update Profile', icon: 'i-heroicons-user-circle', to: '/profile/avatar' },
+    { label: 'Alumni Profile', icon: 'i-heroicons-academic-cap', to: '/profile/alumni' },
     { label: 'Employee Profile', icon: 'i-heroicons-identification', to: '/profile/employee' },
     { label: 'Faculty Profile', icon: 'i-heroicons-academic-cap', to: '/profile/faculty' },
     { label: 'Faculty Publications', icon: 'i-heroicons-book-open', to: '/profile/faculty-pub' },
@@ -323,10 +372,14 @@ const closePostModal = () => {
 }
 
 // Open post in modal
-const openPostModal = async (postId: number) => {
+const openPostModal = async (postId: number, notificationId?: string) => {
   try {
     // Mark notification as read
-    markAsRead(postId)
+    if (notificationId) {
+      markAsRead(notificationId)
+    } else {
+      markPostAsRead(postId)
+    }
     
     // Fetch full post data
     const post: any = await $fetch(`/api/posts/${postId}`, {

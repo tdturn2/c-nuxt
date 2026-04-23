@@ -8,6 +8,7 @@ interface User {
   } | null
   bio: string
   email: string
+  roles?: string[]
 }
 
 const userCache = new Map<number, User>()

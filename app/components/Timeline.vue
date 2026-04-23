@@ -79,6 +79,7 @@ interface Author {
   avatar: string | null
   bio: string
   email: string
+  roles?: string[]
 }
 
 interface User {
@@ -91,6 +92,7 @@ interface User {
   } | null
   bio: string
   email: string
+  roles?: string[]
 }
 
 interface Image {
