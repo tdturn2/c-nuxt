@@ -51,13 +51,10 @@ export default defineEventHandler(async (event) => {
 
   try {
     const userId = await getUserIdFromEmail(email, payloadBaseUrl)
-    const response = await $fetch<{ docs?: PlannerDoc[] }>(`${payloadBaseUrl}/api/student-course-records`, {
+    const response = await $fetch<{ docs?: PlannerDoc[] }>(`${payloadBaseUrl}/api/student-course-records/planner`, {
       headers: getPayloadProxyHeaders(event, auth),
       query: {
-        'where[and][0][user][equals]': String(userId),
-        'where[and][1][status][equals]': 'planned',
-        'where[and][2][plan][exists]': 'false',
-        'where[and][3][degreeSectionItem][exists]': 'false',
+        email,
         depth: 2,
         limit: 500,
         sort: '-updatedAt',

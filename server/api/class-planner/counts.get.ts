@@ -1,6 +1,5 @@
 import { createError, defineEventHandler, getQuery } from 'h3'
 import { authenticateWithPayloadCMS, getPayloadProxyHeaders } from '../../utils/payloadAuth'
-import { getUserIdFromEmail } from '../../utils/getUserIdFromEmail'
 
 type PlannerCountDoc = {
   user?: number | { id?: number } | null
@@ -26,17 +25,13 @@ export default defineEventHandler(async (event) => {
   const term = typeof query.term === 'string' ? query.term.trim().toUpperCase() : ''
 
   try {
-    const userId = await getUserIdFromEmail(email, payloadBaseUrl)
     const whereQuery: Record<string, string> = {
-      'where[and][0][user][equals]': String(userId),
-      'where[and][1][status][equals]': 'planned',
-      'where[and][2][plan][exists]': 'false',
-      'where[and][3][degreeSectionItem][exists]': 'false',
+      email,
       depth: '1',
       limit: '5000',
     }
 
-    const response = await $fetch<{ docs?: PlannerCountDoc[] }>(`${payloadBaseUrl}/api/student-course-records`, {
+    const response = await $fetch<{ docs?: PlannerCountDoc[] }>(`${payloadBaseUrl}/api/student-course-records/planner`, {
       headers: getPayloadProxyHeaders(event, auth),
       query: whereQuery,
     })
