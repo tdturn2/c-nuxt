@@ -1,6 +1,5 @@
 import { createError, defineEventHandler, readBody } from 'h3'
 import { authenticateWithPayloadCMS, getPayloadProxyHeaders } from '../../utils/payloadAuth'
-import { getUserIdFromEmail } from '../../utils/getUserIdFromEmail'
 
 type SavePlannerBody = {
   sectionKey?: string
@@ -29,7 +28,6 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const userId = await getUserIdFromEmail(email, payloadBaseUrl)
     const headers = getPayloadProxyHeaders(event, auth)
 
     const offeringLookup = await $fetch<{ docs?: Array<{ id: number; term?: string | null }> }>(
@@ -49,41 +47,14 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 404, statusMessage: `Course offering not found for ${sectionKey}` })
     }
 
-    const existing = await $fetch<{ docs?: Array<{ id: number }> }>(`${payloadBaseUrl}/api/student-course-records`, {
-      headers,
-      query: {
-        'where[and][0][user][equals]': String(userId),
-        'where[and][1][offering][equals]': String(offering.id),
-        'where[and][2][status][equals]': 'planned',
-        'where[and][3][plan][exists]': 'false',
-        'where[and][4][degreeSectionItem][exists]': 'false',
-        depth: 0,
-        limit: 1,
-      },
-    })
-
-    const existingId = Array.isArray(existing?.docs) ? existing.docs[0]?.id : undefined
-    if (existingId) {
-      return await $fetch(`${payloadBaseUrl}/api/student-course-records/${existingId}`, {
-        method: 'PATCH',
-        headers,
-        body: {
-          substitutionNotes: body.studentNote ?? undefined,
-          term: offering.term ?? undefined,
-          status: 'planned',
-        },
-      })
-    }
-
-    return await $fetch(`${payloadBaseUrl}/api/student-course-records`, {
+    return await $fetch(`${payloadBaseUrl}/api/student-course-records/planner`, {
       method: 'POST',
       headers,
       body: {
-        user: userId,
-        offering: offering.id,
+        email,
+        offeringId: offering.id,
         term: offering.term ?? undefined,
-        status: 'planned',
-        substitutionNotes: body.studentNote ?? undefined,
+        substitutionNotes: body.studentNote ?? null,
       },
     })
   } catch (err: any) {

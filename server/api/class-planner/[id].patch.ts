@@ -27,10 +27,11 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    return await $fetch(`${payloadBaseUrl}/api/student-course-records/${id}`, {
+    return await $fetch(`${payloadBaseUrl}/api/student-course-records/planner/${id}`, {
       method: 'PATCH',
       headers: getPayloadProxyHeaders(event, auth),
       body: {
+        email,
         substitutionNotes: body.studentNote,
       },
     })

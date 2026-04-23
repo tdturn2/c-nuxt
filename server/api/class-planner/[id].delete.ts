@@ -22,9 +22,10 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    return await $fetch(`${payloadBaseUrl}/api/student-course-records/${id}`, {
+    return await $fetch(`${payloadBaseUrl}/api/student-course-records/planner/${id}`, {
       method: 'DELETE',
       headers: getPayloadProxyHeaders(event, auth),
+      query: { email },
     })
   } catch (err: any) {
     if (err?.statusCode) throw err

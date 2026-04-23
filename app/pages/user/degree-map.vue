@@ -24,6 +24,12 @@
             >
               Add degree map
             </button>
+            <NuxtLink
+              to="/class-search"
+              class="rounded-md border border-[rgba(13,94,130,1)] bg-white px-4 py-2 text-sm font-medium text-[rgba(13,94,130,1)] hover:bg-[rgba(13,94,130,0.08)]"
+            >
+              Open planner
+            </NuxtLink>
           </div>
 
           <div
