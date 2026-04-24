@@ -1,4 +1,5 @@
 import { createError, defineEventHandler, readBody } from 'h3'
+import { plannerItemFromDocAndOffering, type PlannerOfferingSlice } from '@shared/classPlannerItem'
 import { authenticateWithPayloadCMS, getPayloadProxyHeaders } from '../../utils/payloadAuth'
 
 type SavePlannerBody = {
@@ -47,7 +48,13 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 404, statusMessage: `Course offering not found for ${sectionKey}` })
     }
 
-    return await $fetch(`${payloadBaseUrl}/api/student-course-records/planner`, {
+    const saved = await $fetch<{
+      id: number
+      term?: string | null
+      substitutionNotes?: string | null
+      updatedAt?: string | null
+      offering?: PlannerOfferingSlice | number | null
+    }>(`${payloadBaseUrl}/api/student-course-records/planner`, {
       method: 'POST',
       headers,
       body: {
@@ -57,6 +64,32 @@ export default defineEventHandler(async (event) => {
         substitutionNotes: body.studentNote ?? null,
       },
     })
+
+    let resolvedOffering: PlannerOfferingSlice | null =
+      saved?.offering && typeof saved.offering === 'object' ? (saved.offering as PlannerOfferingSlice) : null
+
+    if (!resolvedOffering?.fullClassId && typeof saved?.offering === 'number') {
+      const oid = saved.offering
+      const one = await $fetch<{ docs?: PlannerOfferingSlice[] }>(`${payloadBaseUrl}/api/course-offerings`, {
+        headers,
+        query: {
+          'where[id][equals]': String(oid),
+          depth: '0',
+          limit: '1',
+        },
+      })
+      resolvedOffering = Array.isArray(one?.docs) ? (one.docs[0] ?? null) : null
+    }
+
+    const item = plannerItemFromDocAndOffering(saved, resolvedOffering)
+    if (!item) {
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Saved planner row but could not build response item',
+      })
+    }
+
+    return { item }
   } catch (err: any) {
     if (err?.statusCode) throw err
     console.error('Class planner POST error:', err)

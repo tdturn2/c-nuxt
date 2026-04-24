@@ -368,7 +368,17 @@ const selectedTerm = ref(termOptions[0])
 const plannerOpen = ref(false)
 
 const termSlug = computed(() => selectedTerm.value?.value ?? 'SP26')
-const { plannerItems, plannerPending, plannerError, plannerLoaded, refreshPlanner, saveCourse, removeItem, updateNote } = useClassPlanner()
+const {
+  plannerItems,
+  plannerPending,
+  plannerError,
+  plannerLoaded,
+  pendingPlannerSaveKeys,
+  refreshPlanner,
+  saveCourse,
+  removeItem,
+  updateNote,
+} = useClassPlanner()
 // Heavy aggregate (many upstream term fetches); only used for optional row badges — do not block the class table.
 const { data: offeringPatternsData } = useFetch<{ courses?: Record<string, OfferingPattern> }>(
   '/api/course-offering-patterns',
@@ -499,7 +509,9 @@ const plannerBySection = computed(() => {
 })
 
 function isSaved(course: PlannerSaveRow): boolean {
-  return plannerBySection.value.has(plannerSectionKey(course.full_class_id))
+  const k = plannerSectionKey(course.full_class_id)
+  if (pendingPlannerSaveKeys.value.includes(k)) return true
+  return plannerBySection.value.has(k)
 }
 
 function courseOfferingBadge(course: ClassRow): { icon: string; label: string; className: string } | null {
@@ -548,6 +560,7 @@ function savedUsersDescription(course: PlannerSaveRow): string {
 
 async function togglePlanner(course: PlannerSaveRow) {
   const key = plannerSectionKey(course.full_class_id)
+  if (pendingPlannerSaveKeys.value.includes(key)) return
   const existingId = plannerBySection.value.get(key)
   if (existingId) {
     await removeItem(existingId)
