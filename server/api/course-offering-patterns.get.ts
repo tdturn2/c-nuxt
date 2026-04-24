@@ -128,7 +128,8 @@ export default defineCachedEventHandler(
     }
   },
   {
-    maxAge: 5 * 60,
+    // Aggregate historical data; longer TTL cuts cold starts on serverless (e.g. Vercel).
+    maxAge: 60 * 60,
     name: 'course-offering-patterns',
     getKey: () => 'years-4-v2',
   },

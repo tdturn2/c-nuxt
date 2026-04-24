@@ -104,9 +104,24 @@ export default defineNuxtConfig({
     experimental: {
       wasm: true
     },
-    // Ensure API routes are not intercepted by the router
+    // Ensure API routes are not intercepted by the router.
+    // Public class data: edge-cacheable so repeat loads (same term / patterns) avoid cold serverless + upstream.
     routeRules: {
-      '/api/**': { cors: true, headers: { 'Access-Control-Allow-Methods': 'GET,HEAD,PUT,PATCH,POST,DELETE' } }
+      '/api/class-list/**': {
+        cors: true,
+        headers: {
+          'Access-Control-Allow-Methods': 'GET,HEAD,PUT,PATCH,POST,DELETE',
+          'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+        },
+      },
+      '/api/course-offering-patterns': {
+        cors: true,
+        headers: {
+          'Access-Control-Allow-Methods': 'GET,HEAD,PUT,PATCH,POST,DELETE',
+          'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+        },
+      },
+      '/api/**': { cors: true, headers: { 'Access-Control-Allow-Methods': 'GET,HEAD,PUT,PATCH,POST,DELETE' } },
     }
   },
   auth: {

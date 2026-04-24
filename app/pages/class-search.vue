@@ -369,19 +369,21 @@ const plannerOpen = ref(false)
 
 const termSlug = computed(() => selectedTerm.value?.value ?? 'SP26')
 const { plannerItems, plannerPending, plannerError, plannerLoaded, refreshPlanner, saveCourse, removeItem, updateNote } = useClassPlanner()
-const { data: offeringPatternsData } = await useFetch<{ courses?: Record<string, OfferingPattern> }>(
+// Heavy aggregate (many upstream term fetches); only used for optional row badges — do not block the class table.
+const { data: offeringPatternsData } = useFetch<{ courses?: Record<string, OfferingPattern> }>(
   '/api/course-offering-patterns',
-  { key: 'course-offering-patterns' },
+  { key: 'course-offering-patterns', lazy: true },
 )
 
-const { data: classesData, pending, error } = await useFetch<ClassRow[]>(
-  () => `/api/class-list/${termSlug.value}`,
-  { key: () => `class-list-${termSlug.value}` }
-)
-const { data: plannerCountsData } = await useFetch<{ counts?: Record<string, number> }>(
-  () => `/api/class-planner/counts?term=${encodeURIComponent(termSlug.value)}`,
-  { key: () => `class-planner-counts-${termSlug.value}` },
-)
+const [{ data: classesData, pending, error }, { data: plannerCountsData }] = await Promise.all([
+  useFetch<ClassRow[]>(() => `/api/class-list/${termSlug.value}`, {
+    key: () => `class-list-${termSlug.value}`,
+  }),
+  useFetch<{ counts?: Record<string, number> }>(
+    () => `/api/class-planner/counts?term=${encodeURIComponent(termSlug.value)}`,
+    { key: () => `class-planner-counts-${termSlug.value}` },
+  ),
+])
 
 const classes = computed(() => {
   const raw = classesData.value
@@ -483,16 +485,21 @@ watch(totalPages, (max) => {
   if (currentPage.value > max) currentPage.value = max
 })
 
+/** Align with POST /api/class-planner and Payload `fullClassId` (uppercase). Class list gateway ids can be mixed case. */
+function plannerSectionKey(id: string | undefined | null): string {
+  return String(id ?? '').trim().toUpperCase()
+}
+
 const plannerBySection = computed(() => {
   const map = new Map<string, number>()
   for (const item of plannerItems.value) {
-    map.set(item.sectionKey, item.id)
+    map.set(plannerSectionKey(item.sectionKey), item.id)
   }
   return map
 })
 
 function isSaved(course: PlannerSaveRow): boolean {
-  return plannerBySection.value.has(course.full_class_id)
+  return plannerBySection.value.has(plannerSectionKey(course.full_class_id))
 }
 
 function courseOfferingBadge(course: ClassRow): { icon: string; label: string; className: string } | null {
@@ -525,7 +532,7 @@ function courseOfferingBadge(course: ClassRow): { icon: string; label: string; c
 }
 
 function savedUsersCount(course: PlannerSaveRow): number {
-  const sectionKey = String(course.full_class_id || '').trim().toUpperCase()
+  const sectionKey = plannerSectionKey(course.full_class_id)
   if (!sectionKey) return 0
   const count = plannerCounts.value[sectionKey] ?? 0
   if (count > 0) return count
@@ -540,12 +547,13 @@ function savedUsersDescription(course: PlannerSaveRow): string {
 }
 
 async function togglePlanner(course: PlannerSaveRow) {
-  const existingId = plannerBySection.value.get(course.full_class_id)
+  const key = plannerSectionKey(course.full_class_id)
+  const existingId = plannerBySection.value.get(key)
   if (existingId) {
     await removeItem(existingId)
     return
   }
-  await saveCourse(course.full_class_id, '')
+  await saveCourse(key, '')
 }
 
 async function removePlannerItem(id: number) {
