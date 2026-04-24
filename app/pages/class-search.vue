@@ -14,7 +14,7 @@
         </button>
       </div>
 
-      <div class="flex flex-wrap items-center gap-3 sm:gap-4 mb-6">
+      <div class="flex flex-wrap items-center gap-3 sm:gap-4 mb-3">
         <div class="flex flex-wrap items-center gap-2 sm:gap-3">
           <label for="term" class="text-sm font-medium text-gray-700">Semester</label>
           <USelectMenu
@@ -24,6 +24,18 @@
             value-attribute="value"
             label-attribute="label"
             class="w-full min-w-[8rem] sm:w-48"
+          />
+        </div>
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+          <label for="category" class="text-sm font-medium text-gray-700">Category</label>
+          <USelectMenu
+            id="category"
+            v-model="selectedCategory"
+            :items="courseCategoryOptions"
+            value-attribute="value"
+            label-attribute="label"
+            class="w-full min-w-[12rem] sm:w-56"
+            placeholder="All categories"
           />
         </div>
         <div class="flex flex-wrap items-center gap-2 sm:gap-3">
@@ -50,17 +62,18 @@
             placeholder="All locations"
           />
         </div>
-        <div class="w-full sm:flex-1 sm:min-w-[200px] sm:max-w-md">
-          <label for="search" class="sr-only">Search classes</label>
-          <input
-            id="search"
-            v-model="searchQuery"
-            type="search"
-            placeholder="Search course, title, instructor, location..."
-            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm placeholder:text-gray-400 focus:border-[rgba(13,94,130,1)] focus:outline-none focus:ring-1 focus:ring-[rgba(13,94,130,1)]"
-            autocomplete="off"
-          />
-        </div>
+      </div>
+
+      <div class="mb-6 w-full sm:min-w-[240px] sm:max-w-xl">
+        <label for="search" class="sr-only">Search classes</label>
+        <input
+          id="search"
+          v-model="searchQuery"
+          type="search"
+          placeholder="Search course, title, instructor, location..."
+          class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm placeholder:text-gray-400 focus:border-[rgba(13,94,130,1)] focus:outline-none focus:ring-1 focus:ring-[rgba(13,94,130,1)]"
+          autocomplete="off"
+        />
       </div>
 
       <div v-if="pending" class="py-12 text-center text-gray-500">
@@ -75,9 +88,25 @@
       <div v-else-if="filteredClasses.length === 0" class="py-8 text-gray-500">
         No classes match your search.
       </div>
-      <div v-else>
-        <div class="mb-2 text-sm text-gray-600">
-          Showing {{ rangeStart }}–{{ rangeEnd }} of {{ filteredClasses.length }} classes
+      <div v-else class="relative">
+        <div class="mb-2 flex items-center justify-between gap-3 text-sm text-gray-600">
+          <span>Showing {{ rangeStart }}–{{ rangeEnd }} of {{ filteredClasses.length }} classes</span>
+          <span v-if="showLoadingOverlay" class="inline-flex items-center gap-1.5 text-[rgba(13,94,130,1)]">
+            <UIcon name="i-heroicons-arrow-path" class="h-4 w-4 animate-spin" />
+            Refreshing classes...
+          </span>
+        </div>
+
+        <div
+          v-if="showLoadingOverlay"
+          class="pointer-events-none absolute inset-0 z-10 rounded-lg bg-white/65 backdrop-blur-[1px]"
+          aria-hidden="true"
+        >
+          <div class="flex h-full w-full items-start justify-center pt-8">
+            <div class="rounded-md border border-gray-200 bg-white/90 px-3 py-2 text-xs text-gray-600 shadow-sm">
+              Updating class results...
+            </div>
+          </div>
         </div>
 
         <!-- Mobile: card list -->
@@ -110,13 +139,17 @@
                 </div>
                 <div class="mt-0.5 flex items-start gap-1">
                   <p class="text-sm text-gray-900 line-clamp-2">{{ c.short_description }}</p>
-                  <UIcon
+                  <UTooltip
                     v-if="courseOfferingBadge(c)"
-                    :name="courseOfferingBadge(c)!.icon"
-                    :class="['w-4 h-4 mt-0.5 shrink-0', courseOfferingBadge(c)!.className]"
-                    :title="courseOfferingBadge(c)!.label"
-                    :aria-label="courseOfferingBadge(c)!.label"
-                  />
+                    :text="courseOfferingBadge(c)!.label"
+                    :delay-duration="0"
+                  >
+                    <UIcon
+                      :name="courseOfferingBadge(c)!.icon"
+                      :class="['w-4 h-4 mt-0.5 shrink-0', courseOfferingBadge(c)!.className]"
+                      :aria-label="courseOfferingBadge(c)!.label"
+                    />
+                  </UTooltip>
                 </div>
                 <p class="mt-1 text-sm text-gray-600">{{ formatInstructor(c.instructor) }}</p>
                 <p class="mt-0.5 text-xs text-gray-500">{{ c.delivery_method }} · {{ c.location }}</p>
@@ -197,13 +230,17 @@
                 <td class="px-4 py-3 text-sm text-gray-900 max-w-xs" :title="c.short_description">
                   <div class="flex items-center gap-1 min-w-0">
                     <p class="truncate">{{ c.short_description }}</p>
-                    <UIcon
+                    <UTooltip
                       v-if="courseOfferingBadge(c)"
-                      :name="courseOfferingBadge(c)!.icon"
-                      :class="['w-4 h-4 shrink-0', courseOfferingBadge(c)!.className]"
-                      :title="courseOfferingBadge(c)!.label"
-                      :aria-label="courseOfferingBadge(c)!.label"
-                    />
+                      :text="courseOfferingBadge(c)!.label"
+                      :delay-duration="0"
+                    >
+                      <UIcon
+                        :name="courseOfferingBadge(c)!.icon"
+                        :class="['w-4 h-4 shrink-0', courseOfferingBadge(c)!.className]"
+                        :aria-label="courseOfferingBadge(c)!.label"
+                      />
+                    </UTooltip>
                   </div>
                 </td>
                 <td class="px-4 py-3 text-sm text-gray-600">{{ formatInstructor(c.instructor) }}</td>
@@ -402,6 +439,8 @@ const classes = computed(() => {
   return []
 })
 
+const showLoadingOverlay = computed(() => pending.value && classes.value.length > 0)
+
 const facultyOptions = computed(() => {
   const list = classes.value
   const seen = new Set<string>()
@@ -436,12 +475,44 @@ const locationOptions = computed(() => {
 
 const selectedLocation = ref<{ label: string; value: string }>({ label: 'All locations', value: '' })
 
+const courseCategoryOptions: Array<{ label: string; value: string; prefixes: string[] }> = [
+  { label: 'All categories', value: '', prefixes: [] },
+  { label: 'Theology', value: 'theology', prefixes: ['TH'] },
+  { label: 'Doctor of Ministry', value: 'doctor_of_ministry', prefixes: ['DM'] },
+  { label: 'Biblical Studies', value: 'biblical_studies', prefixes: ['BT', 'BS'] },
+  { label: 'Old Testament', value: 'old_testament', prefixes: ['OT'] },
+  { label: 'New Testament', value: 'new_testament', prefixes: ['NT'] },
+  { label: 'Counseling', value: 'counseling', prefixes: ['CO', 'PC'] },
+  { label: 'Worship', value: 'worship', prefixes: ['WO'] },
+  { label: 'Youth Ministry', value: 'youth_ministry', prefixes: ['YM'] },
+  { label: 'Missiology', value: 'missiology', prefixes: ['MS', 'MD', 'ME'] },
+  { label: 'Pastoral Care', value: 'pastoral_care', prefixes: ['PC'] },
+  { label: 'Mentored Ministry', value: 'mentored_ministry', prefixes: ['MM'] },
+  { label: 'Spiritual Formation', value: 'spiritual_formation', prefixes: ['SF'] },
+  { label: 'Leadership', value: 'leadership', prefixes: ['CL'] },
+  { label: 'Church History', value: 'church_history', prefixes: ['CH'] },
+  { label: 'Preaching', value: 'preaching', prefixes: ['PR'] },
+  { label: 'Christian Development', value: 'christian_development', prefixes: ['CD'] },
+  { label: 'Music', value: 'music', prefixes: ['MU'] },
+]
+
+const selectedCategory = ref<{ label: string; value: string; prefixes: string[] }>(courseCategoryOptions[0])
+
 const searchQuery = ref('')
 const PAGE_SIZE = 50
 const currentPage = ref(1)
 
 const filteredClasses = computed(() => {
   let list = classes.value
+  const categoryPrefixes = selectedCategory.value?.prefixes ?? []
+  if (categoryPrefixes.length > 0) {
+    const allowed = new Set(categoryPrefixes.map((p) => p.toUpperCase()))
+    list = list.filter((c: ClassRow) => {
+      const code = String(c.short_name ?? '').trim().toUpperCase()
+      const prefix = code.slice(0, 2)
+      return allowed.has(prefix)
+    })
+  }
   const facultyValue = selectedFaculty.value?.value
   if (facultyValue) {
     list = list.filter((c: ClassRow) => (c.instructor ?? '').trim() === facultyValue)
@@ -483,10 +554,11 @@ const rangeEnd = computed(() =>
   Math.min(currentPage.value * PAGE_SIZE, filteredClasses.value.length)
 )
 
-watch([searchQuery, () => selectedFaculty.value, () => selectedLocation.value], () => {
+watch([searchQuery, () => selectedCategory.value, () => selectedFaculty.value, () => selectedLocation.value], () => {
   currentPage.value = 1
 })
 watch(termSlug, () => {
+  selectedCategory.value = courseCategoryOptions[0]
   selectedFaculty.value = { label: 'All faculty', value: '' }
   selectedLocation.value = { label: 'All locations', value: '' }
   currentPage.value = 1
