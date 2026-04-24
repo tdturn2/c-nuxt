@@ -540,6 +540,20 @@ function courseOfferingBadge(course: ClassRow): { icon: string; label: string; c
       className: 'text-amber-600',
     }
   }
+  if (summary.pattern === 'irregular') {
+    return {
+      icon: 'i-heroicons-adjustments-horizontal',
+      label: 'Irregular schedule',
+      className: 'text-slate-500',
+    }
+  }
+  if (summary.pattern === 'rare') {
+    return {
+      icon: 'i-heroicons-clock',
+      label: 'Rarely offered',
+      className: 'text-slate-500',
+    }
+  }
   return null
 }
 
@@ -566,7 +580,7 @@ async function togglePlanner(course: PlannerSaveRow) {
     await removeItem(existingId)
     return
   }
-  await saveCourse(key, '')
+  await saveCourse(key, '', termSlug.value)
 }
 
 async function removePlannerItem(id: number) {

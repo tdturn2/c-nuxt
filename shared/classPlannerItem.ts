@@ -54,7 +54,8 @@ export function plannerItemFromDocAndOffering(
   offering: PlannerOfferingSlice | null | undefined,
 ): ClassPlannerItem | null {
   if (!offering?.fullClassId) return null
-  const termCode = offering.term ?? doc.term ?? null
+  // Record `term` is the semester the user planned for; offering.term may differ until per-term offerings are synced.
+  const termCode = doc.term ?? offering.term ?? null
   return {
     id: doc.id,
     sectionKey: String(offering.fullClassId || '').trim().toUpperCase(),
