@@ -159,6 +159,7 @@ export default defineNuxtConfig({
       authAzureAdClientId: process.env.AUTH_AZURE_AD_CLIENT_ID,
       authAzureAdTenantId: process.env.AUTH_AZURE_AD_TENANT_ID,
       payloadBaseUrl: process.env.PAYLOAD_BASE_URL,
+      googleCalendarEmbedUrl: process.env.GOOGLE_CALENDAR_EMBED_URL,
       payloadApiUrl: process.env.PAYLOAD_API_URL || `${process.env.PAYLOAD_BASE_URL}/api/connect-posts`,
       // Podcast feed configuration
       podcasts: [

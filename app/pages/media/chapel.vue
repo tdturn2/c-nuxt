@@ -12,6 +12,24 @@
         </p>
       </header>
 
+      <section v-if="weeklySpeaker" class="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
+          <img
+            v-if="getImageUrl(weeklySpeaker.photo)"
+            :src="getImageUrl(weeklySpeaker.photo)"
+            :alt="weeklySpeaker.name || 'Chapel speaker'"
+            class="h-28 w-28 rounded-lg object-cover border border-gray-200"
+          >
+          <div class="min-w-0 flex-1">
+            <p class="text-xs font-semibold uppercase tracking-wide text-[rgba(13,94,130,1)]">This Week's Speaker</p>
+            <h2 class="mt-1 text-lg font-semibold text-gray-900">{{ weeklySpeaker.name || 'Chapel Speaker' }}</h2>
+            <p v-if="weeklySpeaker.speakerDescription" class="mt-2 text-sm text-gray-700 whitespace-pre-line">
+              {{ weeklySpeaker.speakerDescription }}
+            </p>
+          </div>
+        </div>
+      </section>
+
       <!-- Search -->
       <div class="mb-6">
         <UInput
@@ -213,6 +231,13 @@ interface ChapelEpisode {
   vimeo_full_id?: string
 }
 
+interface WeeklySpeaker {
+  id: number | string
+  name?: string
+  speakerDescription?: string
+  photo?: { url?: string } | null
+}
+
 type SpeakerOption = { id: number; name: string; label: string }
 type CampusOption = { label: string; value: string | null }
 type SortOption = { label: string; value: string }
@@ -227,6 +252,8 @@ interface ChapelResponse {
 
 const { playVideo } = useVideoPlayer()
 const { playTrack } = useAudioPlayer()
+const config = useRuntimeConfig()
+const payloadBaseUrl = String(config.public.payloadBaseUrl || '').replace(/\/$/, '')
 
 const page = ref(1)
 const limit = 20
@@ -336,9 +363,13 @@ const { data, pending, error } = await useFetch<ChapelResponse>('/api/chapel-pod
   query: queryParams,
   watch: [queryParams]
 })
+const { data: weeklySpeakerData } = await useFetch<{ speaker?: WeeklySpeaker | null }>('/api/chapel-speakers/current', {
+  key: 'chapel-weekly-speaker',
+})
 
 const episodes = computed(() => data.value?.docs ?? [])
 const totalPages = computed(() => data.value?.totalPages ?? 1)
+const weeklySpeaker = computed(() => weeklySpeakerData.value?.speaker || null)
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -405,5 +436,12 @@ function formatDate(dateStr?: string): string {
   } catch {
     return String(dateStr)
   }
+}
+
+function getImageUrl(image?: { url?: string } | null): string {
+  const raw = image?.url ? String(image.url) : ''
+  if (!raw) return ''
+  if (raw.startsWith('http')) return raw
+  return `${payloadBaseUrl}${raw}`
 }
 </script>

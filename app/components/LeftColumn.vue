@@ -1,9 +1,52 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
+import { buildConnectPageCategoryNavItems, fetchAllConnectPages } from '~/composables/useConnectPagesTree'
 
 const route = useRoute()
 const { asideWidthPx, collapsed, toggleCollapsed, startResize } = useSidebar()
 const menuSearchQuery = ref('')
+const isInternalActive = computed(() =>
+  route.path === '/internal' ||
+  route.path.startsWith('/internal/')
+)
+
+const { data: internalPagesData } = await useAsyncData<any>('left-column-internal-pages', () => fetchAllConnectPages({
+  limit: 100,
+  depth: 2,
+  sort: 'order,title',
+}))
+
+const internalDepartmentsItems = computed<NavigationMenuItem[]>(() => {
+  const docs = Array.isArray(internalPagesData.value?.docs) ? internalPagesData.value.docs : []
+  return buildConnectPageCategoryNavItems(docs)
+})
+
+const isMenuItemActive = (item: NavigationMenuItem): boolean => {
+  const to = item.to
+  if (typeof to === 'string' && to.length > 0) {
+    return route.path === to || route.path.startsWith(`${to}/`)
+  }
+  return item.children?.some((c) => isMenuItemActive(c)) ?? false
+}
+
+const applyDefaultOpenForActiveRoute = (item: NavigationMenuItem): NavigationMenuItem => {
+  if (!item.children?.length) return item
+  const isOpen = item.children.some((c) => isMenuItemActive(c))
+  return {
+    ...item,
+    defaultOpen: isOpen,
+    children: item.children.map((c) => applyDefaultOpenForActiveRoute(c)),
+  }
+}
+
+const expandAllGroups = (item: NavigationMenuItem): NavigationMenuItem => {
+  if (!item.children?.length) return item
+  return {
+    ...item,
+    defaultOpen: true,
+    children: item.children.map((c) => expandAllGroups(c)),
+  }
+}
 
 /** Recursively filter menu items by label (and nested children labels) */
 function filterMenuByLabel(item: NavigationMenuItem, query: string): NavigationMenuItem | null {
@@ -33,6 +76,33 @@ const mainNavItems = computed<NavigationMenuItem[]>(() => [
     to: '/',
   },
   {
+    label: 'Departments and Offices',
+    icon: 'i-heroicons-building-office-2',
+    to: '/internal',
+    defaultOpen: isInternalActive.value,
+    children: internalDepartmentsItems.value,
+  },
+  {
+    label: 'Chapel',
+    icon: 'i-heroicons-building-library',
+    to: '/chapel',
+    children: [
+      {
+        label: 'Daily Eucharist',
+        to: '/chapel/daily-eucharist',
+      },
+      {
+        label: 'Chapel Media Archive',
+        to: '/media/chapel',
+      },
+    ],
+  },
+  {
+    label: 'Calendar',
+    icon: 'i-heroicons-calendar-days',
+    to: '/calendar',
+  },
+  {
     label: 'Students',
     icon: 'i-lucide-graduation-cap',
     defaultOpen: isStudentsActive.value,
@@ -57,9 +127,6 @@ const mainNavItems = computed<NavigationMenuItem[]>(() => [
     }, {
       label: 'It\'s Elementary',
       to: '/media/elementary'
-    }, {
-      label: 'Chapel',
-      to: '/media/chapel'
     }
   ]},
   {
@@ -102,14 +169,14 @@ const mainNavItems = computed<NavigationMenuItem[]>(() => [
 
 const filteredMainNavItems = computed(() =>
   mainNavItems.value
+    .map((item) => applyDefaultOpenForActiveRoute(item))
     .map((item) => filterMenuByLabel(item, menuSearchQuery.value))
     .filter((item): item is NavigationMenuItem => item != null)
     .map((item) => {
       const q = menuSearchQuery.value.trim()
       if (!q) return item
       // If search is active, expand any group that still has children after filtering.
-      if (item.children?.length) return { ...item, defaultOpen: true }
-      return item
+      return expandAllGroups(item)
     })
 )
 
@@ -164,8 +231,12 @@ const footerNavItems: NavigationMenuItem[] = [
         </div>
         <div class="flex flex-col flex-1 min-h-0 overflow-hidden gap-4 px-2 my-2">
           <UNavigationMenu
-            :key="`left-nav-${route.path}`"
+            :key="`left-nav-${route.path}-${menuSearchQuery.trim()}`"
             :items="filteredMainNavItems"
+            :ui="{
+              link: 'data-[active=true]:text-gray-700 data-[active=true]:bg-gold/10 aria-[current=page]:text-gray-700',
+              linkLeadingIcon: 'group-data-[active=true]:text-gold group-aria-[current=page]:text-gold'
+            }"
             orientation="vertical"
             class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
           />

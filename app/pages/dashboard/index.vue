@@ -1,10 +1,6 @@
 <template>
   <div class="flex min-h-0 bg-gray-50">
-    <aside
-      class="sticky top-15 self-start shrink-0 h-[calc(100vh-3.75rem)] overflow-hidden w-80 min-w-80"
-    >
-      <LeftInternal />
-    </aside>
+    <DashboardSidebar />
 
     <main class="flex-1 min-w-0 overflow-y-auto">
       <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -89,6 +85,30 @@ const sections = [
     description: 'Create and manage schema-driven Connect forms.',
     to: '/dashboard/forms',
     icon: 'i-lucide-square-pen',
+  },
+  {
+    title: 'Home Slider',
+    description: 'Manage homepage slider images, links, and display order.',
+    to: '/dashboard/home-slider',
+    icon: 'i-lucide-images',
+  },
+  {
+    title: 'Daily Eucharist',
+    description: 'Manage weekly Eucharist toggle, summary, and schedule entries.',
+    to: '/dashboard/daily-eucharist',
+    icon: 'i-lucide-calendar-heart',
+  },
+  {
+    title: 'Chapel',
+    description: 'Create and manage chapel episode entries.',
+    to: '/dashboard/chapel',
+    icon: 'i-lucide-mic-vocal',
+  },
+  {
+    title: 'Chapel Speakers',
+    description: 'Manage speaker profiles, titles, and photos.',
+    to: '/dashboard/chapel-speakers',
+    icon: 'i-lucide-user-round-pen',
   },
   {
     title: 'Form Results',

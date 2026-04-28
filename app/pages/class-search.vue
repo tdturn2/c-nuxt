@@ -496,7 +496,8 @@ const courseCategoryOptions: Array<{ label: string; value: string; prefixes: str
   { label: 'Music', value: 'music', prefixes: ['MU'] },
 ]
 
-const selectedCategory = ref<{ label: string; value: string; prefixes: string[] }>(courseCategoryOptions[0])
+const defaultCourseCategory = { label: 'All categories', value: '', prefixes: [] as string[] }
+const selectedCategory = ref<{ label: string; value: string; prefixes: string[] }>(courseCategoryOptions[0] ?? defaultCourseCategory)
 
 const searchQuery = ref('')
 const PAGE_SIZE = 50
@@ -558,7 +559,7 @@ watch([searchQuery, () => selectedCategory.value, () => selectedFaculty.value, (
   currentPage.value = 1
 })
 watch(termSlug, () => {
-  selectedCategory.value = courseCategoryOptions[0]
+  selectedCategory.value = courseCategoryOptions[0] ?? defaultCourseCategory
   selectedFaculty.value = { label: 'All faculty', value: '' }
   selectedLocation.value = { label: 'All locations', value: '' }
   currentPage.value = 1

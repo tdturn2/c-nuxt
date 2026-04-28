@@ -1,25 +1,15 @@
 <template>
   <header class="border-b border-white/10 bg-gradient-to-r from-[rgba(13,94,130,1)] to-[rgba(10,69,92,1)] sticky top-0 z-50">
-    <div :class="headerContainerClass">
+    <div class="w-full flex items-center justify-between min-h-[60px] px-3 md:px-4">
       
-      <div class="flex items-center gap-6">
-        <NuxtLink to="/" class="flex items-center" noPrefetch>
-          <img src="/connect-icon.webp" alt="Logo" class="w-[50px] h-auto py-1" />
+      <div class="flex items-center h-full gap-6 shrink-0">
+        <NuxtLink to="/" class="flex items-center h-full" noPrefetch>
+          <img :src="connectLogoWide" alt="Logo" class="block w-[250px] h-auto pb-1" />
         </NuxtLink>
-        <nav v-if="isSignedIn" class="hidden md:flex items-center gap-6">
-          <NuxtLink 
-            to="/internal" 
-            class="p-2 text-white/90 hover:text-white hover:bg-white/10 rounded-md transition-colors"
-          >
-            <!-- <UIcon name="i-heroicons-building-library" class="w-5 h-5" /> -->
-             Docs
-          </NuxtLink>
-
-        </nav>
       </div>
       
       <!-- Center nav: Home, Marketplace, Jobs -->
-      <nav v-if="isSignedIn" class="flex items-center justify-center gap-2">
+      <!-- <nav v-if="isSignedIn" class="flex items-center justify-center gap-2">
         <NuxtLink
           v-for="item in centerNavItems"
           :key="item.to"
@@ -34,9 +24,9 @@
         >
           <UIcon :name="item.icon" class="w-6 h-6" />
         </NuxtLink>
-      </nav>
+      </nav> -->
       
-      <div v-if="isSignedIn" class="flex items-center justify-end gap-1 relative z-[1] rounded-t-md">
+      <div v-if="isSignedIn" class="ml-auto flex items-center justify-end gap-1 relative z-[1] rounded-t-md">
         <!-- Grid Icon Dropdown -->
         <UNavigationMenu 
           :items="gridMenuItems" 
@@ -130,7 +120,7 @@
         <UDropdownMenu :items="accountDropdownItems" :popper="{ placement: 'bottom-end' }">
           <button
             type="button"
-            class="flex items-center justify-center rounded-full ring-2 ring-white/50 hover:ring-white focus:outline-none focus:ring-2 focus:ring-white overflow-hidden w-9 h-9 shrink-0"
+            class="mr-2 flex items-center justify-center rounded-full ring-2 ring-white/50 hover:ring-white focus:outline-none focus:ring-2 focus:ring-white overflow-hidden w-9 h-9 shrink-0"
             aria-label="Account menu"
           >
             <img
@@ -156,6 +146,7 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import PostModal from './PostModal.vue'
+import connectLogoWide from '../../assets/connect-logo.svg'
 
 const route = useRoute()
 const { activeTab } = useFeedFilter()
@@ -185,12 +176,6 @@ const { fetchUser } = useUsers()
 const { data: session, getCsrfToken } = useAuth()
 const { user: meUser } = useMe()
 const isSignedIn = computed(() => Boolean(session.value?.user?.email))
-const headerContainerClass = computed(() =>
-  isSignedIn.value
-    ? 'container mx-auto grid grid-cols-3 items-center min-h-[60px]'
-    : 'container mx-auto flex items-center min-h-[60px]'
-)
-
 const handleSignOut = async () => {
   try {
     // Get CSRF token the same way as on the signin page

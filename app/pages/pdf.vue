@@ -31,6 +31,11 @@ function getPdfUrlFromQuery() {
   const trimmed = value.trim()
   if (!trimmed) return ''
 
+  // Allow same-origin relative proxy paths like /api/pdf-proxy?url=...
+  if (trimmed.startsWith('/') && !trimmed.startsWith('//')) {
+    return trimmed
+  }
+
   try {
     const url = new URL(trimmed)
     if (!(url.protocol === 'http:' || url.protocol === 'https:')) return ''

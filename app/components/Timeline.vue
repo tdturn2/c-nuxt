@@ -5,6 +5,11 @@
       <UTabs
         v-model="activeCategoryTab"
         :items="categoryTabs"
+        :ui="{
+          list: 'bg-transparent p-0 rounded-none gap-1',
+          indicator: 'bg-transparent border-none shadow-none',
+          trigger: 'rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100/80 aria-selected:bg-gray-100 aria-selected:text-gray-700 data-[state=active]:bg-gray-100 data-[state=active]:text-gray-700'
+        }"
         class="flex-1 min-w-0"
       />
       <button
@@ -44,6 +49,41 @@
       @post-updated="handleModalPostUpdated"
       @post-deleted="handlePostDeleted"
     />
+
+    <section
+      v-if="activeCategoryTab === 'official' && slides.length"
+      class="mb-12 w-full"
+    >
+      <UCarousel
+        v-slot="{ item }"
+        loop
+        :autoplay="{ delay: 5000 }"
+        arrows
+        dots
+        :items="slides"
+        :ui="{
+          item: 'basis-full ps-0',
+          container: 'ms-0',
+          controls: 'inset-x-2',
+          prev: 'bg-white/90 border border-gray-200',
+          next: 'bg-white/90 border border-gray-200',
+          dots: 'mt-3'
+        }"
+      >
+        <NuxtLink
+          :to="item.href || '/'"
+          :target="item.openInNewTab ? '_blank' : undefined"
+          :rel="item.openInNewTab ? 'noopener noreferrer' : undefined"
+          class="block bg-gray-50"
+        >
+          <img
+            :src="getImageUrl(item.image)"
+            :alt="item.title || 'Connect highlight'"
+            class="w-full h-auto"
+          >
+        </NuxtLink>
+      </UCarousel>
+    </section>
 
     <div v-if="pending || loadingUsers" class="text-center py-8">
       <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
@@ -139,6 +179,14 @@ interface TimelineResponse {
   totalPages: number
 }
 
+interface HomeSlide {
+  id: number | string
+  title?: string
+  href?: string
+  openInNewTab?: boolean
+  image?: any
+}
+
 const props = defineProps<{
   apiUrl?: string
 }>()
@@ -146,23 +194,30 @@ const props = defineProps<{
 const apiUrl = props.apiUrl || '/api/posts'
 
 const { data, pending, error, refresh } = await useFetch<TimelineResponse>(apiUrl)
+const { data: sliderData } = await useFetch<{ docs?: HomeSlide[] }>('/api/home-slider', {
+  key: 'connect-home-slider',
+})
 
 const { fetchUsers } = useUsers()
+const config = useRuntimeConfig()
+const payloadBaseUrl = String(config.public.payloadBaseUrl || '').replace(/\/$/, '')
 
 // Get current authenticated user's PayloadCMS ID
 const { currentUserId } = useMe()
 
 // Category tabs for filtering
 const categoryTabs = [
-  { value: 'general', label: 'General' },
+  { value: 'official', label: 'Official' },
   { value: 'students', label: 'Students' },
-  { value: 'employees', label: 'Employees' },
-  { value: 'staff', label: 'Staff' },
-  { value: 'faculty', label: 'Faculty' }
+  { value: 'faculty', label: 'Faculty' },
+  { value: 'staff', label: 'Staff' }
 ]
 
 // Active category tab state
-const activeCategoryTab = ref('general')
+const activeCategoryTab = ref('official')
+const slides = computed<HomeSlide[]>(() => {
+  return Array.isArray(sliderData.value?.docs) ? sliderData.value.docs : []
+})
 
 const createPostModalOpen = ref(false)
 const isPostModalOpen = ref(false)
@@ -174,6 +229,17 @@ const postModalStartWithCommentsOpen = ref(false)
 const onCreatePostSuccess = async () => {
   await handlePostCreated()
   createPostModalOpen.value = false
+}
+
+function getImageUrl(image: any) {
+  if (!image) return '/estes-icon.png'
+  const raw =
+    typeof image === 'object'
+      ? (image.url || image.file?.url || image._normalizedUrl || null)
+      : null
+  if (!raw) return '/estes-icon.png'
+  if (String(raw).startsWith('http')) return raw
+  return `${payloadBaseUrl}${raw}`
 }
 
 const handlePostUpdated = (updatedPost: PostWithUser | Post) => {
@@ -292,7 +358,7 @@ const filterPosts = () => {
   
   const category = activeCategoryTab.value
   
-  if (category === 'general') {
+  if (category === 'official') {
     // General: posts with audience "all" or null/undefined/empty array
     displayedPosts.value = allPostsWithUsers.value.filter(post => 
       !post.audience || 
@@ -303,11 +369,6 @@ const filterPosts = () => {
     // Students: posts with audience "students"
     displayedPosts.value = allPostsWithUsers.value.filter(post => 
       post.audience && post.audience.includes('students')
-    )
-  } else if (category === 'employees') {
-    // Employees: posts with audience "employees"
-    displayedPosts.value = allPostsWithUsers.value.filter(post => 
-      post.audience && post.audience.includes('employees')
     )
   } else if (category === 'staff') {
     // Staff: posts with audience "staff" OR "employees"

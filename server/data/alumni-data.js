@@ -269992,5 +269992,1847 @@ export default [
   "full_name": "Erin Elizabeth Zonio",
   "degree_1": "M.A. in Biblical Studies",
   "degree_1_year": 2023
+},
+{
+  "id": 13774,
+  "full_name": "Jordan Ashton Abell",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13775,
+  "full_name": "Kellen Zachary Abner",
+  "degree_1": "M.A. in Pastoral Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 13776,
+  "full_name": "Guadalupe Acevedo",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13777,
+  "full_name": "Charles Dale Adams",
+  "degree_1": "M.A. in Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13778,
+  "full_name": "Oluwafisayo Oluwawemimo Adebiyi",
+  "degree_1": "M.A. in Theological Studies",
+  "degree_1_year": 2024
+},
+{
+  "id": 13779,
+  "full_name": "Tsematosan Gloria Ajinomisanghan",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13780,
+  "full_name": "Christopher Ryan Alfred",
+  "degree_1": "Ph.D. in Biblical Studies",
+  "degree_1_year": 2024
+},
+{
+  "id": 13781,
+  "full_name": "Nicholas Ralph Allan",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13782,
+  "full_name": "Amanda Louise Allen",
+  "degree_1": "Doctor of Philosophy (Intercultural Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13783,
+  "full_name": "Benjamin Davis Allen",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13784,
+  "full_name": "Chaney Jane Allen",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13785,
+  "full_name": "Mary Eleanor Allen",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13786,
+  "full_name": "Vanessa Katherine Alvarez-Espinoza",
+  "degree_1": "M.A. in Pastoral Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 13787,
+  "full_name": "Justice Audu Amego",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13788,
+  "full_name": "Holly Jeline Amoah-Mensah",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13789,
+  "full_name": "Peter Kile Antone",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13790,
+  "full_name": "Colin Fawkes Armstrong",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13791,
+  "full_name": "Justin Edward Arnold",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13792,
+  "full_name": "Samuel Arocho",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13793,
+  "full_name": "Marlene Knerr Atwater",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13794,
+  "full_name": "Joanna Joy Austill",
+  "degree_1": "Master of Arts (Biblical Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13795,
+  "full_name": "Sean Erik Bailey",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13796,
+  "full_name": "Jennifer Mitchell Bardell",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13797,
+  "full_name": "James Andrew McWilliam Barnett",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13798,
+  "full_name": "Vinicius Cruz Barrella",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13799,
+  "full_name": "Sean T. Barton",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13800,
+  "full_name": "Lawrence James Bates",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13801,
+  "full_name": "Matthew Leigh Bauer",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13802,
+  "full_name": "Andrew James Bawtree",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13803,
+  "full_name": "Joshua Paul Beebe",
+  "degree_1": "M.A. in Christian Ministries",
+  "degree_1_year": 2024
+},
+{
+  "id": 13804,
+  "full_name": "Alyssa Lynn Behrman",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13805,
+  "full_name": "Abigail Kate Bennett",
+  "degree_1": "M.A. in Mental Health Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 13806,
+  "full_name": "Bonnie Marie Billock",
+  "degree_1": "M.A. in Christian Ministries",
+  "degree_1_year": 2024
+},
+{
+  "id": 13807,
+  "full_name": "Sonia C. Blackwell",
+  "degree_1": "M.A. in Leadership",
+  "degree_1_year": 2024
+},
+{
+  "id": 13808,
+  "full_name": "Maria Boschker",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13809,
+  "full_name": "Yates Lewis Boykin",
+  "degree_1": "M.A. in Mental Health Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 13810,
+  "full_name": "Deivi Enrique Bracho",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13811,
+  "full_name": "Steven Douglas Bradberry",
+  "degree_1": "M.A. in Leadership",
+  "degree_1_year": 2024
+},
+{
+  "id": 13812,
+  "full_name": "Edward Francis Brereton",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13813,
+  "full_name": "Deloris T Brookins",
+  "degree_1": "Master of Arts (Biblical Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13814,
+  "full_name": "Andrew Carter Brown",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13815,
+  "full_name": "Victoria Mae Butler",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13816,
+  "full_name": "Kristi Michelle Calhoun",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13817,
+  "full_name": "Kira Dawn Calhoun-Wilson",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13818,
+  "full_name": "Amy Dene Carlson",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13819,
+  "full_name": "Melissa Sue Castleberry",
+  "degree_1": "M.A. in Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13820,
+  "full_name": "Deborah Yvonne Caviness",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13821,
+  "full_name": "Young Hwan Choi",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13822,
+  "full_name": "Maylene Anita Christiani",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13823,
+  "full_name": "Sparky Alan Clancy",
+  "degree_1": "Master of Arts (Intercultrual Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13824,
+  "full_name": "Rebekah Ruth Clapp",
+  "degree_1": "Doctor of Philosophy (Intercultural Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13825,
+  "full_name": "Mindy Miller Clemons",
+  "degree_1": "M.A. in Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13826,
+  "full_name": "Bennett Robert Clough",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13827,
+  "full_name": "Joshua Ryan Colvin",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13828,
+  "full_name": "David Stanley Cushing",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13829,
+  "full_name": "Adam Derrell Loo Ya-Houng Daniel",
+  "degree_1": "M.A. in Theological Studies",
+  "degree_1_year": 2024
+},
+{
+  "id": 13830,
+  "full_name": "Sudip Das",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13831,
+  "full_name": "Austin Ryan Davis",
+  "degree_1": "M.A. in Theological Studies",
+  "degree_1_year": 2024
+},
+{
+  "id": 13832,
+  "full_name": "James Joseph Davis",
+  "degree_1": "Master of Arts (Intercultrual Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13833,
+  "full_name": "Jerry Lewis Dicks",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13834,
+  "full_name": "Kristopher Randall Dockery",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13835,
+  "full_name": "Benjamin Doolan",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13836,
+  "full_name": "Jonathan Michael Drake",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13837,
+  "full_name": "Daniel Alexander Blair Drew",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13838,
+  "full_name": "Nestor O. Duque",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13839,
+  "full_name": "Hayden Jeffrey Dwyer",
+  "degree_1": "M.A. in Christian Ministries",
+  "degree_1_year": 2024
+},
+{
+  "id": 13840,
+  "full_name": "Charles Morgan Elliott",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13841,
+  "full_name": "Bennett Weldon Ellison",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13842,
+  "full_name": "Marilyn Camille Therese Eloe",
+  "degree_1": "M.A. in Mental Health Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 13843,
+  "full_name": "Andrew David Erwin",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13844,
+  "full_name": "Taylor Landrum Evans",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13845,
+  "full_name": "Carla Jo Evers",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13846,
+  "full_name": "Hansun Fam",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13847,
+  "full_name": "Brett Faultless",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13848,
+  "full_name": "Charles David Ferraro",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13849,
+  "full_name": "Robin Morgan Ferraro",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13850,
+  "full_name": "Maryah Elizabeth Ann Fletcher",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13851,
+  "full_name": "Meredyth Delayne Fletcher",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13852,
+  "full_name": "Edgar A Flores",
+  "degree_1": "M.A. in Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13853,
+  "full_name": "Bryson Graham Fox",
+  "degree_1": "M.A. in Pastoral Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 13854,
+  "full_name": "Ryan Earl Frederick",
+  "degree_1": "M.A. in Mental Health Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 13855,
+  "full_name": "Zachary David Frederick",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13856,
+  "full_name": "Meredith Anne Freeman",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13857,
+  "full_name": "Linda Louise Furtado",
+  "degree_1": "M.A. in Christian Ministries",
+  "degree_1_year": 2024
+},
+{
+  "id": 13858,
+  "full_name": "Kyle Matthew Gahring",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13859,
+  "full_name": "Lucila Elena Galvis De Morales",
+  "degree_1": "M.A. in Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13860,
+  "full_name": "Richard Vaughn Garlen",
+  "degree_1": "M.A. in Theological Studies",
+  "degree_1_year": 2024
+},
+{
+  "id": 13861,
+  "full_name": "Bradley Scott Garrett",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13862,
+  "full_name": "Frederick Nyah Gbatu",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13863,
+  "full_name": "Matthias Phurba Sonam Gergan",
+  "degree_1": "Doctor of Philosophy (Intercultural Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13864,
+  "full_name": "David Wallace Giffin",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13865,
+  "full_name": "William Andrew Ginn",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13866,
+  "full_name": "Natalia Palomo Gober",
+  "degree_1": "Master of Arts (Intercultural Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13867,
+  "full_name": "Shelby Weakley Gonia",
+  "degree_1": "M.A. in Mental Health Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 13868,
+  "full_name": "Glynnis Guanizo Gonzales",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13869,
+  "full_name": "Ryan Andrew Goodnight",
+  "degree_1": "M.A. in Leadership",
+  "degree_1_year": 2024
+},
+{
+  "id": 13870,
+  "full_name": "Maria-Karolina Gradl",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13871,
+  "full_name": "Colin James Grandlich",
+  "degree_1": "M.A. in Leadership",
+  "degree_1_year": 2024
+},
+{
+  "id": 13872,
+  "full_name": "Cade Robert Gremillion",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13873,
+  "full_name": "Scott Joseph Grigonis",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13874,
+  "full_name": "Jeremiah Daniel Gutierrez",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13875,
+  "full_name": "Sarita Elyse Hall",
+  "degree_1": "M.A. in Leadership",
+  "degree_1_year": 2024
+},
+{
+  "id": 13876,
+  "full_name": "Timothy Michael Hall",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13877,
+  "full_name": "Tyler Hallstrom",
+  "degree_1": "Doctor of Philosophy (Biblical Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13878,
+  "full_name": "Kristin Marie Hannold",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13879,
+  "full_name": "Benjamin Clark Harding",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13880,
+  "full_name": "Carmen Christine Harper",
+  "degree_1": "M.A. in Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13881,
+  "full_name": "Darline Nellys Harper",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13882,
+  "full_name": "Alexander James Harris",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13883,
+  "full_name": "Joshua Joseph Harris",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13884,
+  "full_name": "Adrian Dillon Harrison",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13885,
+  "full_name": "James Curtis Harvey",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13886,
+  "full_name": "Maurice Richardo Harvey",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13887,
+  "full_name": "Micah Andrew Hasenburg",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13888,
+  "full_name": "Daniel James Hazel",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13889,
+  "full_name": "Kendell Linh Healy",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13890,
+  "full_name": "Rania Nabil Guergawi Hendy",
+  "degree_1": "Doctor of Philosophy (Biblical Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13891,
+  "full_name": "Tracie Ann Herman",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13892,
+  "full_name": "Thomas David Hickey",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13893,
+  "full_name": "Nathan William Hildenbrandt",
+  "degree_1": "Master of Arts (Intercultural Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13894,
+  "full_name": "Heather Olivia Hill",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13895,
+  "full_name": "George McIntosh Hilliard",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13896,
+  "full_name": "Joshua Dane Hillyer",
+  "degree_1": "M.A. in Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13897,
+  "full_name": "Joshua Green Hinson",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13898,
+  "full_name": "Probhudan Hira",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13899,
+  "full_name": "Drake Dennison Hollenbeck",
+  "degree_1": "M.A. in Pastoral Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 13900,
+  "full_name": "Madilyn-Jo Hope Hood",
+  "degree_1": "M.A. in Mental Health Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 13901,
+  "full_name": "Naw Kay Thi Htwe",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13902,
+  "full_name": "David Michael Huhtala",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13903,
+  "full_name": "Douglas Scott Hummer",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13904,
+  "full_name": "Carolyn Rose Hurley",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13905,
+  "full_name": "Michele Dawn Idle",
+  "degree_1": "M.A. in Pastoral Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 13906,
+  "full_name": "Daniel John Herbert Jackson",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13907,
+  "full_name": "Thomas Peter Jee",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13908,
+  "full_name": "Bradley Alan Jensen",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13909,
+  "full_name": "Melody Catherine Johnson",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13910,
+  "full_name": "Alexis Jennifer Jose",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13911,
+  "full_name": "Shadreck Kagoro",
+  "degree_1": "M.A. in Leadership",
+  "degree_1_year": 2024
+},
+{
+  "id": 13912,
+  "full_name": "Donghyun Kang",
+  "degree_1": "Doctor of Philosophy (Biblical Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13913,
+  "full_name": "Hye Sook Jackie Kang",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13914,
+  "full_name": "Jessica Ketola",
+  "degree_1": "M.A. in Leadership",
+  "degree_1_year": 2024
+},
+{
+  "id": 13915,
+  "full_name": "Choong Hong Kim",
+  "degree_1": "M.A. in Pastoral Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 13916,
+  "full_name": "Kale Guidroz Kinchen",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13917,
+  "full_name": "Sarah Leticia Kinnicutt",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13918,
+  "full_name": "Janet Hale Krantz",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13919,
+  "full_name": "Neil Dalton Kyle",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13920,
+  "full_name": "Derrick Joseph Labby",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13921,
+  "full_name": "Jessica Rose Lane",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13922,
+  "full_name": "Daniel Shane Layton",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13923,
+  "full_name": "Noah Griffin Lee",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13924,
+  "full_name": "Soo Kwang Lee",
+  "degree_1": "Doctor of Philosophy (Biblical Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13925,
+  "full_name": "Moses Christopher Leininger",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13926,
+  "full_name": "Haley Morgan Lewis",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13927,
+  "full_name": "John Sami Lindsey",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13928,
+  "full_name": "David Zachary Lloyd",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13929,
+  "full_name": "Babett Loewen",
+  "degree_1": "Master of Arts (Biblical Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13930,
+  "full_name": "Timothy Michael Lomax",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13931,
+  "full_name": "Amy Beale Lootens",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13932,
+  "full_name": "Elizabeth Anne Louden",
+  "degree_1": "M.A. in Leadership",
+  "degree_1_year": 2024
+},
+{
+  "id": 13933,
+  "full_name": "Melissa Mia Farrow Love",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13934,
+  "full_name": "Melissa Jeannette Lowell",
+  "degree_1": "M.A. in Theological Studies",
+  "degree_1_year": 2024
+},
+{
+  "id": 13935,
+  "full_name": "Maria Jean Lundin",
+  "degree_1": "M.A. in Mental Health Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 13936,
+  "full_name": "Sandra Johnson Macht",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13937,
+  "full_name": "Jennifer Lynn Mallory",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13938,
+  "full_name": "Ryan Matthew Manning",
+  "degree_1": "M.A. in Mental Health Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 13939,
+  "full_name": "Cody Robert Marks",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13940,
+  "full_name": "Carlos Martinez Moya",
+  "degree_1": "M.A. in Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13941,
+  "full_name": "Jennifer Marie Mason",
+  "degree_1": "M.A. in Leadership",
+  "degree_1_year": 2024
+},
+{
+  "id": 13942,
+  "full_name": "Zachary Owen Massengale",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13943,
+  "full_name": "Kayla Marie Mattox-Frye",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13944,
+  "full_name": "Tyler Jacob Mattox-Frye",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13945,
+  "full_name": "David Lee Maxey",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13946,
+  "full_name": "Terry Garrett Mazurek",
+  "degree_1": "M.A. in Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13947,
+  "full_name": "David Grayson McAlpine",
+  "degree_1": "M.A. in Mental Health Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 13948,
+  "full_name": "Anthony G McClendon",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13949,
+  "full_name": "Rebecca Dobbin McCorkendale",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13950,
+  "full_name": "Lexus Jade McCormick",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13951,
+  "full_name": "Christopher Dale McGuire",
+  "degree_1": "M.A. in Mental Health Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 13952,
+  "full_name": "Teagan Mayo McKenzie",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13953,
+  "full_name": "James McLean",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13954,
+  "full_name": "Kirsten Joy Meadows",
+  "degree_1": "M.A. in Leadership",
+  "degree_1_year": 2024
+},
+{
+  "id": 13955,
+  "full_name": "Joshua Frederick Meeks",
+  "degree_1": "M.A. in Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13956,
+  "full_name": "Andrew W Merritt",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13957,
+  "full_name": "Brittany Nicole Merritt",
+  "degree_1": "M.A. in Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13958,
+  "full_name": "Austin William Daniel Mertz",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13959,
+  "full_name": "Sarah Lynn Michel",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13960,
+  "full_name": "Justin David Mikesell",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13961,
+  "full_name": "Christina Marie Miller",
+  "degree_1": "M.A. in Mental Health Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 13962,
+  "full_name": "Ellen Joyce Miller",
+  "degree_1": "M.A. in Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13963,
+  "full_name": "Kurt Miller",
+  "degree_1": "Master of Arts (Intercultural Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13964,
+  "full_name": "Daisy Montenegro",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13965,
+  "full_name": "Dalton Charles Moore",
+  "degree_1": "M.A. in Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13966,
+  "full_name": "Matthew Joseph Moore",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13967,
+  "full_name": "Hur Aim Morales Villarroel",
+  "degree_1": "M.A. in Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13968,
+  "full_name": "Daniel Felton Moye",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13969,
+  "full_name": "Alyssa Jean Mueller",
+  "degree_1": "M.A. in Pastoral Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 13970,
+  "full_name": "Esther Sue Mueller",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13971,
+  "full_name": "Elizabeth Lou Murphy",
+  "degree_1": "M.A. in Marriage and Family Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 13972,
+  "full_name": "Dawuda Mani Musa",
+  "degree_1": "Master of Arts (Intercultural Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13973,
+  "full_name": "Dwight Simpson Munyaradzi Mutonono",
+  "degree_1": "Doctor of Philosophy (Intercultural Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13974,
+  "full_name": "Jacob Thomas Nacar",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13975,
+  "full_name": "Darren Andrew Narber",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13976,
+  "full_name": "Charles Andrew Neely",
+  "degree_1": "M.A. in Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13977,
+  "full_name": "Phillip Scott Neville",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13978,
+  "full_name": "Peter Samuel Nevins",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13979,
+  "full_name": "Omar David Niebles",
+  "degree_1": "Master of Arts (Intercultural Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13980,
+  "full_name": "Dylon Perry Niswonger",
+  "degree_1": "M.A. in Leadership",
+  "degree_1_year": 2024
+},
+{
+  "id": 13981,
+  "full_name": "Cornelia Jeannette Nottage-Daux",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13982,
+  "full_name": "Fraser James Oates",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13983,
+  "full_name": "Shannon Kay Odom",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13984,
+  "full_name": "Kelle Hughes Ortiz",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13985,
+  "full_name": "Cole Robert Osborne",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13986,
+  "full_name": "Sethu Keith Palmer",
+  "degree_1": "M.A. in Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13987,
+  "full_name": "Theophile Pare",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13988,
+  "full_name": "Hannah Patton",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13989,
+  "full_name": "Sarah Catherine Peden",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13990,
+  "full_name": "Kedo Peseyie",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 13991,
+  "full_name": "Blake N. Peterman",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13992,
+  "full_name": "Farrah Olivia Petski",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 13993,
+  "full_name": "Mary B Phillips",
+  "degree_1": "M.A. in Pastoral Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 13994,
+  "full_name": "Joseph Madison Pierce",
+  "degree_1": "Master of Arts (Intercultural Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13995,
+  "full_name": "Laura Elizabeth Pike",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13996,
+  "full_name": "Lynne E Pinkerton",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 13997,
+  "full_name": "Matthew Steven Pique",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13998,
+  "full_name": "Benjamin Ryan Porter",
+  "degree_1": "Master of Arts (Biblical Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 13999,
+  "full_name": "Austin Ray Pounds",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 14000,
+  "full_name": "Neil Anthony Powell",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 14001,
+  "full_name": "Jonathan Miguel Quatela",
+  "degree_1": "M.A. in Pastoral Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 14002,
+  "full_name": "Jennifer Elizabeth Randle",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 14003,
+  "full_name": "Micah Timothy Reese",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 14004,
+  "full_name": "David Gareth Richards",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 14005,
+  "full_name": "Jason O'Neale Roach",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 14006,
+  "full_name": "Shawn Rene Roberts-Blake",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 14007,
+  "full_name": "Gareth James Robinson",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 14008,
+  "full_name": "Ricky Moises Rodriguez",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 14009,
+  "full_name": "Christopher Ian Rogers",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 14010,
+  "full_name": "Joshua Zachary Romano",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 14011,
+  "full_name": "Brian Robert Roundtree",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 14012,
+  "full_name": "Joshua Daniel Rungsung",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 14013,
+  "full_name": "Laura Ann Saffell",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 14014,
+  "full_name": "Jorge Manuel Santiago",
+  "degree_1": "M.A. in Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 14015,
+  "full_name": "Dario Enrique Sarmiento",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 14016,
+  "full_name": "Janet Watson Schappell",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 14017,
+  "full_name": "Shannon Tyler Schmitt",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 14018,
+  "full_name": "Sarah Elizabeth Schulteis",
+  "degree_1": "M.A. in Theological Studies",
+  "degree_1_year": 2024
+},
+{
+  "id": 14019,
+  "full_name": "Angela Marie Scott",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 14020,
+  "full_name": "Yamilka Jissette Sena",
+  "degree_1": "M.A. in Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 14021,
+  "full_name": "Beth Ann Sheets",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 14022,
+  "full_name": "Sochanngam Shirik",
+  "degree_1": "Doctor of Philosophy (Intercultural Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 14023,
+  "full_name": "John David Silkauskas",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 14024,
+  "full_name": "Walter Edward Simon",
+  "degree_1": "Doctor of Philosophy (Intercultural Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 14025,
+  "full_name": "Suraj Singh",
+  "degree_1": "Doctor of Philosophy (Biblical Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 14026,
+  "full_name": "Anne Dalton Sisk",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 14027,
+  "full_name": "Austin James Slade",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 14028,
+  "full_name": "Mhairi Elizabeth Smeaton",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 14029,
+  "full_name": "Dain Alexander Smith",
+  "degree_1": "Doctor of Philosophy (Biblical Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 14030,
+  "full_name": "Haley Deanna Smith",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 14031,
+  "full_name": "Kay Dykes Smith",
+  "degree_1": "Master of Arts (Biblical Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 14032,
+  "full_name": "Lucas Bryon Smith",
+  "degree_1": "Master of Arts (Biblical Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 14033,
+  "full_name": "Jill Rodrigues Snyder",
+  "degree_1": "M.A. in Mental Health Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 14034,
+  "full_name": "Jessica Ann Lavelle Stafford",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 14035,
+  "full_name": "Stanley Stanley",
+  "degree_1": "Doctor of Philosophy (Intercultural Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 14036,
+  "full_name": "Rachel Ann Stone",
+  "degree_1": "M.A. in Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 14037,
+  "full_name": "Chancellor Reed Strange",
+  "degree_1": "Master of Arts (Biblical Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 14038,
+  "full_name": "Leslie Kay Stratton",
+  "degree_1": "M.A. in Mental Health Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 14039,
+  "full_name": "Allison Louise Strickling",
+  "degree_1": "M.A. in Mental Health Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 14040,
+  "full_name": "Timothy Mark Sudworth",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 14041,
+  "full_name": "Evelyn Lee Swart",
+  "degree_1": "M.A. in Leadership",
+  "degree_1_year": 2024
+},
+{
+  "id": 14042,
+  "full_name": "E Julu Swen",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 14043,
+  "full_name": "Brooke Talley",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 14044,
+  "full_name": "Mark Simon Austin Tanner",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 14045,
+  "full_name": "Martyn Andrew Nicholas Taylor",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 14046,
+  "full_name": "Sarah Kaylyn Taylor",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 14047,
+  "full_name": "Jacob Nicholas Tecau",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 14048,
+  "full_name": "Steven Shahid Thomas",
+  "degree_1": "M.A. in Theological Studies",
+  "degree_1_year": 2024
+},
+{
+  "id": 14049,
+  "full_name": "Delise Diane Tomlinson",
+  "degree_1": "M.A. in Mental Health Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 14050,
+  "full_name": "Miles Toulmin",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 14051,
+  "full_name": "Lori Ann Trost",
+  "degree_1": "M.A. in Mental Health Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 14052,
+  "full_name": "John Hambly Tu'Uta",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 14053,
+  "full_name": "Gary Frank Turner",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 14054,
+  "full_name": "Georges Junie Veillard",
+  "degree_1": "M.A. in Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 14055,
+  "full_name": "John Hardy Vick",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 14056,
+  "full_name": "Karen Sue Wagenhals",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 14057,
+  "full_name": "Melissa Kay Wagner",
+  "degree_1": "M.A. in Mental Health Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 14058,
+  "full_name": "Mary Elizabeth Ward",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 14059,
+  "full_name": "Patrick John Ward",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 14060,
+  "full_name": "Jennifer Marcia Warren",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 14061,
+  "full_name": "Carlie Caroline Webster",
+  "degree_1": "M.A. in Christian Ministries",
+  "degree_1_year": 2024
+},
+{
+  "id": 14062,
+  "full_name": "Curtis Earl Webster",
+  "degree_1": "Master of Arts (Theological Studies)",
+  "degree_1_year": 2024
+},
+{
+  "id": 14063,
+  "full_name": "Molly Josephine Weiner",
+  "degree_1": "M.A. in Mental Health Counseling",
+  "degree_1_year": 2024
+},
+{
+  "id": 14064,
+  "full_name": "Spencer Chapman Welch",
+  "degree_1": "M.A. in Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 14065,
+  "full_name": "Nathan Christopher Wells",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 14066,
+  "full_name": "Clinton James Wheeler",
+  "degree_1": "M.A. in Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 14067,
+  "full_name": "Felecia Danielle Whidden",
+  "degree_1": "M.A. in Leadership",
+  "degree_1_year": 2024
+},
+{
+  "id": 14068,
+  "full_name": "Angela Grace White",
+  "degree_1": "M.A. in Leadership",
+  "degree_1_year": 2024
+},
+{
+  "id": 14069,
+  "full_name": "Tracy Suzanne Whittaker",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 14070,
+  "full_name": "Jonathan Kendall Wiest",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 14071,
+  "full_name": "Thomas Øhrstrøm Willer",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 14072,
+  "full_name": "Jaimie Allen Willis",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 14073,
+  "full_name": "Kendal Rylee Willis",
+  "degree_1": "M.A. in Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 14074,
+  "full_name": "Rachel Taryn Willoughby",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 14075,
+  "full_name": "Dylan Michael Wilson",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 14076,
+  "full_name": "Priscilla Wong",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 14077,
+  "full_name": "Clinton Kimball Wyllie",
+  "degree_1": "Master of Biblical & Theological Foundations",
+  "degree_1_year": 2024
+},
+{
+  "id": 14078,
+  "full_name": "Qian Ye",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
+},
+{
+  "id": 14079,
+  "full_name": "Andres Neftaly Zelaya",
+  "degree_1": "Doctor of Ministry",
+  "degree_1_year": 2024
+},
+{
+  "id": 14080,
+  "full_name": "Jacey Ann Zepp",
+  "degree_1": "Master of Divinity",
+  "degree_1_year": 2024
 }
 ]

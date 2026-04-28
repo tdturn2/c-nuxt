@@ -23,6 +23,15 @@ const applyDefaultOpenForActiveRoute = (item: NavigationMenuItem): NavigationMen
   }
 }
 
+const expandAllGroups = (item: NavigationMenuItem): NavigationMenuItem => {
+  if (!item.children?.length) return item
+  return {
+    ...item,
+    defaultOpen: true,
+    children: item.children.map((c) => expandAllGroups(c)),
+  }
+}
+
 /** Recursively filter menu items by label (and nested children labels) */
 function filterMenuByLabel(item: NavigationMenuItem, query: string): NavigationMenuItem | null {
   const q = query.trim().toLowerCase()
@@ -60,8 +69,7 @@ const filteredMainNavItems = computed(() =>
       const q = menuSearchQuery.value.trim()
       if (!q) return item
       // If search is active, expand any group that still has children after filtering.
-      if (item.children?.length) return { ...item, defaultOpen: true }
-      return item
+      return expandAllGroups(item)
     })
 )
 
@@ -95,9 +103,13 @@ const footerNavItems: NavigationMenuItem[] = [
         />
 
         <UNavigationMenu
-          :key="`left-internal-nav-${route.path}`"
+          :key="`left-internal-nav-${route.path}-${menuSearchQuery.trim()}`"
           :collapsed="collapsed"
           :items="filteredMainNavItems"
+          :ui="{
+            link: 'data-[active=true]:text-gray-700 data-[active=true]:bg-gold/10 aria-[current=page]:text-gray-700',
+            linkLeadingIcon: 'group-data-[active=true]:text-gold group-aria-[current=page]:text-gold'
+          }"
           orientation="vertical"
           class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
         />
