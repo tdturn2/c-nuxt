@@ -135,7 +135,6 @@ export function getDashboardPayloadHeaders(event: any, auth: DashboardFormsAuth,
 }
 
 export function withServerBearer(headers: Record<string, string>) {
-  if (headers.Authorization) return headers
   const config = useRuntimeConfig()
   const raw = config.payloadServerBearer
   const bearer = typeof raw === 'string' ? raw.trim() : ''
