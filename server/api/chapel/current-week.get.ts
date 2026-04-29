@@ -59,20 +59,30 @@ export default defineEventHandler(async () => {
   const thisWeekFriday = new Date(thisWeekMonday)
   thisWeekFriday.setUTCDate(thisWeekMonday.getUTCDate() + 4)
 
-  const params = new URLSearchParams()
-  params.set('depth', '2')
-  params.set('limit', '200')
-  params.set('sort', 'date')
-  params.set('draft', 'true')
-  params.set('where[date][greater_than_equal]', toYmdUtc(thisWeekTuesday))
-  // Use exclusive Friday upper bound so Thursday rows with stored times are included.
-  params.set('where[date][less_than]', toYmdUtc(thisWeekFriday))
+  const makeParams = (includeDraft: boolean) => {
+    const params = new URLSearchParams()
+    params.set('depth', '2')
+    params.set('limit', '200')
+    params.set('sort', 'date')
+    if (includeDraft) params.set('draft', 'true')
+    params.set('where[date][greater_than_equal]', toYmdUtc(thisWeekTuesday))
+    // Use exclusive Friday upper bound so Thursday rows with stored times are included.
+    params.set('where[date][less_than]', toYmdUtc(thisWeekFriday))
+    return params
+  }
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (payloadServerBearer) headers.Authorization = `Bearer ${payloadServerBearer}`
 
   try {
-    const res: any = await $fetch(`${payloadBaseUrl}/api/chapel-podcasts?${params.toString()}`, { headers })
+    let res: any
+    try {
+      // Preferred: include draft entries for upcoming Tue/Wed/Thu.
+      res = await $fetch(`${payloadBaseUrl}/api/chapel-podcasts?${makeParams(true).toString()}`, { headers })
+    } catch {
+      // Fallback for DBs missing drafts version tables.
+      res = await $fetch(`${payloadBaseUrl}/api/chapel-podcasts?${makeParams(false).toString()}`, { headers })
+    }
     const docs = Array.isArray(res?.docs) ? (res.docs as ChapelEpisode[]) : []
 
     const mondayKey = toYmdUtc(thisWeekMonday)

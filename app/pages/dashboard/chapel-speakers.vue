@@ -19,6 +19,18 @@
         <template v-else>
           <form class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm" @submit.prevent="saveSpeaker">
             <h2 class="text-base font-semibold text-gray-900">{{ editingId ? 'Edit speaker' : 'Add speaker' }}</h2>
+            <div class="mt-3">
+              <select
+                v-model="selectedSpeakerId"
+                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                @change="handleSelectedSpeakerChange"
+              >
+                <option value="">Add new speaker</option>
+                <option v-for="speaker in speakers" :key="`speaker-option-${speaker.id}`" :value="String(speaker.id)">
+                  {{ speaker.name || `Speaker #${String(speaker.id)}` }}
+                </option>
+              </select>
+            </div>
             <div class="mt-3 grid gap-3 sm:grid-cols-2">
               <input v-model="form.name" type="text" placeholder="Speaker name" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
               <input :value="selectedPhotoLabel" type="text" readonly placeholder="No photo selected" class="rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm">
@@ -162,6 +174,7 @@ const uploadAlt = ref('')
 const uploadingPhoto = ref(false)
 const assetLibrarySearch = ref('')
 const editingId = ref<string | number | null>(null)
+const selectedSpeakerId = ref('')
 const mediaAssets = ref<any[]>([])
 const form = ref({
   name: '',
@@ -224,6 +237,7 @@ function photoIdFromSpeaker(speaker: ChapelSpeaker): string | number | null {
 
 function resetForm() {
   editingId.value = null
+  selectedSpeakerId.value = ''
   form.value = {
     name: '',
     speakerDescription: '',
@@ -234,12 +248,23 @@ function resetForm() {
 
 function startEdit(speaker: ChapelSpeaker) {
   editingId.value = speaker.id
+  selectedSpeakerId.value = String(speaker.id)
   form.value = {
     name: speaker.name || '',
     speakerDescription: speaker.speakerDescription || '',
     photo: photoIdFromSpeaker(speaker),
     active: speaker.active !== false,
   }
+}
+
+function handleSelectedSpeakerChange() {
+  if (!selectedSpeakerId.value) {
+    resetForm()
+    return
+  }
+  const selected = speakers.value.find((speaker) => String(speaker.id) === selectedSpeakerId.value)
+  if (!selected) return
+  startEdit(selected)
 }
 
 async function loadSpeakers() {
