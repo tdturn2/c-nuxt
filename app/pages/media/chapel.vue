@@ -15,16 +15,16 @@
       <section v-if="weeklySpeaker" class="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
           <img
-            v-if="getImageUrl(weeklySpeaker.photo)"
-            :src="getImageUrl(weeklySpeaker.photo)"
-            :alt="weeklySpeaker.name || 'Chapel speaker'"
+            v-if="speakerImageUrl(weeklySpeaker)"
+            :src="speakerImageUrl(weeklySpeaker)"
+            :alt="speakerDisplayName(weeklySpeaker) || 'Chapel speaker'"
             class="h-28 w-28 rounded-lg object-cover border border-gray-200"
           >
           <div class="min-w-0 flex-1">
             <p class="text-xs font-semibold uppercase tracking-wide text-[rgba(13,94,130,1)]">This Week's Speaker</p>
-            <h2 class="mt-1 text-lg font-semibold text-gray-900">{{ weeklySpeaker.name || 'Chapel Speaker' }}</h2>
-            <p v-if="weeklySpeaker.speakerDescription" class="mt-2 text-sm text-gray-700 whitespace-pre-line">
-              {{ weeklySpeaker.speakerDescription }}
+            <h2 class="mt-1 text-lg font-semibold text-gray-900">{{ speakerDisplayName(weeklySpeaker) || 'Chapel Speaker' }}</h2>
+            <p v-if="speakerDisplayTitle(weeklySpeaker)" class="mt-2 text-sm text-gray-700 whitespace-pre-line">
+              {{ speakerDisplayTitle(weeklySpeaker) }}
             </p>
           </div>
         </div>
@@ -127,8 +127,8 @@
           >
             <div class="flex flex-col sm:flex-row sm:items-center gap-3">
               <!-- Date -->
-              <div class="flex-shrink-0 w-16 text-center">
-                <span class="text-xs font-medium uppercase text-gray-500 tracking-wider">
+              <div class="flex-shrink-0">
+                <span class="inline-flex rounded-md bg-[rgba(2,34,50,1)] px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-[#E8C766]">
                   {{ formatDate(ep.date) }}
                 </span>
               </div>
@@ -138,10 +138,17 @@
                 <h2 class="font-semibold text-gray-900 group-hover:text-[rgba(13,94,130,1)] transition-colors line-clamp-2">
                   {{ ep.title || 'Chapel' }}
                 </h2>
-                <div class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
-                  <span v-if="ep.speaker?.name" class="flex items-center gap-1">
-                    <UIcon name="i-heroicons-user" class="w-4 h-4 text-gray-400" />
-                    {{ ep.speaker.name }}
+                <div class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600">
+                  <span v-if="speakerDisplayName(ep.speaker)" class="flex items-center gap-2">
+                    <img
+                      v-if="speakerImageUrl(ep.speaker)"
+                      :src="speakerImageUrl(ep.speaker)"
+                      :alt="speakerDisplayName(ep.speaker) || 'Speaker'"
+                      class="h-8 w-8 rounded-full border border-gray-200 object-cover"
+                    >
+                    <UIcon v-else name="i-heroicons-user" class="w-4 h-4 text-gray-400" />
+                    <span class="font-medium text-gray-700">{{ speakerDisplayName(ep.speaker) }}</span>
+                    <span v-if="speakerDisplayTitle(ep.speaker)" class="text-gray-500">- {{ speakerDisplayTitle(ep.speaker) }}</span>
                   </span>
                   <span v-if="ep.campus" class="inline-flex items-center px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 text-xs font-medium">
                     {{ ep.campus }}
@@ -223,7 +230,18 @@ interface ChapelEpisode {
   date?: string
   title?: string
   campus?: string
-  speaker?: { id?: number; name?: string }
+  speaker?: {
+    id?: number
+    name?: string
+    speakerDescription?: string
+    photo?: { url?: string } | string | null
+    connectUser?: {
+      id?: number | string
+      name?: string
+      employeeTitle?: string
+      avatar?: { url?: string } | string | null
+    } | string | number | null
+  }
   mp3?: { url?: string }
   vimeo?: string
   vimeo_id?: string
@@ -235,7 +253,18 @@ interface WeeklySpeaker {
   id: number | string
   name?: string
   speakerDescription?: string
-  photo?: { url?: string } | null
+  photo?: { url?: string } | string | null
+  connectUser?: {
+    id?: number | string
+    name?: string
+    employeeTitle?: string
+    avatar?: { url?: string } | string | null
+  } | string | number | null
+}
+interface CurrentWeekResponse {
+  entries?: Array<{
+    speaker?: WeeklySpeaker | null
+  }>
 }
 
 type SpeakerOption = { id: number; name: string; label: string }
@@ -292,7 +321,7 @@ const { data: speakersData } = await useFetch<ChapelResponse>('/api/chapel-podca
     sort: '-date',
     limit: 500,
     page: 1,
-    depth: 1
+    depth: 3
   }
 })
 
@@ -336,7 +365,7 @@ const queryParams = computed(() => {
     sort: sortOrder.value?.value ?? '-date',
     limit: debouncedSearch.value.trim() ? 100 : limit, // fetch more when searching
     page: page.value,
-    depth: 1
+    depth: 3
   }
 
   const campus = selectedCampus.value?.value
@@ -363,13 +392,20 @@ const { data, pending, error } = await useFetch<ChapelResponse>('/api/chapel-pod
   query: queryParams,
   watch: [queryParams]
 })
-const { data: weeklySpeakerData } = await useFetch<{ speaker?: WeeklySpeaker | null }>('/api/chapel-speakers/current', {
+const { data: weeklySpeakerData } = await useFetch<CurrentWeekResponse>('/api/chapel/current-week', {
   key: 'chapel-weekly-speaker',
 })
 
 const episodes = computed(() => data.value?.docs ?? [])
 const totalPages = computed(() => data.value?.totalPages ?? 1)
-const weeklySpeaker = computed(() => weeklySpeakerData.value?.speaker || null)
+const weeklySpeaker = computed(() => {
+  const entries = weeklySpeakerData.value?.entries
+  if (!Array.isArray(entries) || entries.length === 0) return null
+  for (const entry of entries) {
+    if (entry?.speaker?.id && entry.speaker.name) return entry.speaker
+  }
+  return null
+})
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -438,10 +474,34 @@ function formatDate(dateStr?: string): string {
   }
 }
 
-function getImageUrl(image?: { url?: string } | null): string {
-  const raw = image?.url ? String(image.url) : ''
+function getImageUrl(image?: { url?: string } | string | null): string {
+  const raw = typeof image === 'string' ? image : image?.url ? String(image.url) : ''
   if (!raw) return ''
   if (raw.startsWith('http')) return raw
   return `${payloadBaseUrl}${raw}`
+}
+
+function speakerDisplayName(speaker?: WeeklySpeaker | ChapelEpisode['speaker'] | null): string {
+  if (!speaker) return ''
+  const direct = typeof speaker.name === 'string' ? speaker.name.trim() : ''
+  if (direct) return direct
+  const connectUser = typeof speaker.connectUser === 'object' && speaker.connectUser ? speaker.connectUser : null
+  return typeof connectUser?.name === 'string' ? connectUser.name.trim() : ''
+}
+
+function speakerDisplayTitle(speaker?: WeeklySpeaker | ChapelEpisode['speaker'] | null): string {
+  if (!speaker) return ''
+  const direct = typeof speaker.speakerDescription === 'string' ? speaker.speakerDescription.trim() : ''
+  if (direct) return direct
+  const connectUser = typeof speaker.connectUser === 'object' && speaker.connectUser ? speaker.connectUser : null
+  return typeof connectUser?.employeeTitle === 'string' ? connectUser.employeeTitle.trim() : ''
+}
+
+function speakerImageUrl(speaker?: WeeklySpeaker | ChapelEpisode['speaker'] | null): string {
+  if (!speaker) return ''
+  const fromSpeaker = getImageUrl(speaker.photo || null)
+  if (fromSpeaker) return fromSpeaker
+  const connectUser = typeof speaker.connectUser === 'object' && speaker.connectUser ? speaker.connectUser : null
+  return getImageUrl(connectUser?.avatar || null)
 }
 </script>

@@ -90,16 +90,18 @@
         <form class="space-y-4" @submit.prevent="submitEpisode">
           <div class="rounded-md border border-gray-200 p-3">
             <h3 class="text-sm font-semibold text-gray-900">Speaker</h3>
-            <div class="mt-2 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
-              <select
-                v-model="form.speaker.speakerId"
-                class="rounded-md border border-gray-300 px-3 py-2 text-sm"
-              >
-                <option value="">Select speaker</option>
-                <option v-for="speaker in speakers" :key="String(speaker.id)" :value="String(speaker.id)">
-                  {{ speaker.name }}
-                </option>
-              </select>
+            <div class="mt-2 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
+              <div>
+                <USelectMenu
+                  v-model="selectedSpeakerOption"
+                  :items="speakerSelectItems"
+                  value-attribute="id"
+                  label-attribute="label"
+                  searchable
+                  search-input-placeholder="Search speakers..."
+                  placeholder="Select speaker"
+                />
+              </div>
               <button
                 type="button"
                 class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -125,12 +127,65 @@
               <option value="KY">Kentucky</option>
               <option value="FL">Orlando</option>
             </select>
-            <input v-model="form.episode.mp3" type="text" placeholder="MP3 media ID (optional)" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
-            <input v-model="form.episode.vimeo" type="text" placeholder="Vimeo URL (optional)" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
-            <input v-model="form.episode.vimeo_id" type="text" placeholder="Vimeo ID (optional)" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
-            <input v-model="form.episode.vimeo_full" type="text" placeholder="Full-service Vimeo URL (optional)" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
-            <input v-model="form.episode.vimeo_full_id" type="text" placeholder="Full-service Vimeo ID (optional)" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
+            <input v-model="form.episode.vimeo_id" type="text" placeholder="Sermon Vimeo ID (optional)" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
+            <input v-model="form.episode.vimeo_full_id" type="text" placeholder="Full Service Vimeo ID (optional)" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
             <input v-model="form.episode.youtube" type="text" placeholder="YouTube URL (optional)" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
+            <input :value="selectedMp3Label" type="text" readonly placeholder="No MP3 selected" class="rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm sm:col-span-2">
+            <details class="rounded-lg border border-gray-200 bg-white sm:col-span-2 [&_summary::-webkit-details-marker]:hidden">
+              <summary class="cursor-pointer list-none px-3 py-2 hover:bg-gray-50">
+                <span class="text-sm font-medium text-gray-900">MP3 upload and selector</span>
+                <p class="text-xs text-gray-500">Upload a new MP3 or pick an existing one.</p>
+              </summary>
+              <div class="border-t border-gray-100 p-3">
+                <div class="grid gap-3 sm:grid-cols-[1fr_auto_auto] mb-3">
+                  <input ref="uploadMp3InputRef" type="file" accept=".mp3,audio/mpeg" class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm">
+                  <button
+                    type="button"
+                    class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    :disabled="uploadingMp3"
+                    @click="uploadMp3Asset"
+                  >
+                    {{ uploadingMp3 ? 'Uploading...' : 'Upload MP3' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    @click="form.episode.mp3 = ''"
+                  >
+                    Clear
+                  </button>
+                </div>
+                <UInput
+                  v-model="mp3LibrarySearch"
+                  type="search"
+                  placeholder="Search MP3 assets..."
+                  icon="i-lucide-search"
+                  color="neutral"
+                  variant="outline"
+                  size="sm"
+                />
+                <ul class="mt-2 max-h-56 overflow-auto rounded-md border border-gray-200 divide-y divide-gray-200">
+                  <li
+                    v-for="asset in filteredMp3Assets"
+                    :key="String(asset.id)"
+                    class="flex items-center justify-between gap-3 px-3 py-2 text-sm"
+                  >
+                    <div class="min-w-0">
+                      <p class="truncate font-medium text-gray-900">{{ mp3Label(asset) }}</p>
+                      <p class="truncate text-xs text-gray-500">{{ asset?.file?.filename || '' }}</p>
+                    </div>
+                    <button
+                      type="button"
+                      class="rounded border border-gray-200 bg-white px-2 py-1 text-xs text-[rgba(13,94,130,1)] hover:bg-gray-50"
+                      @click="form.episode.mp3 = String(asset.id)"
+                    >
+                      Select
+                    </button>
+                  </li>
+                  <li v-if="!filteredMp3Assets.length" class="px-3 py-3 text-sm text-gray-500">No matching MP3 assets.</li>
+                </ul>
+              </div>
+            </details>
             <div class="flex items-center gap-4 rounded-md border border-gray-200 px-3 py-2 text-sm">
               <label class="inline-flex items-center gap-2">
                 <input v-model="form.episode.active" type="checkbox" :disabled="form.isFutureEpisode">
@@ -283,10 +338,15 @@ const modalOpen = ref(false)
 const speakerModalOpen = ref(false)
 const editingEpisodeId = ref<string | number | null>(null)
 const uploadInputRef = ref<HTMLInputElement | null>(null)
+const uploadMp3InputRef = ref<HTMLInputElement | null>(null)
 const uploadAlt = ref('')
 const uploadingPhoto = ref(false)
+const uploadingMp3 = ref(false)
 const speakerSaving = ref(false)
 const assetLibrarySearch = ref('')
+const mp3LibrarySearch = ref('')
+const selectedSpeakerOption = ref<{ id: string; label: string } | undefined>(undefined)
+const mp3Assets = ref<any[]>([])
 
 const form = ref({
   isFutureEpisode: true,
@@ -304,7 +364,7 @@ const form = ref({
     is_podcast: true,
   },
   speaker: {
-    speakerId: '',
+    speakerId: '' as string,
   },
 })
 
@@ -352,6 +412,7 @@ function resetForm() {
       speakerId: '',
     },
   }
+  selectedSpeakerOption.value = undefined
   speakerForm.value = {
     name: '',
     speakerDescription: '',
@@ -402,6 +463,34 @@ const selectedPhotoLabel = computed(() => {
   return match ? mediaLabel(match) : `Asset #${String(speakerForm.value.photo)}`
 })
 
+function mp3Label(asset: any) {
+  const filename = asset?.file?.filename || asset?.filename || asset?.file?.name || ''
+  return filename || `Asset #${asset?.id}`
+}
+
+const filteredMp3Assets = computed(() => {
+  const q = mp3LibrarySearch.value.trim().toLowerCase()
+  if (!q) return mp3Assets.value
+  return mp3Assets.value.filter((asset: any) => {
+    const label = mp3Label(asset).toLowerCase()
+    const filename = String(asset?.file?.filename || '').toLowerCase()
+    return label.includes(q) || filename.includes(q)
+  })
+})
+
+const selectedMp3Label = computed(() => {
+  if (!form.value.episode.mp3) return ''
+  const match = mp3Assets.value.find((asset: any) => String(asset.id) === String(form.value.episode.mp3))
+  return match ? mp3Label(match) : `Asset #${String(form.value.episode.mp3)}`
+})
+
+const speakerSelectItems = computed(() => {
+  return speakers.value.map((speaker) => ({
+    id: String(speaker.id),
+    label: speaker.name || `Speaker ${String(speaker.id)}`,
+  }))
+})
+
 function speakerIdFromEpisode(ep: ChapelEpisode): string {
   if (!ep.speaker) return ''
   if (typeof ep.speaker === 'object' && ep.speaker.id != null) return String(ep.speaker.id)
@@ -416,6 +505,7 @@ function mp3IdFromEpisode(ep: ChapelEpisode): string {
 
 function openCreateModal() {
   resetForm()
+  selectedSpeakerOption.value = undefined
   modalOpen.value = true
 }
 
@@ -438,14 +528,25 @@ function openEditModal(ep: ChapelEpisode) {
       is_podcast: ep.is_podcast !== false,
     },
     speaker: {
-      speakerId: speakerIdFromEpisode(ep),
+      speakerId: (() => {
+        const raw = speakerIdFromEpisode(ep)
+        return raw ? String(raw) : ''
+      })(),
     },
   }
+  const selectedId = String(form.value.speaker.speakerId || '')
+  const fromList = speakerSelectItems.value.find((item) => item.id === selectedId)
+  const fallbackLabel =
+    typeof ep.speaker === 'object' && typeof ep.speaker?.name === 'string' && ep.speaker.name.trim()
+      ? ep.speaker.name.trim()
+      : `Speaker ${selectedId}`
+  selectedSpeakerOption.value = selectedId ? (fromList || { id: selectedId, label: fallbackLabel }) : undefined
   modalOpen.value = true
 }
 
 function closeModal() {
   modalOpen.value = false
+  selectedSpeakerOption.value = undefined
 }
 
 function openSpeakerModal() {
@@ -487,6 +588,17 @@ async function loadMediaAssets() {
   }
 }
 
+async function loadMp3Assets() {
+  try {
+    const res: any = await $fetch('/api/chapel-podcast-media', {
+      query: { limit: 100, sort: '-createdAt', depth: 1 },
+    })
+    mp3Assets.value = Array.isArray(res?.docs) ? res.docs : []
+  } catch {
+    mp3Assets.value = []
+  }
+}
+
 async function uploadPhotoAsset() {
   const file = uploadInputRef.value?.files?.[0]
   if (!file) {
@@ -511,9 +623,34 @@ async function uploadPhotoAsset() {
   }
 }
 
+async function uploadMp3Asset() {
+  const file = uploadMp3InputRef.value?.files?.[0]
+  if (!file) {
+    error.value = 'Choose an MP3 file to upload.'
+    return
+  }
+  uploadingMp3.value = true
+  error.value = null
+  try {
+    const body = new FormData()
+    body.append('file', file)
+    const res: any = await $fetch('/api/chapel-podcast-media/upload', { method: 'POST', body })
+    await loadMp3Assets()
+    if (res?.id != null) form.value.episode.mp3 = String(res.id)
+    if (uploadMp3InputRef.value) uploadMp3InputRef.value.value = ''
+  } catch (e: any) {
+    error.value = e?.message || 'Failed to upload MP3.'
+  } finally {
+    uploadingMp3.value = false
+  }
+}
+
 async function submitEpisode() {
   error.value = null
   success.value = null
+  form.value.speaker.speakerId = selectedSpeakerOption.value?.id
+    ? String(selectedSpeakerOption.value.id)
+    : String(form.value.speaker.speakerId || '')
   if (!form.value.episode.date) {
     error.value = 'Episode date is required.'
     return
@@ -558,7 +695,11 @@ async function saveSpeaker() {
       body: speakerForm.value,
     })
     await loadSpeakers()
-    if (created?.id != null) form.value.speaker.speakerId = String(created.id)
+    if (created?.id != null) {
+      const createdId = String(created.id)
+      form.value.speaker.speakerId = createdId
+      selectedSpeakerOption.value = speakerSelectItems.value.find((item) => item.id === createdId) || undefined
+    }
     closeSpeakerModal()
     success.value = 'Speaker created and selected.'
   } catch (e: any) {
@@ -586,4 +727,14 @@ async function deleteEpisode(id: string | number) {
 watch(canManageDashboard, () => loadEpisodes(), { immediate: true })
 watch(canManageDashboard, () => loadSpeakers(), { immediate: true })
 watch(canManageDashboard, () => loadMediaAssets(), { immediate: true })
+watch(canManageDashboard, () => loadMp3Assets(), { immediate: true })
+
+watch(
+  () => [selectedSpeakerOption.value, speakerSelectItems.value.length] as const,
+  (val) => {
+    const selected = Array.isArray(val) ? val[0] : undefined
+    form.value.speaker.speakerId = selected?.id ? String(selected.id) : ''
+  },
+  { immediate: true },
+)
 </script>

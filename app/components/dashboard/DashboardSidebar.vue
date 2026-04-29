@@ -27,6 +27,7 @@ const route = useRoute()
 
 const items = [
   { label: 'Dashboard Home', to: '/dashboard', icon: 'i-lucide-layout-dashboard' },
+  { label: 'Users & Groups', to: '/dashboard/users', icon: 'i-lucide-users-round' },
   { label: 'Docs / Pages', to: '/dashboard/docs', icon: 'i-lucide-file-text' },
   { label: 'Degree Builder', to: '/dashboard/degrees', icon: 'i-lucide-graduation-cap' },
   { label: 'Forms Builder', to: '/dashboard/forms', icon: 'i-lucide-square-pen' },

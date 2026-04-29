@@ -14,7 +14,10 @@
           </p>
         </div>
 
-        <div v-if="pending" class="space-y-3">
+        <div v-if="isLoading" class="space-y-3" aria-live="polite" aria-busy="true">
+          <div class="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+            Loading First Fruits content...
+          </div>
           <div v-for="n in 6" :key="n" class="h-24 rounded-lg border border-gray-200 bg-white animate-pulse" />
         </div>
         <div v-else-if="error" class="rounded-lg bg-red-50 border border-red-200 p-4 text-red-800 text-sm">
@@ -193,12 +196,12 @@ const { data, pending, error } = await useFetch<{ works?: FirstFruitsWork[] }>('
   key: 'first-fruits-latest',
 })
 
-const { data: asburyJournalData } = await useFetch<{ issues?: JournalIssue[] }>(
+const { data: asburyJournalData, pending: asburyJournalPending } = await useFetch<{ issues?: JournalIssue[] }>(
   '/api/digital-commons/journal-full-issues?context=asburyjournal&limit=8',
   { key: 'asbury-journal-full-issues' },
 )
 
-const { data: faithPhilosophyIssuesData } = await useFetch<{ issues?: JournalIssue[] }>(
+const { data: faithPhilosophyIssuesData, pending: faithPhilosophyIssuesPending } = await useFetch<{ issues?: JournalIssue[] }>(
   '/api/digital-commons/journal-full-issues?context=faithandphilosophy&limit=8',
   { key: 'faith-philosophy-issues' },
 )
@@ -214,7 +217,7 @@ const faithPhilosophyIssues = computed(() =>
 
 const faithPhilosophyIssueUrl = computed(() => faithPhilosophyIssues.value[0]?.issueUrl || '')
 
-const { data: faithIssueEntriesData } = await useAsyncData(
+const { data: faithIssueEntriesData, pending: faithIssueEntriesPending } = await useAsyncData(
   'faith-issue-entries',
   async () => {
     if (!faithPhilosophyIssueUrl.value) return { entries: [] as CurrentIssueEntry[] }
@@ -227,6 +230,14 @@ const { data: faithIssueEntriesData } = await useAsyncData(
 
 const faithPhilosophyEntries = computed(() =>
   (Array.isArray(faithIssueEntriesData.value?.entries) ? faithIssueEntriesData.value.entries : []),
+)
+const isLoading = computed(() =>
+  Boolean(
+    pending.value ||
+      asburyJournalPending.value ||
+      faithPhilosophyIssuesPending.value ||
+      faithIssueEntriesPending.value,
+  ),
 )
 
 function creatorsLabel(creators: string[]) {

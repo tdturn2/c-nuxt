@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
   const headers = getDashboardPayloadHeaders(event, auth, { 'Content-Type': 'application/json' })
   const params = new URLSearchParams()
   params.set('sort', '-updatedAt')
-  params.set('limit', '100')
+  params.set('pagination', 'false')
   params.set('depth', '1')
 
   return await $fetch(`${auth.payloadBaseUrl}/api/chapel-speakers?${params.toString()}`, {

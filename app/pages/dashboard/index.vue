@@ -69,6 +69,12 @@ const canManageDashboard = computed(() => {
 
 const sections = [
   {
+    title: 'Users & Groups',
+    description: 'Manage user accounts, roles, and permission groups.',
+    to: '/dashboard/users',
+    icon: 'i-lucide-users-round',
+  },
+  {
     title: 'Docs / Pages',
     description: 'Manage Connect pages, content, contacts, and media links.',
     to: '/dashboard/docs',

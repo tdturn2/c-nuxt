@@ -15,6 +15,17 @@ function asNullableTrimmedString(value: unknown): string | null {
   return v ? v : null
 }
 
+function asNullableRelationship(value: unknown): string | number | null {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  if (typeof value === 'string') {
+    const v = value.trim()
+    if (!v) return null
+    return /^\d+$/.test(v) ? Number(v) : v
+  }
+  return null
+}
+
 export default defineEventHandler(async (event) => {
   const auth = await requireDashboardStaff(event)
   const body = (await readBody(event).catch(() => ({}))) as Record<string, any>
@@ -30,6 +41,7 @@ export default defineEventHandler(async (event) => {
       name,
       speakerDescription: asNullableTrimmedString(body.speakerDescription),
       photo: body.photo || null,
+      connectUser: asNullableRelationship(body.connectUser),
       active: body.active !== false,
     },
   }).catch((err: any) => {

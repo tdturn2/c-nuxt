@@ -61,7 +61,7 @@ export default defineEventHandler(async () => {
 
   const makeParams = (includeDraft: boolean) => {
     const params = new URLSearchParams()
-    params.set('depth', '2')
+    params.set('depth', '3')
     params.set('limit', '200')
     params.set('sort', 'date')
     if (includeDraft) params.set('draft', 'true')
