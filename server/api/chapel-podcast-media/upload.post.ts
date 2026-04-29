@@ -1,8 +1,12 @@
 import { defineEventHandler, readMultipartFormData, createError, getHeader, type H3Event } from 'h3'
 import { authenticateWithPayloadCMS } from '../../utils/payloadAuth'
 
-function payloadRequestHeaders(event: H3Event, token: string | null): Record<string, string> {
+function payloadRequestHeaders(event: H3Event, token: string | null, serverBearer: string): Record<string, string> {
   const headers: Record<string, string> = {}
+  if (serverBearer) {
+    headers.Authorization = `Bearer ${serverBearer}`
+    return headers
+  }
   const cookie = getHeader(event, 'cookie')
   if (cookie) headers.Cookie = cookie
   if (token) headers.Authorization = `Bearer ${token}`
@@ -46,6 +50,7 @@ function pickUrlFromPayload(payloadBaseUrl: string, json: any): { id: unknown; f
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
+  const serverBearer = String(config.payloadServerBearer || '').trim()
   const payloadBaseUrl =
     (config.payloadBaseUrl || config.public.payloadBaseUrl || '').trim() ||
     (import.meta.dev ? 'http://localhost:3002' : '')
@@ -75,8 +80,8 @@ export default defineEventHandler(async (event) => {
   const blob = new Blob([file.data], { type: file.type || 'audio/mpeg' })
   fd.append('file', blob, originalName)
 
-  const headers = payloadRequestHeaders(event, token)
-  if (!token && !getHeader(event, 'cookie')) {
+  const headers = payloadRequestHeaders(event, token, serverBearer)
+  if (!serverBearer && !token && !getHeader(event, 'cookie')) {
     throw createError({
       statusCode: 401,
       statusMessage:
