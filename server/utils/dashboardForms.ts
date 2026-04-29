@@ -139,8 +139,9 @@ export function withServerBearer(headers: Record<string, string>) {
   const raw = config.payloadServerBearer
   const bearer = typeof raw === 'string' ? raw.trim() : ''
   if (!bearer) return headers
+  const { Cookie: _ignoredCookie, cookie: _ignoredCookieLower, ...rest } = headers
   return {
-    ...headers,
+    ...rest,
     Authorization: `Bearer ${bearer}`,
   }
 }
