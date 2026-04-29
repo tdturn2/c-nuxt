@@ -34,6 +34,14 @@ function asNullableRelationship(value: unknown): string | number | null {
   return null
 }
 
+function asNullableNumericRelationship(value: unknown): number | null {
+  const rel = asNullableRelationship(value)
+  if (rel == null) return null
+  if (typeof rel === 'number') return Number.isFinite(rel) ? rel : null
+  if (typeof rel === 'string' && /^\d+$/.test(rel.trim())) return Number(rel.trim())
+  return null
+}
+
 export default defineEventHandler(async (event) => {
   const auth = await requireDashboardStaff(event)
   const body = (await readBody(event).catch(() => ({}))) as Record<string, any>
@@ -57,7 +65,11 @@ export default defineEventHandler(async (event) => {
 
   if (speakerMode === 'existing') {
     if (!speakerIdRaw) throw createError({ statusCode: 400, statusMessage: 'Existing speaker is required' })
-    speakerId = toPayloadId(speakerIdRaw)
+    const parsedSpeakerId = asNullableNumericRelationship(speakerIdRaw)
+    if (parsedSpeakerId == null) {
+      throw createError({ statusCode: 400, statusMessage: 'Speaker ID must be numeric' })
+    }
+    speakerId = parsedSpeakerId
     speakerLabel = speakerName
   } else {
     if (!speakerName) throw createError({ statusCode: 400, statusMessage: 'Speaker name is required' })
@@ -79,6 +91,10 @@ export default defineEventHandler(async (event) => {
 
   const title = asTrimmedString(episode.title)
   const campus = asTrimmedString(episode.campus) || 'KY'
+  const mp3Id = asNullableNumericRelationship(episode.mp3)
+  if (episode.mp3 != null && episode.mp3 !== '' && mp3Id == null) {
+    throw createError({ statusCode: 400, statusMessage: 'MP3 ID must be numeric' })
+  }
 
   const createdEpisode = await $fetch(`${auth.payloadBaseUrl}/api/chapel-podcasts`, {
     method: 'POST',
@@ -89,7 +105,7 @@ export default defineEventHandler(async (event) => {
       title: title || null,
       speaker: speakerId,
       campus,
-      mp3: asNullableRelationship(episode.mp3),
+      mp3: mp3Id,
       vimeo: asNullableTrimmedString(episode.vimeo),
       vimeo_id: asNullableTrimmedString(episode.vimeo_id),
       vimeo_full: asNullableTrimmedString(episode.vimeo_full),
