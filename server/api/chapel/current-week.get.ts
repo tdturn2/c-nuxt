@@ -4,6 +4,7 @@ type ChapelEpisode = {
   id: string | number
   date?: string
   title?: string
+  description?: string | null
   speaker?: {
     id?: string | number
     name?: string
@@ -92,7 +93,8 @@ export default defineEventHandler(async () => {
         return {
           id: ep.id,
           date: ymd,
-          title: ep.title || 'Chapel',
+          title: ep.title != null && String(ep.title).trim() ? String(ep.title).trim() : undefined,
+          description: ep.description != null && String(ep.description).trim() ? String(ep.description).trim() : null,
           weekday: wd,
           speaker: ep.speaker || null,
         }

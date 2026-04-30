@@ -87,6 +87,8 @@ export default defineEventHandler(async (event) => {
   const patchBody: Record<string, any> = {
     date: asTrimmedString(episode.date) || undefined,
     title: episode.title !== undefined ? (asTrimmedString(episode.title) || null) : undefined,
+    description:
+      episode.description !== undefined ? (asTrimmedString(episode.description) || null) : undefined,
     campus: asTrimmedString(episode.campus) || undefined,
     mp3: mp3Id,
     vimeo: asNullableTrimmedString(episode.vimeo),

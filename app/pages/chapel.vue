@@ -38,10 +38,15 @@
                   <h2 class="font-semibold text-gray-900 group-hover:text-[rgba(13,94,130,1)] transition-colors line-clamp-2">
                     {{ item.speaker?.name || 'TBD' }}
                   </h2>
-                  <p v-if="item.speaker?.speakerDescription" class="mt-1 text-sm text-gray-700 italic line-clamp-2">
+                  <p v-if="item.speaker?.speakerDescription" class="mt-1 text-sm text-gray-700 italic line-clamp-3">
                     {{ item.speaker.speakerDescription }}
                   </p>
-                  <p class="mt-1 text-sm text-gray-700">Speaking on {{ weekdayDateLabel(item.date) }}</p>
+                  <p v-if="item.title" class="mt-1 text-base font-semibold text-[rgba(13,94,130,1)] line-clamp-2">
+                    {{ item.title }}
+                  </p>
+                  <p v-if="item.description" class="mt-2 text-sm text-gray-700 whitespace-pre-line">
+                    {{ item.description }}
+                  </p>
                 </div>
 
                 <img
@@ -104,6 +109,7 @@ type WeekEntry = {
   id: string | number
   date: string
   title?: string
+  description?: string | null
   speaker?: WeekSpeaker | null
 }
 

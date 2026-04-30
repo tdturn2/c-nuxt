@@ -123,6 +123,12 @@
           <div class="grid gap-3 sm:grid-cols-2">
             <input v-model="form.episode.date" type="date" class="rounded-md border border-gray-300 px-3 py-2 text-sm" required>
             <input v-model="form.episode.title" type="text" placeholder="Episode title (optional)" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
+            <textarea
+              v-model="form.episode.description"
+              rows="3"
+              placeholder="Episode description (optional, shown on public Chapel page)"
+              class="rounded-md border border-gray-300 px-3 py-2 text-sm sm:col-span-2"
+            />
             <select v-model="form.episode.campus" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
               <option value="KY">Kentucky</option>
               <option value="FL">Orlando</option>
@@ -308,6 +314,7 @@ type ChapelEpisode = {
   id: string | number
   date?: string
   title?: string
+  description?: string | null
   campus?: string
   active?: boolean
   is_podcast?: boolean
@@ -352,6 +359,7 @@ const form = ref({
   episode: {
     date: '',
     title: '',
+    description: '',
     campus: 'KY',
     mp3: '',
     vimeo: '',
@@ -397,6 +405,7 @@ function resetForm() {
     episode: {
       date: '',
       title: '',
+      description: '',
       campus: 'KY',
       mp3: '',
       vimeo: '',
@@ -515,6 +524,7 @@ function openEditModal(ep: ChapelEpisode) {
     episode: {
       date: ep.date ? String(ep.date).slice(0, 10) : '',
       title: ep.title || '',
+      description: ep.description != null ? String(ep.description) : '',
       campus: ep.campus || 'KY',
       mp3: mp3IdFromEpisode(ep),
       vimeo: ep.vimeo || '',

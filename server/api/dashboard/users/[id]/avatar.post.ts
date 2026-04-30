@@ -12,6 +12,21 @@ export default defineEventHandler(async (event) => {
   if (!id) throw createError({ statusCode: 400, statusMessage: 'id is required' })
 
   const auth = await requireDashboardStaff(event)
+
+  const connectUserId = /^\d+$/.test(String(id)) ? Number.parseInt(String(id), 10) : Number.NaN
+  if (!Number.isFinite(connectUserId) || connectUserId <= 0) {
+    throw createError({ statusCode: 400, statusMessage: 'Invalid Connect user id' })
+  }
+
+  // Ensure the edited user exists; owner must be this Connect user (numeric id — Payload rejects string IDs).
+  await dashboardPayloadFetch(`${auth.payloadBaseUrl}/api/connect-users/${encodeURIComponent(String(connectUserId))}?depth=0`, {
+    event,
+    auth,
+    method: 'GET',
+  }).catch((err: any) => {
+    throw toProxyError(err, 'Connect user not found')
+  })
+
   const formData = await readMultipartFormData(event)
   const file = formData?.find((field) => field.name === 'avatar') || formData?.find((field) => field.name === 'file')
   if (!file || !file.data || file.data.length === 0) {
@@ -29,7 +44,7 @@ export default defineEventHandler(async (event) => {
   const blob = new Blob([file.data], { type: file.type || 'application/octet-stream' })
   uploadBody.append('file', blob, file.filename || 'avatar')
   const payloadData: Record<string, unknown> = {
-    owner: String(id),
+    owner: connectUserId,
     kind: 'avatars',
   }
   if (alt) payloadData.alt = alt
@@ -66,7 +81,7 @@ export default defineEventHandler(async (event) => {
     getDashboardPayloadHeaders(event, auth, { 'Content-Type': 'application/json' }),
   )
 
-  return await dashboardPayloadFetch(`${auth.payloadBaseUrl}/api/connect-users/${encodeURIComponent(String(id))}`, {
+  return await dashboardPayloadFetch(`${auth.payloadBaseUrl}/api/connect-users/${encodeURIComponent(String(connectUserId))}`, {
     event,
     auth,
     method: 'PATCH',

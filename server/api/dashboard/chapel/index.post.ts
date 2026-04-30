@@ -102,6 +102,7 @@ export default defineEventHandler(async (event) => {
     body: {
       date: episodeDate,
       title: title || null,
+      description: asNullableTrimmedString(episode.description),
       speaker: speakerId,
       campus,
       mp3: mp3Id,
