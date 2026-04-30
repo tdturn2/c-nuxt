@@ -5,6 +5,8 @@ const authSecret = useRuntimeConfig().authSecret
 if (!authSecret || String(authSecret).trim().length < 32) {
   throw new Error('Missing or invalid NUXT_AUTH_SECRET for Nuxt Auth (must be >= 32 chars)')
 }
+const isProduction = process.env.NODE_ENV === 'production'
+const sessionCookieName = isProduction ? '__Secure-connect.session-token' : 'connect.session-token'
 
 export default NuxtAuthHandler({
   secret: authSecret,
@@ -20,12 +22,12 @@ export default NuxtAuthHandler({
   },
   cookies: {
     sessionToken: {
-      name: `next-auth.session-token`,
+      name: sessionCookieName,
       options: {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: process.env.NODE_ENV === 'production'
+        secure: isProduction
       }
     }
   },
