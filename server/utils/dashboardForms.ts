@@ -78,18 +78,6 @@ function getPayloadBaseUrl() {
   )
 }
 
-async function isAdminTokenSession(payloadBaseUrl: string, token: string | null) {
-  if (!token) return false
-  try {
-    await $fetch(`${payloadBaseUrl}/api/users/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    return true
-  } catch {
-    return false
-  }
-}
-
 export async function requireDashboardStaff(event: any): Promise<DashboardFormsAuth> {
   const { token, email, payloadSessionCookie } = await authenticateWithPayloadCMS(event)
   if (!email) {
@@ -101,10 +89,9 @@ export async function requireDashboardStaff(event: any): Promise<DashboardFormsA
     throw createError({ statusCode: 500, statusMessage: 'Missing PAYLOAD_BASE_URL' })
   }
 
-  const canUseAdminToken = await isAdminTokenSession(payloadBaseUrl, token)
   const headers = getPayloadProxyHeaders(
     event,
-    { token: canUseAdminToken ? token : null, payloadSessionCookie },
+    { token, payloadSessionCookie },
     { 'Content-Type': 'application/json' }
   )
 
@@ -177,7 +164,7 @@ export async function requireDashboardStaff(event: any): Promise<DashboardFormsA
 
   return {
     email,
-    token: canUseAdminToken ? token : null,
+    token,
     payloadSessionCookie,
     payloadBaseUrl,
   }
