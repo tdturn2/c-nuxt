@@ -224,17 +224,47 @@ export async function dashboardPayloadFetch<T = any>(
     if (statusCode !== 403) throw err
 
     const authHeader = getServerBearerAuthorization()
-    if (!authHeader) throw err
+    if (!authHeader) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Dashboard upstream forbidden (no PAYLOAD_SERVER_BEARER fallback configured)',
+        data: {
+          url,
+          method: init.method || 'GET',
+          firstAttemptStatus: statusCode,
+          usedBearerFallback: false,
+        },
+      })
+    }
 
     const retryHeaders = {
       ...baseHeaders,
       Authorization: authHeader,
     }
-    return await $fetch<T>(url, {
-      method: init.method as any,
-      headers: retryHeaders,
-      body: init.body,
-    })
+    try {
+      return await $fetch<T>(url, {
+        method: init.method as any,
+        headers: retryHeaders,
+        body: init.body,
+      })
+    } catch (retryErr: any) {
+      const retryStatus =
+        retryErr?.statusCode ??
+        retryErr?.response?.status ??
+        retryErr?.response?.statusCode ??
+        retryErr?.status
+      throw createError({
+        statusCode: retryStatus || 403,
+        statusMessage: 'Dashboard upstream forbidden (user-context and bearer fallback both failed)',
+        data: {
+          url,
+          method: init.method || 'GET',
+          firstAttemptStatus: statusCode,
+          secondAttemptStatus: retryStatus || null,
+          usedBearerFallback: true,
+        },
+      })
+    }
   }
 }
 
