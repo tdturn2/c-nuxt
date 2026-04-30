@@ -112,7 +112,7 @@ export async function requireDashboardStaff(event: any): Promise<DashboardFormsA
     .filter(Boolean)
 
   const groups = Array.isArray(connectUser?.groups) ? connectUser.groups : []
-  const groupTags = groups
+  const groupObjectTags = groups
     .map((group: any) => {
       if (!group || typeof group !== 'object') return ''
       const slug = String(group.slug || '').trim().toLowerCase()
@@ -120,6 +120,42 @@ export async function requireDashboardStaff(event: any): Promise<DashboardFormsA
       return `${slug} ${name}`.trim()
     })
     .filter(Boolean)
+
+  // Relationship fields sometimes return raw IDs depending on depth/access,
+  // so resolve IDs against connect-groups before enforcing permissions.
+  const groupIds = groups
+    .map((group: any) => {
+      if (typeof group === 'number' && Number.isFinite(group)) return group
+      if (typeof group === 'string' && /^\d+$/.test(group.trim())) return Number(group.trim())
+      if (group && typeof group === 'object' && group.id != null) {
+        const id = group.id
+        if (typeof id === 'number' && Number.isFinite(id)) return id
+        if (typeof id === 'string' && /^\d+$/.test(id.trim())) return Number(id.trim())
+      }
+      return null
+    })
+    .filter((id): id is number => id != null)
+
+  let resolvedGroupTags: string[] = []
+  if (groupIds.length) {
+    const allGroupsRes: any = await $fetch(
+      `${payloadBaseUrl}/api/connect-groups?limit=500&depth=0&pagination=false`,
+      { headers },
+    ).catch(() => null)
+    const allGroups = Array.isArray(allGroupsRes?.docs) ? allGroupsRes.docs : []
+    const byId = new Map<string, any>(allGroups.map((group: any) => [String(group?.id), group]))
+    resolvedGroupTags = groupIds
+      .map((id) => byId.get(String(id)))
+      .filter(Boolean)
+      .map((group: any) => {
+        const slug = String(group.slug || '').trim().toLowerCase()
+        const name = String(group.name || '').trim().toLowerCase()
+        return `${slug} ${name}`.trim()
+      })
+      .filter(Boolean)
+  }
+
+  const groupTags = [...groupObjectTags, ...resolvedGroupTags]
   const hasConnectAdminGroup = groupTags.some((value) =>
     value.includes('connect-admin') || value.includes('connect admin'),
   )
