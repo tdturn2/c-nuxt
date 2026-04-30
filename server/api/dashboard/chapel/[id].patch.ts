@@ -48,7 +48,10 @@ export default defineEventHandler(async (event) => {
 
   const auth = await requireDashboardStaff(event)
   const body = (await readBody(event).catch(() => ({}))) as Record<string, any>
-  const headers = withServerBearer(getDashboardPayloadHeaders(event, auth, { 'Content-Type': 'application/json' }))
+  const headers = withServerBearer(
+    getDashboardPayloadHeaders(event, auth, { 'Content-Type': 'application/json' }),
+    { force: true },
+  )
 
   const isFutureEpisode = body.isFutureEpisode === true || String(body.isFutureEpisode || '').toLowerCase() === 'true'
   const episode = (body.episode || {}) as Record<string, any>

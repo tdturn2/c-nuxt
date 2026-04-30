@@ -97,7 +97,7 @@ export async function requireDashboardStaff(event: any): Promise<DashboardFormsA
   )
 
   const connectUserRes: any = await $fetch(
-    `${payloadBaseUrl}/api/connect-users?where[email][equals]=${encodeURIComponent(email)}&limit=1&depth=0`,
+    `${payloadBaseUrl}/api/connect-users?where[email][equals]=${encodeURIComponent(email)}&limit=1&depth=1`,
     { headers }
   ).catch((err: any) => {
     throw toProxyError(err, 'Failed to load connect-user')
@@ -111,7 +111,21 @@ export async function requireDashboardStaff(event: any): Promise<DashboardFormsA
     .map((role: unknown) => String(role || '').trim().toLowerCase())
     .filter(Boolean)
 
-  if (!roles.includes('staff')) {
+  const groups = Array.isArray(connectUser?.groups) ? connectUser.groups : []
+  const groupTags = groups
+    .map((group: any) => {
+      if (!group || typeof group !== 'object') return ''
+      const slug = String(group.slug || '').trim().toLowerCase()
+      const name = String(group.name || '').trim().toLowerCase()
+      return `${slug} ${name}`.trim()
+    })
+    .filter(Boolean)
+  const hasConnectAdminGroup = groupTags.some((value) =>
+    value.includes('connect-admin') || value.includes('connect admin'),
+  )
+  const hasDashboardRole = roles.includes('staff') || roles.includes('admin')
+
+  if (!hasDashboardRole && !hasConnectAdminGroup) {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }
 
@@ -134,7 +148,7 @@ export function getDashboardPayloadHeaders(event: any, auth: DashboardFormsAuth,
   )
 }
 
-export function withServerBearer(headers: Record<string, string>) {
+export function withServerBearer(headers: Record<string, string>, options?: { force?: boolean }) {
   const config = useRuntimeConfig()
   const raw = config.payloadServerBearer
   const bearer = typeof raw === 'string' ? raw.trim() : ''
@@ -142,6 +156,18 @@ export function withServerBearer(headers: Record<string, string>) {
     .trim()
     .toLowerCase() === 'true'
   if (!bearer) return headers
+
+  const force = options?.force === true
+  if (force) {
+    if (debugAuthRouting) {
+      console.info('[DashboardAuth] forcing payload server bearer')
+    }
+    const { Cookie: _ignoredCookie, cookie: _ignoredCookieLower, ...rest } = headers
+    return {
+      ...rest,
+      Authorization: `Bearer ${bearer}`,
+    }
+  }
 
   // Prefer request-scoped auth (session cookie / user token) when present.
   // Only fall back to server bearer when no Authorization header exists.
