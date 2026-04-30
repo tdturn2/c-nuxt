@@ -1,9 +1,8 @@
 import { createError, defineEventHandler, getRouterParam, readBody } from 'h3'
 import {
-  getDashboardPayloadHeaders,
+  dashboardPayloadFetch,
   requireDashboardStaff,
   toProxyError,
-  withServerBearer,
 } from '../../../utils/dashboardForms'
 
 function asTrimmedString(value: unknown): string {
@@ -48,9 +47,6 @@ export default defineEventHandler(async (event) => {
 
   const auth = await requireDashboardStaff(event)
   const body = (await readBody(event).catch(() => ({}))) as Record<string, any>
-  const headers = withServerBearer(
-    getDashboardPayloadHeaders(event, auth, { 'Content-Type': 'application/json' }),
-  )
 
   const isFutureEpisode = body.isFutureEpisode === true || String(body.isFutureEpisode || '').toLowerCase() === 'true'
   const episode = (body.episode || {}) as Record<string, any>
@@ -67,9 +63,10 @@ export default defineEventHandler(async (event) => {
     }
     speakerId = parsedSpeakerId
   } else if (speakerMode === 'new' && speakerName) {
-    const createdSpeaker: any = await $fetch(`${auth.payloadBaseUrl}/api/chapel-speakers`, {
+    const createdSpeaker: any = await dashboardPayloadFetch(`${auth.payloadBaseUrl}/api/chapel-speakers`, {
+      event,
+      auth,
       method: 'POST',
-      headers,
       body: {
         name: speakerName,
         speakerDescription: asNullableTrimmedString(speakerInput.speakerDescription),
@@ -103,9 +100,10 @@ export default defineEventHandler(async (event) => {
   }
   if (speakerId != null) patchBody.speaker = speakerId
 
-  return await $fetch(`${auth.payloadBaseUrl}/api/chapel-podcasts/${encodeURIComponent(String(id))}`, {
+  return await dashboardPayloadFetch(`${auth.payloadBaseUrl}/api/chapel-podcasts/${encodeURIComponent(String(id))}`, {
+    event,
+    auth,
     method: 'PATCH',
-    headers,
     body: patchBody,
   }).catch((err: any) => {
     throw toProxyError(err, 'Failed to update chapel episode')

@@ -1,9 +1,8 @@
 import { defineEventHandler, readBody, createError } from 'h3'
 import {
-  getDashboardPayloadHeaders,
+  dashboardPayloadFetch,
   requireDashboardStaff,
   toProxyError,
-  withServerBearer,
 } from '../../../utils/dashboardForms'
 
 function asTrimmedString(value: unknown): string {
@@ -45,9 +44,6 @@ function asNullableNumericRelationship(value: unknown): number | null {
 export default defineEventHandler(async (event) => {
   const auth = await requireDashboardStaff(event)
   const body = (await readBody(event).catch(() => ({}))) as Record<string, any>
-  const headers = withServerBearer(
-    getDashboardPayloadHeaders(event, auth, { 'Content-Type': 'application/json' }),
-  )
 
   const isFutureEpisode = body.isFutureEpisode === true || String(body.isFutureEpisode || '').toLowerCase() === 'true'
   const episode = (body.episode || {}) as Record<string, any>
@@ -75,9 +71,10 @@ export default defineEventHandler(async (event) => {
     speakerLabel = speakerName
   } else {
     if (!speakerName) throw createError({ statusCode: 400, statusMessage: 'Speaker name is required' })
-    const createdSpeaker: any = await $fetch(`${auth.payloadBaseUrl}/api/chapel-speakers`, {
+    const createdSpeaker: any = await dashboardPayloadFetch(`${auth.payloadBaseUrl}/api/chapel-speakers`, {
+      event,
+      auth,
       method: 'POST',
-      headers,
       body: {
         name: speakerName,
         speakerDescription: asNullableTrimmedString(speakerInput.speakerDescription),
@@ -98,9 +95,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'MP3 ID must be numeric' })
   }
 
-  const createdEpisode = await $fetch(`${auth.payloadBaseUrl}/api/chapel-podcasts`, {
+  const createdEpisode = await dashboardPayloadFetch(`${auth.payloadBaseUrl}/api/chapel-podcasts`, {
+    event,
+    auth,
     method: 'POST',
-    headers,
     body: {
       _status: isFutureEpisode ? 'draft' : 'published',
       date: episodeDate,

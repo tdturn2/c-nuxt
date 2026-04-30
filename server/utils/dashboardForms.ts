@@ -185,6 +185,59 @@ export function withServerBearer(headers: Record<string, string>, _options?: { f
   return headers
 }
 
+function getServerBearerAuthorization(): string | null {
+  const config = useRuntimeConfig()
+  const raw = config.payloadServerBearer
+  const bearer = typeof raw === 'string' ? raw.trim() : ''
+  return bearer ? `Bearer ${bearer}` : null
+}
+
+export async function dashboardPayloadFetch<T = any>(
+  url: string,
+  init: {
+    event: any
+    auth: DashboardFormsAuth
+    method?: string
+    body?: any
+    headers?: Record<string, string>
+  },
+): Promise<T> {
+  const baseHeaders = withServerBearer(
+    getDashboardPayloadHeaders(init.event, init.auth, {
+      'Content-Type': 'application/json',
+      ...(init.headers || {}),
+    }),
+  )
+
+  try {
+    return await $fetch<T>(url, {
+      method: init.method as any,
+      headers: baseHeaders,
+      body: init.body,
+    })
+  } catch (err: any) {
+    const statusCode =
+      err?.statusCode ??
+      err?.response?.status ??
+      err?.response?.statusCode ??
+      err?.status
+    if (statusCode !== 403) throw err
+
+    const authHeader = getServerBearerAuthorization()
+    if (!authHeader) throw err
+
+    const retryHeaders = {
+      ...baseHeaders,
+      Authorization: authHeader,
+    }
+    return await $fetch<T>(url, {
+      method: init.method as any,
+      headers: retryHeaders,
+      body: init.body,
+    })
+  }
+}
+
 export function normalizeDashboardFormSchema(schema: unknown): DashboardFormSchema {
   if (!schema || typeof schema !== 'object') {
     throw createError({ statusCode: 400, statusMessage: 'schema must be an object' })
