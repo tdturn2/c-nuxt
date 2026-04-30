@@ -20,7 +20,7 @@ export default NuxtAuthHandler({
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: false // Set to true in production via environment variable if needed
+        secure: process.env.NODE_ENV === 'production'
       }
     }
   },

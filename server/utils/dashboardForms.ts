@@ -138,10 +138,27 @@ export function withServerBearer(headers: Record<string, string>) {
   const config = useRuntimeConfig()
   const raw = config.payloadServerBearer
   const bearer = typeof raw === 'string' ? raw.trim() : ''
+  const debugAuthRouting = String((config as any).dashboardAuthDebug || process.env.DASHBOARD_AUTH_DEBUG || '')
+    .trim()
+    .toLowerCase() === 'true'
   if (!bearer) return headers
-  const { Cookie: _ignoredCookie, cookie: _ignoredCookieLower, ...rest } = headers
+
+  // Prefer request-scoped auth (session cookie / user token) when present.
+  // Only fall back to server bearer when no Authorization header exists.
+  const hasAuthorization = Object.keys(headers).some((key) => key.toLowerCase() === 'authorization')
+  if (hasAuthorization) {
+    if (debugAuthRouting) {
+      console.info('[DashboardAuth] using request authorization header')
+    }
+    return headers
+  }
+
+  if (debugAuthRouting) {
+    console.info('[DashboardAuth] using payload server bearer fallback')
+  }
+
   return {
-    ...rest,
+    ...headers,
     Authorization: `Bearer ${bearer}`,
   }
 }
