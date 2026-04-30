@@ -1,8 +1,13 @@
 import { NuxtAuthHandler } from '#auth'
 import { syncUserToPayload } from '../../utils/syncUser'
 
+const authSecret = useRuntimeConfig().authSecret
+if (!authSecret || String(authSecret).trim().length < 32) {
+  throw new Error('Missing or invalid NUXT_AUTH_SECRET for Nuxt Auth (must be >= 32 chars)')
+}
+
 export default NuxtAuthHandler({
-  secret: useRuntimeConfig().authSecret,
+  secret: authSecret,
   // Configure pages to use API routes, not custom pages
   pages: {
     signIn: '/signin',

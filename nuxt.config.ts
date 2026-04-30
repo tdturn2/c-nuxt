@@ -145,7 +145,7 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     // Private keys (only available on server-side)
-    authSecret: process.env.NUXT_AUTH_SECRET || process.env.AUTH_SECRET,
+    authSecret: process.env.NUXT_AUTH_SECRET,
     azureAdClientId: process.env.AUTH_AZURE_AD_CLIENT_ID,
     azureAdMobileClientId: process.env.AUTH_AZURE_AD_MOBILE_CLIENT_ID,
     azureAdClientSecret: process.env.AUTH_AZURE_AD_CLIENT_SECRET,
