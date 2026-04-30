@@ -1,4 +1,4 @@
-import { defineEventHandler } from 'h3'
+import { createError, defineEventHandler } from 'h3'
 import {
   getDashboardPayloadHeaders,
   requireDashboardStaff,
@@ -12,18 +12,30 @@ export default defineEventHandler(async (event) => {
     getDashboardPayloadHeaders(event, auth, { 'Content-Type': 'application/json' }),
   )
 
-  const payloadUser: any = await $fetch(`${auth.payloadBaseUrl}/api/users/me`, {
+  const payloadMe: any = await $fetch(`${auth.payloadBaseUrl}/api/users/me`, {
     headers,
   }).catch((err: any) => {
     throw toProxyError(err, 'Dashboard auth-check failed against Payload /api/users/me')
   })
 
+  const resolvedUser = (payloadMe && typeof payloadMe === 'object' && 'user' in payloadMe)
+    ? (payloadMe as any).user
+    : payloadMe
+
+  if (!resolvedUser || resolvedUser.id == null) {
+    throw createError({
+      statusCode: 401,
+      statusMessage: 'Payload auth-check did not resolve an authenticated admin user',
+      data: { payloadMe },
+    })
+  }
+
   return {
     ok: true,
     payloadUser: {
-      collection: payloadUser?.collection ?? 'users',
-      id: payloadUser?.id ?? null,
-      email: payloadUser?.email ?? null,
+      collection: resolvedUser?.collection ?? null,
+      id: resolvedUser?.id ?? null,
+      email: resolvedUser?.email ?? null,
     },
   }
 })
