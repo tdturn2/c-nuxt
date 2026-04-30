@@ -13,29 +13,28 @@ export default defineEventHandler(async (event) => {
   )
 
   const payloadMe: any = await $fetch(
-    `${auth.payloadBaseUrl}/api/connect-users?where[email][equals]=${encodeURIComponent(auth.email)}&limit=1&depth=0`,
+    `${auth.payloadBaseUrl}/api/connect-groups?limit=1&depth=0`,
     {
-    headers,
-  }).catch((err: any) => {
-    throw toProxyError(err, 'Dashboard auth-check failed against Payload /api/connect-users')
+      headers,
+    },
+  ).catch((err: any) => {
+    throw toProxyError(err, 'Dashboard auth-check failed against protected Payload /api/connect-groups')
   })
 
-  const resolvedUser = Array.isArray(payloadMe?.docs) ? payloadMe.docs[0] : null
-
-  if (!resolvedUser || resolvedUser.id == null) {
+  if (!payloadMe || !Array.isArray(payloadMe.docs)) {
     throw createError({
       statusCode: 401,
-      statusMessage: 'Payload auth-check did not resolve an authenticated connect user',
+      statusMessage: 'Payload auth-check did not resolve a protected collection response',
       data: { payloadMe },
     })
   }
 
   return {
     ok: true,
-    payloadUser: {
-      collection: 'connect-users',
-      id: resolvedUser?.id ?? null,
-      email: resolvedUser?.email ?? null,
+    authContext: {
+      via: headers.Authorization ? 'bearer' : 'cookie',
+      protectedCollectionRead: true,
+      sampleCount: payloadMe.docs.length,
     },
   }
 })

@@ -58,6 +58,18 @@ export function toProxyError(err: any, fallbackMessage: string) {
   return createError({ statusCode, statusMessage, data })
 }
 
+const isAdminGroupTag = (value: string): boolean => {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (!normalized) return false
+  return (
+    normalized === 'admin' ||
+    normalized.includes('admin ') ||
+    normalized.includes(' admin') ||
+    normalized.includes('connect-admin') ||
+    normalized.includes('connect admin')
+  )
+}
+
 function getPayloadBaseUrl() {
   const config = useRuntimeConfig()
   return (
@@ -156,9 +168,7 @@ export async function requireDashboardStaff(event: any): Promise<DashboardFormsA
   }
 
   const groupTags = [...groupObjectTags, ...resolvedGroupTags]
-  const hasConnectAdminGroup = groupTags.some((value) =>
-    value.includes('connect-admin') || value.includes('connect admin'),
-  )
+  const hasConnectAdminGroup = groupTags.some((value) => isAdminGroupTag(value))
   const hasDashboardRole = roles.includes('staff') || roles.includes('admin')
 
   if (!hasDashboardRole && !hasConnectAdminGroup) {
