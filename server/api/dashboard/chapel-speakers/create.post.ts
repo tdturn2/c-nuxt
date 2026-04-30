@@ -1,9 +1,8 @@
 import { defineEventHandler, readBody, createError } from 'h3'
 import {
-  getDashboardPayloadHeaders,
+  dashboardPayloadFetch,
   requireDashboardStaff,
   toProxyError,
-  withServerBearer,
 } from '../../../utils/dashboardForms'
 
 function asTrimmedString(value: unknown): string {
@@ -32,11 +31,10 @@ export default defineEventHandler(async (event) => {
   const name = asTrimmedString(body.name)
   if (!name) throw createError({ statusCode: 400, statusMessage: 'Speaker name is required' })
 
-  const headers = withServerBearer(getDashboardPayloadHeaders(event, auth, { 'Content-Type': 'application/json' }))
-
-  return await $fetch(`${auth.payloadBaseUrl}/api/chapel-speakers`, {
+  return await dashboardPayloadFetch(`${auth.payloadBaseUrl}/api/chapel-speakers`, {
+    event,
+    auth,
     method: 'POST',
-    headers,
     body: {
       name,
       speakerDescription: asNullableTrimmedString(body.speakerDescription),

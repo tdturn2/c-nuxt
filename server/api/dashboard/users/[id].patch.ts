@@ -1,9 +1,8 @@
 import { createError, defineEventHandler, getRouterParam, readBody } from 'h3'
 import {
-  getDashboardPayloadHeaders,
+  dashboardPayloadFetch,
   requireDashboardStaff,
   toProxyError,
-  withServerBearer,
 } from '../../../utils/dashboardForms'
 
 const ALLOWED_ROLES = new Set(['admin', 'faculty', 'staff', 'student', 'alumni'])
@@ -41,7 +40,6 @@ export default defineEventHandler(async (event) => {
 
   const auth = await requireDashboardStaff(event)
   const body = (await readBody(event).catch(() => ({}))) as Record<string, unknown>
-  const headers = withServerBearer(getDashboardPayloadHeaders(event, auth, { 'Content-Type': 'application/json' }))
 
   const payloadBody: Record<string, unknown> = {}
   if (body.name !== undefined) payloadBody.name = toTrimmed(body.name)
@@ -54,9 +52,10 @@ export default defineEventHandler(async (event) => {
     if (password) payloadBody.password = password
   }
 
-  return await $fetch(`${auth.payloadBaseUrl}/api/connect-users/${encodeURIComponent(String(id))}`, {
+  return await dashboardPayloadFetch(`${auth.payloadBaseUrl}/api/connect-users/${encodeURIComponent(String(id))}`, {
+    event,
+    auth,
     method: 'PATCH',
-    headers,
     body: payloadBody,
   }).catch((err: any) => {
     throw toProxyError(err, 'Failed to update user')

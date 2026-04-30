@@ -1,9 +1,8 @@
 import { createError, defineEventHandler, getRouterParam } from 'h3'
 import {
-  getDashboardPayloadHeaders,
+  dashboardPayloadFetch,
   requireDashboardStaff,
   toProxyError,
-  withServerBearer,
 } from '../../../utils/dashboardForms'
 
 export default defineEventHandler(async (event) => {
@@ -11,11 +10,10 @@ export default defineEventHandler(async (event) => {
   if (!id) throw createError({ statusCode: 400, statusMessage: 'id is required' })
 
   const auth = await requireDashboardStaff(event)
-  const headers = withServerBearer(getDashboardPayloadHeaders(event, auth, { 'Content-Type': 'application/json' }))
-
-  return await $fetch(`${auth.payloadBaseUrl}/api/connect-users/${encodeURIComponent(String(id))}`, {
+  return await dashboardPayloadFetch(`${auth.payloadBaseUrl}/api/connect-users/${encodeURIComponent(String(id))}`, {
+    event,
+    auth,
     method: 'DELETE',
-    headers,
   }).catch((err: any) => {
     throw toProxyError(err, 'Failed to delete user')
   })

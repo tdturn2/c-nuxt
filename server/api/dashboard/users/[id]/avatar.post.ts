@@ -1,5 +1,6 @@
 import { createError, defineEventHandler, getRouterParam, readMultipartFormData } from 'h3'
 import {
+  dashboardPayloadFetch,
   getDashboardPayloadHeaders,
   requireDashboardStaff,
   toProxyError,
@@ -65,7 +66,9 @@ export default defineEventHandler(async (event) => {
     getDashboardPayloadHeaders(event, auth, { 'Content-Type': 'application/json' }),
   )
 
-  return await $fetch(`${auth.payloadBaseUrl}/api/connect-users/${encodeURIComponent(String(id))}`, {
+  return await dashboardPayloadFetch(`${auth.payloadBaseUrl}/api/connect-users/${encodeURIComponent(String(id))}`, {
+    event,
+    auth,
     method: 'PATCH',
     headers: patchHeaders,
     body: { avatarConnectUserMedia: uploadedId },

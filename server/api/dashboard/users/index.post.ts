@@ -1,10 +1,9 @@
 import { createError, defineEventHandler, readBody } from 'h3'
 import { randomBytes } from 'node:crypto'
 import {
-  getDashboardPayloadHeaders,
+  dashboardPayloadFetch,
   requireDashboardStaff,
   toProxyError,
-  withServerBearer,
 } from '../../../utils/dashboardForms'
 
 const ALLOWED_ROLES = new Set(['admin', 'faculty', 'staff', 'student', 'alumni'])
@@ -43,7 +42,6 @@ export default defineEventHandler(async (event) => {
   const name = toTrimmed(body.name)
   if (!email) throw createError({ statusCode: 400, statusMessage: 'Email is required' })
 
-  const headers = withServerBearer(getDashboardPayloadHeaders(event, auth, { 'Content-Type': 'application/json' }))
   const password = toTrimmed(body.password) || randomBytes(16).toString('hex')
   const payloadBody = {
     email,
@@ -54,9 +52,10 @@ export default defineEventHandler(async (event) => {
     avatarConnectUserMedia: body.avatarConnectUserMedia ?? null,
   }
 
-  return await $fetch(`${auth.payloadBaseUrl}/api/connect-users`, {
+  return await dashboardPayloadFetch(`${auth.payloadBaseUrl}/api/connect-users`, {
+    event,
+    auth,
     method: 'POST',
-    headers,
     body: payloadBody,
   }).catch((err: any) => {
     throw toProxyError(err, 'Failed to create user')

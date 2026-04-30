@@ -1,9 +1,8 @@
 import { defineEventHandler, getRouterParam, readBody, createError } from 'h3'
 import {
-  getDashboardPayloadHeaders,
+  dashboardPayloadFetch,
   requireDashboardStaff,
   toProxyError,
-  withServerBearer,
 } from '../../../utils/dashboardForms'
 
 function asNullableRelationship(value: unknown): string | number | null {
@@ -25,11 +24,10 @@ export default defineEventHandler(async (event) => {
   const body = (await readBody(event).catch(() => ({}))) as Record<string, any>
   delete body.date
   if ('connectUser' in body) body.connectUser = asNullableRelationship(body.connectUser)
-  const headers = withServerBearer(getDashboardPayloadHeaders(event, auth, { 'Content-Type': 'application/json' }))
-
-  return await $fetch(`${auth.payloadBaseUrl}/api/chapel-speakers/${encodeURIComponent(String(id))}`, {
+  return await dashboardPayloadFetch(`${auth.payloadBaseUrl}/api/chapel-speakers/${encodeURIComponent(String(id))}`, {
+    event,
+    auth,
     method: 'PATCH',
-    headers,
     body,
   }).catch((err: any) => {
     throw toProxyError(err, 'Failed to update chapel speaker')
