@@ -185,29 +185,7 @@ export function getDashboardPayloadHeaders(event: any, auth: DashboardFormsAuth,
 }
 
 export function withServerBearer(headers: Record<string, string>, _options?: { force?: boolean }) {
-  const config = useRuntimeConfig()
-  const raw = config.payloadServerBearer
-  const bearer = typeof raw === 'string' ? raw.trim() : ''
-  const debugAuthRouting = String((config as any).dashboardAuthDebug || process.env.DASHBOARD_AUTH_DEBUG || '')
-    .trim()
-    .toLowerCase() === 'true'
-
-  if (!bearer) {
-    if (debugAuthRouting) {
-      console.warn('[DashboardAuth] PAYLOAD_SERVER_BEARER is missing; using request-scoped auth headers')
-    }
-    return headers
-  }
-
-  if (debugAuthRouting) {
-    console.info('[DashboardAuth] using payload server bearer')
-  }
-
-  const { Cookie: _ignoredCookie, cookie: _ignoredCookieLower, authorization: _ignoredAuthLower, Authorization: _ignoredAuth, ...rest } = headers
-  return {
-    ...rest,
-    Authorization: `Bearer ${bearer}`,
-  }
+  return headers
 }
 
 export function normalizeDashboardFormSchema(schema: unknown): DashboardFormSchema {

@@ -12,20 +12,20 @@ export default defineEventHandler(async (event) => {
     getDashboardPayloadHeaders(event, auth, { 'Content-Type': 'application/json' }),
   )
 
-  const payloadMe: any = await $fetch(`${auth.payloadBaseUrl}/api/users/me`, {
+  const payloadMe: any = await $fetch(
+    `${auth.payloadBaseUrl}/api/connect-users?where[email][equals]=${encodeURIComponent(auth.email)}&limit=1&depth=0`,
+    {
     headers,
   }).catch((err: any) => {
-    throw toProxyError(err, 'Dashboard auth-check failed against Payload /api/users/me')
+    throw toProxyError(err, 'Dashboard auth-check failed against Payload /api/connect-users')
   })
 
-  const resolvedUser = (payloadMe && typeof payloadMe === 'object' && 'user' in payloadMe)
-    ? (payloadMe as any).user
-    : payloadMe
+  const resolvedUser = Array.isArray(payloadMe?.docs) ? payloadMe.docs[0] : null
 
   if (!resolvedUser || resolvedUser.id == null) {
     throw createError({
       statusCode: 401,
-      statusMessage: 'Payload auth-check did not resolve an authenticated admin user',
+      statusMessage: 'Payload auth-check did not resolve an authenticated connect user',
       data: { payloadMe },
     })
   }
@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
   return {
     ok: true,
     payloadUser: {
-      collection: resolvedUser?.collection ?? null,
+      collection: 'connect-users',
       id: resolvedUser?.id ?? null,
       email: resolvedUser?.email ?? null,
     },
