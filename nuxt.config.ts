@@ -7,13 +7,14 @@ const projectDir = dirname(fileURLToPath(import.meta.url))
 // Auth public URL — sidebase reads NUXT_PUBLIC_AUTH_BASE_URL / AUTH_ORIGIN first, NOT AUTH_URL.
 // https://auth.sidebase.io/guide/advanced/url-resolutions
 // Set one of these in Vercel (Production + Preview if you use previews), e.g. https://your-app.vercel.app/api/auth
-const authBaseUrl =
+const resolvedAuthBaseUrl =
   process.env.NUXT_PUBLIC_AUTH_BASE_URL ||
   process.env.AUTH_ORIGIN ||
   process.env.AUTH_URL ||
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}/api/auth` : undefined)
 const nitroPreset = process.env.VERCEL ? 'vercel' : undefined
 const devAuthBaseUrl = process.env.NODE_ENV !== 'production' ? '/api/auth' : undefined
+const authBaseUrl = process.env.NODE_ENV !== 'production' ? devAuthBaseUrl : resolvedAuthBaseUrl
 
 function hostnameFromEnvUrl(raw: string | undefined): string | undefined {
   const t = (raw || '').trim()

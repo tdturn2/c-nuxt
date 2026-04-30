@@ -1,4 +1,4 @@
-import { createError } from 'h3'
+import { createError, getHeader } from 'h3'
 import { authenticateWithPayloadCMS, getPayloadProxyHeaders } from './payloadAuth'
 
 export const FORM_FIELD_TYPES = new Set([
@@ -79,7 +79,7 @@ function getPayloadBaseUrl() {
 }
 
 export async function requireDashboardStaff(event: any): Promise<DashboardFormsAuth> {
-  const { token, email, payloadSessionCookie } = await authenticateWithPayloadCMS(event)
+  let { email } = await authenticateWithPayloadCMS(event)
   if (!email) {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
   }
@@ -87,6 +87,31 @@ export async function requireDashboardStaff(event: any): Promise<DashboardFormsA
   const payloadBaseUrl = getPayloadBaseUrl()
   if (!payloadBaseUrl) {
     throw createError({ statusCode: 500, statusMessage: 'Missing PAYLOAD_BASE_URL' })
+  }
+
+  // Canonical dashboard auth path: mint a fresh connect-users auth on every
+  // dashboard request using the resolved SSO email, then forward that auth.
+  const rescue = await $fetch<any>(`${payloadBaseUrl}/api/connect-users/sync`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: { email },
+  })
+    .then((data) => ({
+      token: typeof data?.token === 'string' ? data.token : null,
+      payloadSessionCookie: null as string | null,
+    }))
+    .catch(() => ({
+      token: null,
+      payloadSessionCookie: null as string | null,
+    }))
+  const token = rescue.token || null
+  const payloadSessionCookie = rescue.payloadSessionCookie || null
+  if (!token && !payloadSessionCookie) {
+    throw createError({
+      statusCode: 401,
+      statusMessage: 'Dashboard auth expired; please sign out and sign in again.',
+      data: { requiresReauth: true },
+    })
   }
 
   const headers = getPayloadProxyHeaders(
@@ -202,6 +227,15 @@ export async function dashboardPayloadFetch<T = any>(
     headers?: Record<string, string>
   },
 ): Promise<T> {
+  const incomingAuth = String(getHeader(init.event, 'authorization') || '')
+  const hasIncomingBearer = /^Bearer\s+\S+/i.test(incomingAuth)
+  if (!init.auth.token && !init.auth.payloadSessionCookie) {
+    throw createError({
+      statusCode: 401,
+      statusMessage: 'Dashboard auth expired; please sign out and sign in again.',
+      data: { requiresReauth: true },
+    })
+  }
   const baseHeaders = withServerBearer(
     getDashboardPayloadHeaders(init.event, init.auth, {
       'Content-Type': 'application/json',
@@ -223,8 +257,54 @@ export async function dashboardPayloadFetch<T = any>(
       err?.status
     if (statusCode !== 403) throw err
 
+    // Local/session flows can occasionally resolve staff identity but miss a fresh
+    // Payload auth token on the first request. Re-sync once before any bearer fallback.
+    const refreshedAuth = await authenticateWithPayloadCMS(init.event).catch(() => null)
+    const refreshedHeaders = refreshedAuth
+      ? getPayloadProxyHeaders(
+          init.event,
+          {
+            token: refreshedAuth.token,
+            payloadSessionCookie: refreshedAuth.payloadSessionCookie,
+          },
+          {
+            'Content-Type': 'application/json',
+            ...(init.headers || {}),
+          },
+        )
+      : null
+    if (refreshedHeaders && (refreshedAuth?.token || refreshedAuth?.payloadSessionCookie)) {
+      try {
+        return await $fetch<T>(url, {
+          method: init.method as any,
+          headers: refreshedHeaders,
+          body: init.body,
+        })
+      } catch (refreshErr: any) {
+        const refreshStatus =
+          refreshErr?.statusCode ??
+          refreshErr?.response?.status ??
+          refreshErr?.response?.statusCode ??
+          refreshErr?.status
+        if (refreshStatus !== 403) throw refreshErr
+      }
+    }
+
     const authHeader = getServerBearerAuthorization()
     if (!authHeader) {
+      if (hasIncomingBearer) {
+        throw createError({
+          statusCode: 401,
+          statusMessage: 'Dashboard auth expired; please reauthenticate and retry.',
+          data: {
+            url,
+            method: init.method || 'GET',
+            firstAttemptStatus: statusCode,
+            usedBearerFallback: false,
+            requiresReauth: true,
+          },
+        })
+      }
       throw createError({
         statusCode: 403,
         statusMessage: 'Dashboard upstream forbidden (no PAYLOAD_SERVER_BEARER fallback configured)',

@@ -2,6 +2,8 @@
 import { getHeader } from 'h3'
 import { verifyMobileAccessToken } from './mobileAuth'
 
+const syncInFlightByEmail = new Map<string, Promise<PayloadAuthResult>>()
+
 export type PayloadAuthResult = {
   token: string | null
   email: string | null
@@ -61,25 +63,46 @@ export async function authenticateWithPayloadCMS(event: any): Promise<PayloadAut
       if (!payloadBaseUrl) {
         return { token: null, email: identity.email, payloadSessionCookie: null }
       }
-      try {
-        const res = await $fetch.raw(`${payloadBaseUrl}/api/connect-users/sync`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: {
-            email: identity.email,
-            name: identity.name ?? undefined,
-            avatar: identity.avatar ?? undefined,
-          },
-        })
+      const emailKey = identity.email.trim().toLowerCase()
+      const existing = syncInFlightByEmail.get(emailKey)
+      if (existing) return await existing
 
-        const syncResponse: any = await res.json().catch(() => null)
-        const token = typeof syncResponse?.token === 'string' ? syncResponse.token : null
-        const payloadSessionCookie = setCookieLinesToCookieHeader(readSetCookieHeaders(res))
-        return { token, email: identity.email, payloadSessionCookie }
-      } catch (authError) {
-        console.error('Error syncing with PayloadCMS:', authError)
-        return { token: null, email: identity.email, payloadSessionCookie: null }
-      }
+      const run = (async (): Promise<PayloadAuthResult> => {
+        const doSync = async () => {
+          const res = await $fetch.raw(`${payloadBaseUrl}/api/connect-users/sync`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: {
+              email: identity.email,
+              name: identity.name ?? undefined,
+              avatar: identity.avatar ?? undefined,
+            },
+          })
+
+          const syncResponse: any = await res.json().catch(() => null)
+          const token = typeof syncResponse?.token === 'string' ? syncResponse.token : null
+          const payloadSessionCookie = setCookieLinesToCookieHeader(readSetCookieHeaders(res))
+          return { token, payloadSessionCookie }
+        }
+        try {
+          let { token, payloadSessionCookie } = await doSync()
+          // Rare race in concurrent dashboard requests: first sync can return authenticated=false.
+          // Retry once immediately to recover a valid token/cookie for this request.
+          if (!token && !payloadSessionCookie) {
+            const second = await doSync().catch(() => ({ token: null, payloadSessionCookie: null }))
+            token = second.token
+            payloadSessionCookie = second.payloadSessionCookie
+          }
+          return { token, email: identity.email, payloadSessionCookie }
+        } catch (authError) {
+          console.error('Error syncing with PayloadCMS:', authError)
+          return { token: null, email: identity.email, payloadSessionCookie: null }
+        } finally {
+          syncInFlightByEmail.delete(emailKey)
+        }
+      })()
+      syncInFlightByEmail.set(emailKey, run)
+      return await run
     }
 
     const base64UrlDecode = (input: string): string | null => {
@@ -149,30 +172,34 @@ export async function authenticateWithPayloadCMS(event: any): Promise<PayloadAut
 
       // Non-mobile callers may send a valid Payload connect-users JWT directly.
       const payloadIdentity = await resolvePayloadIdentityFromBearer(bearerMatch[1])
-      if (payloadIdentity) return payloadIdentity
+      if (payloadIdentity) {
+        return payloadIdentity
+      }
 
-      // Last-resort local check: trust connect-users JWT claims shape and let upstream verify token.
+      // If token shape looks valid but /me fails, re-sync by claims email
+      // to mint a fresh connect-users token instead of forwarding stale auth.
       const claims = parseConnectUserClaims(bearerMatch[1])
       if (claims) {
-        return {
-          token: bearerMatch[1],
-          email: claims.email,
-          payloadSessionCookie: null,
-        }
+        const refreshed = await syncIntoPayload({ email: claims.email })
+        if (refreshed.token || refreshed.payloadSessionCookie) return refreshed
+        return none()
       }
     }
 
     const cookieHeader = getHeader(event, 'cookie') || ''
-    // Get SSO session
-    const session: any = await event
-      .fetch('/api/auth/session', {
-        headers: {
-          Cookie: cookieHeader,
-          Accept: 'application/json',
-        },
-      })
-      .then((r: Response) => r.json())
-      .catch(() => null)
+    const fetchSession = async (path: string) =>
+      await event
+        .fetch(path, {
+          headers: {
+            Cookie: cookieHeader,
+            Accept: 'application/json',
+          },
+        })
+        .then((r: Response) => r.json())
+        .catch(() => null)
+
+    // Prefer auth endpoint, then fallback to /session compatibility route.
+    const session: any = (await fetchSession('/api/auth/session')) || (await fetchSession('/session'))
 
     if (!session?.user?.email) {
       return none()

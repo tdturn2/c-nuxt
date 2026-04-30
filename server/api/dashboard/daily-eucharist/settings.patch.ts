@@ -1,9 +1,8 @@
 import { defineEventHandler, readBody } from 'h3'
 import {
-  getDashboardPayloadHeaders,
+  dashboardPayloadFetch,
   requireDashboardStaff,
   toProxyError,
-  withServerBearer,
 } from '../../../utils/dashboardForms'
 
 function asTrimmedString(value: unknown): string {
@@ -13,15 +12,15 @@ function asTrimmedString(value: unknown): string {
 export default defineEventHandler(async (event) => {
   const auth = await requireDashboardStaff(event)
   const body = (await readBody(event).catch(() => ({}))) as Record<string, any>
-  const headers = withServerBearer(getDashboardPayloadHeaders(event, auth, { 'Content-Type': 'application/json' }))
 
   const settingsLookup = new URLSearchParams()
   settingsLookup.set('sort', '-updatedAt')
   settingsLookup.set('limit', '1')
   settingsLookup.set('depth', '0')
-  const existingRes = await $fetch<any>(`${auth.payloadBaseUrl}/api/connect-settings?${settingsLookup.toString()}`, {
-    headers,
-  }).catch((err: any) => {
+  const existingRes = await dashboardPayloadFetch<any>(
+    `${auth.payloadBaseUrl}/api/connect-settings?${settingsLookup.toString()}`,
+    { event, auth, method: 'GET' },
+  ).catch((err: any) => {
     throw toProxyError(err, 'Failed to load existing Daily Eucharist settings')
   })
   const existing = Array.isArray(existingRes?.docs) ? existingRes.docs[0] || null : null
@@ -35,18 +34,18 @@ export default defineEventHandler(async (event) => {
   }
 
   if (existing?.id != null) {
-    return await $fetch<any>(`${auth.payloadBaseUrl}/api/connect-settings/${encodeURIComponent(String(existing.id))}`, {
-      method: 'PATCH',
-      headers,
-      body: payload,
-    }).catch((err: any) => {
+    return await dashboardPayloadFetch<any>(
+      `${auth.payloadBaseUrl}/api/connect-settings/${encodeURIComponent(String(existing.id))}`,
+      { event, auth, method: 'PATCH', body: payload },
+    ).catch((err: any) => {
       throw toProxyError(err, 'Failed to update Daily Eucharist settings')
     })
   }
 
-  return await $fetch<any>(`${auth.payloadBaseUrl}/api/connect-settings`, {
+  return await dashboardPayloadFetch<any>(`${auth.payloadBaseUrl}/api/connect-settings`, {
+    event,
+    auth,
     method: 'POST',
-    headers,
     body: payload,
   }).catch((err: any) => {
     throw toProxyError(err, 'Failed to create Daily Eucharist settings')
