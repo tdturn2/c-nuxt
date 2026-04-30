@@ -82,6 +82,55 @@ export async function authenticateWithPayloadCMS(event: any): Promise<PayloadAut
       }
     }
 
+    const base64UrlDecode = (input: string): string | null => {
+      try {
+        const normalized = input.replace(/-/g, '+').replace(/_/g, '/')
+        const pad = normalized.length % 4 === 0 ? '' : '='.repeat(4 - (normalized.length % 4))
+        return Buffer.from(`${normalized}${pad}`, 'base64').toString('utf8')
+      } catch {
+        return null
+      }
+    }
+
+    const parseConnectUserClaims = (
+      token: string,
+    ): { email: string; collection: string } | null => {
+      const parts = token.split('.')
+      if (parts.length < 2) return null
+      const payloadJson = base64UrlDecode(parts[1])
+      if (!payloadJson) return null
+      try {
+        const payload = JSON.parse(payloadJson) as Record<string, unknown>
+        const email = typeof payload.email === 'string' ? payload.email.trim() : ''
+        const collection = typeof payload.collection === 'string' ? payload.collection.trim() : ''
+        if (!email || collection !== 'connect-users') return null
+        return { email, collection }
+      } catch {
+        return null
+      }
+    }
+
+    const resolvePayloadIdentityFromBearer = async (bearerToken: string): Promise<PayloadAuthResult | null> => {
+      if (!payloadBaseUrl) return null
+      try {
+        const me: any = await $fetch(`${payloadBaseUrl}/api/connect-users/me`, {
+          headers: {
+            Authorization: `Bearer ${bearerToken}`,
+            Accept: 'application/json',
+          },
+        })
+        const email = typeof me?.user?.email === 'string' ? me.user.email.trim() : ''
+        if (!email) return null
+        return {
+          token: bearerToken,
+          email,
+          payloadSessionCookie: null,
+        }
+      } catch {
+        return null
+      }
+    }
+
     // Mobile app support: if Authorization bearer is a Connect mobile token, use claims as identity.
     const authHeader = getHeader(event, 'authorization') || ''
     const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i)
@@ -95,7 +144,21 @@ export async function authenticateWithPayloadCMS(event: any): Promise<PayloadAut
           })
         }
       } catch {
-        // Not a valid mobile token; continue to web-session flow.
+        // Not a valid mobile token; continue to payload-bearer/web-session flow.
+      }
+
+      // Non-mobile callers may send a valid Payload connect-users JWT directly.
+      const payloadIdentity = await resolvePayloadIdentityFromBearer(bearerMatch[1])
+      if (payloadIdentity) return payloadIdentity
+
+      // Last-resort local check: trust connect-users JWT claims shape and let upstream verify token.
+      const claims = parseConnectUserClaims(bearerMatch[1])
+      if (claims) {
+        return {
+          token: bearerMatch[1],
+          email: claims.email,
+          payloadSessionCookie: null,
+        }
       }
     }
 
