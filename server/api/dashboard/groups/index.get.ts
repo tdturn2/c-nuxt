@@ -10,6 +10,7 @@ export default defineEventHandler(async (event) => {
   const auth = await requireDashboardStaff(event)
   const headers = withServerBearer(
     getDashboardPayloadHeaders(event, auth, { 'Content-Type': 'application/json' }),
+    { force: true },
   )
   const params = new URLSearchParams()
   params.set('sort', 'name')

@@ -3,11 +3,15 @@ import {
   getDashboardPayloadHeaders,
   requireDashboardStaff,
   toProxyError,
+  withServerBearer,
 } from '../../../utils/dashboardForms'
 
 export default defineEventHandler(async (event) => {
   const auth = await requireDashboardStaff(event)
-  const headers = getDashboardPayloadHeaders(event, auth, { 'Content-Type': 'application/json' })
+  const headers = withServerBearer(
+    getDashboardPayloadHeaders(event, auth, { 'Content-Type': 'application/json' }),
+    { force: true },
+  )
   const params = new URLSearchParams()
   params.set('sort', '-updatedAt')
   params.set('limit', '200')
