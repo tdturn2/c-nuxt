@@ -184,45 +184,10 @@ export function getDashboardPayloadHeaders(event: any, auth: DashboardFormsAuth,
   )
 }
 
-export function withServerBearer(headers: Record<string, string>, options?: { force?: boolean }) {
-  const config = useRuntimeConfig()
-  const raw = config.payloadServerBearer
-  const bearer = typeof raw === 'string' ? raw.trim() : ''
-  const debugAuthRouting = String((config as any).dashboardAuthDebug || process.env.DASHBOARD_AUTH_DEBUG || '')
-    .trim()
-    .toLowerCase() === 'true'
-  if (!bearer) return headers
-
-  const force = options?.force === true
-  if (force) {
-    if (debugAuthRouting) {
-      console.info('[DashboardAuth] forcing payload server bearer')
-    }
-    const { Cookie: _ignoredCookie, cookie: _ignoredCookieLower, ...rest } = headers
-    return {
-      ...rest,
-      Authorization: `Bearer ${bearer}`,
-    }
-  }
-
-  // Prefer request-scoped auth (session cookie / user token) when present.
-  // Only fall back to server bearer when no Authorization header exists.
-  const hasAuthorization = Object.keys(headers).some((key) => key.toLowerCase() === 'authorization')
-  if (hasAuthorization) {
-    if (debugAuthRouting) {
-      console.info('[DashboardAuth] using request authorization header')
-    }
-    return headers
-  }
-
-  if (debugAuthRouting) {
-    console.info('[DashboardAuth] using payload server bearer fallback')
-  }
-
-  return {
-    ...headers,
-    Authorization: `Bearer ${bearer}`,
-  }
+export function withServerBearer(headers: Record<string, string>, _options?: { force?: boolean }) {
+  // Model B: dashboard APIs use request-scoped authenticated user context only.
+  // Keep function for compatibility with existing route imports/calls.
+  return headers
 }
 
 export function normalizeDashboardFormSchema(schema: unknown): DashboardFormSchema {
