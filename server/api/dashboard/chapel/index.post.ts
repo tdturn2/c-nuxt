@@ -100,7 +100,6 @@ export default defineEventHandler(async (event) => {
     auth,
     method: 'POST',
     body: {
-      _status: isFutureEpisode ? 'draft' : 'published',
       date: episodeDate,
       title: title || null,
       speaker: speakerId,

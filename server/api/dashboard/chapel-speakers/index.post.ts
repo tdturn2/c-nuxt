@@ -54,7 +54,6 @@ export default defineEventHandler(async (event) => {
       method: 'POST',
       headers,
       body: {
-        _status: isFutureEpisode ? 'draft' : 'published',
         date: episodeDate,
         title,
         speaker: createdSpeaker.id,

@@ -96,7 +96,6 @@ export default defineEventHandler(async (event) => {
     youtube: asNullableTrimmedString(episode.youtube),
     active: isFutureEpisode ? false : episode.active !== false,
     is_podcast: isFutureEpisode ? false : episode.is_podcast !== false,
-    _status: isFutureEpisode ? 'draft' : 'published',
   }
   if (speakerId != null) patchBody.speaker = speakerId
 

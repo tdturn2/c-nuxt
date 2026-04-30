@@ -311,7 +311,6 @@ type ChapelEpisode = {
   campus?: string
   active?: boolean
   is_podcast?: boolean
-  _status?: string
   mp3?: string | number | { id?: string | number } | null
   vimeo?: string | null
   vimeo_id?: string | null
@@ -434,8 +433,7 @@ function episodeSpeakerName(ep: ChapelEpisode): string {
 }
 
 function episodeStatusLabel(ep: ChapelEpisode): string {
-  const status = String(ep._status || '').toLowerCase()
-  if (status === 'draft') return 'Draft'
+  if (ep.active === false && ep.is_podcast === false) return 'Draft'
   if (ep.active === false) return 'Inactive'
   return 'Published'
 }
@@ -513,7 +511,7 @@ function openEditModal(ep: ChapelEpisode) {
   resetForm()
   editingEpisodeId.value = ep.id
   form.value = {
-    isFutureEpisode: String(ep._status || '').toLowerCase() === 'draft' || ep.active === false || ep.is_podcast === false,
+    isFutureEpisode: ep.active === false || ep.is_podcast === false,
     episode: {
       date: ep.date ? String(ep.date).slice(0, 10) : '',
       title: ep.title || '',
