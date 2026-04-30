@@ -4,6 +4,7 @@ import {
   requireDashboardStaff,
   toProxyError,
 } from '../../../utils/dashboardForms'
+import { asNullableRelationship } from '../../../utils/payloadRelationship'
 
 function asTrimmedString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
@@ -12,17 +13,6 @@ function asTrimmedString(value: unknown): string {
 function asNullableTrimmedString(value: unknown): string | null {
   const v = asTrimmedString(value)
   return v ? v : null
-}
-
-function asNullableRelationship(value: unknown): string | number | null {
-  if (value === null || value === undefined) return null
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null
-  if (typeof value === 'string') {
-    const v = value.trim()
-    if (!v) return null
-    return /^\d+$/.test(v) ? Number(v) : v
-  }
-  return null
 }
 
 export default defineEventHandler(async (event) => {

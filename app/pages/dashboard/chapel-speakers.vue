@@ -296,6 +296,20 @@ function photoIdFromSpeaker(speaker: ChapelSpeaker): string | number | null {
   return speaker.photo
 }
 
+/** Normalize USelectMenu model (string id or { value, label }) for API body. */
+function connectUserToPayload(value: unknown): string | null {
+  if (value == null || value === '') return null
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  if (typeof value === 'string') return value.trim() || null
+  if (typeof value === 'object' && value !== null && 'value' in value) {
+    const v = (value as { value?: unknown }).value
+    if (v == null || v === '') return null
+    if (typeof v === 'number' && Number.isFinite(v)) return String(v)
+    if (typeof v === 'string') return v.trim() || null
+  }
+  return null
+}
+
 function connectUserIdFromSpeaker(speaker: ChapelSpeaker): string {
   if (!speaker.connectUser) return ''
   if (typeof speaker.connectUser === 'object' && speaker.connectUser.id != null) return String(speaker.connectUser.id)
@@ -437,7 +451,7 @@ async function saveSpeaker() {
     name: form.value.name.trim(),
     speakerDescription: form.value.speakerDescription.trim() || null,
     photo: form.value.photo,
-    connectUser: form.value.connectUser || null,
+    connectUser: connectUserToPayload(form.value.connectUser as unknown),
     active: form.value.active,
   }
 

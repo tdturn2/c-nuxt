@@ -4,6 +4,7 @@ import {
   requireDashboardStaff,
   toProxyError,
 } from '../../../utils/dashboardForms'
+import { asNullableRelationship } from '../../../utils/payloadRelationship'
 
 function asTrimmedString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
@@ -17,20 +18,6 @@ function asNullableTrimmedString(value: unknown): string | null {
 function toPayloadId(value: string): string | number {
   const n = Number(value)
   return Number.isFinite(n) && String(n) === value ? n : value
-}
-
-function asNullableRelationship(value: unknown): string | number | null {
-  if (value == null) return null
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null
-  if (typeof value === 'string') {
-    const v = value.trim()
-    if (!v) return null
-    return /^\d+$/.test(v) ? Number(v) : v
-  }
-  if (typeof value === 'object' && (value as any).id != null) {
-    return asNullableRelationship((value as any).id)
-  }
-  return null
 }
 
 function asNullableNumericRelationship(value: unknown): number | null {

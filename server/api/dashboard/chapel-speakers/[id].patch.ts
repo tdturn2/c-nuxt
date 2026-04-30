@@ -4,17 +4,7 @@ import {
   requireDashboardStaff,
   toProxyError,
 } from '../../../utils/dashboardForms'
-
-function asNullableRelationship(value: unknown): string | number | null {
-  if (value === null || value === undefined) return null
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null
-  if (typeof value === 'string') {
-    const v = value.trim()
-    if (!v) return null
-    return /^\d+$/.test(v) ? Number(v) : v
-  }
-  return null
-}
+import { asNullableRelationship } from '../../../utils/payloadRelationship'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
