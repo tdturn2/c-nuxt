@@ -14,10 +14,19 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const query = getQuery(event)
+    const query = { ...getQuery(event) }
+    const payloadServerBearer = String(config.payloadServerBearer || '').trim()
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (payloadServerBearer) headers.Authorization = `Bearer ${payloadServerBearer}`
+
+    const depthRaw = Number(query.depth)
+    if (Number.isFinite(depthRaw)) {
+      query.depth = String(Math.min(Math.max(depthRaw, 0), 3))
+    }
+
     const response = await $fetch(`${payloadBaseUrl}/api/chapel-podcasts/${id}`, {
-      headers: { 'Content-Type': 'application/json' },
-      query
+      headers,
+      query,
     })
     return response
   } catch (error: any) {

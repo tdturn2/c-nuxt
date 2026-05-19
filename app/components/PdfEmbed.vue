@@ -33,8 +33,24 @@
       </div>
     </div>
 
+    <div
+      v-if="useBlobPipeline && loadState === 'loading'"
+      class="flex items-center justify-center rounded-b-lg border-t border-gray-100 bg-gray-50 text-sm text-gray-600"
+      :style="{ height }"
+    >
+      Loading PDF…
+    </div>
+    <div
+      v-else-if="useBlobPipeline && loadState === 'error'"
+      class="rounded-b-lg border-t border-amber-100 bg-amber-50 px-4 py-6 text-sm text-amber-900"
+      :style="{ height }"
+    >
+      <p class="font-medium">Could not load this PDF in the viewer.</p>
+      <p class="mt-2">Try opening it in a new tab instead.</p>
+    </div>
     <iframe
-      :src="src"
+      v-else-if="iframeSrc"
+      :src="iframeSrc"
       :title="title || 'PDF Document'"
       class="w-full rounded-b-lg"
       :style="{ height }"
@@ -43,7 +59,7 @@
 </template>
 
 <script setup lang="ts">
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   src: string
   title?: string
   height?: string
@@ -52,5 +68,80 @@ withDefaults(defineProps<{
   title: 'PDF Document',
   height: 'calc(100vh - 13rem)',
   backTo: '',
+})
+
+type LoadState = 'idle' | 'loading' | 'ready' | 'error'
+
+function isPdfProxyPath(s: string): boolean {
+  return Boolean(s && s.startsWith('/api/pdf-proxy'))
+}
+
+const iframeSrc = ref('')
+const loadState = ref<LoadState>('idle')
+
+const useBlobPipeline = computed(() => isPdfProxyPath(props.src))
+
+function revokeCurrentBlob() {
+  const cur = iframeSrc.value
+  if (cur.startsWith('blob:')) {
+    URL.revokeObjectURL(cur)
+  }
+}
+
+async function resolveIframeSrc(s: string) {
+  revokeCurrentBlob()
+  iframeSrc.value = ''
+  if (!s) {
+    loadState.value = 'idle'
+    return
+  }
+
+  if (!isPdfProxyPath(s)) {
+    iframeSrc.value = s
+    loadState.value = 'ready'
+    return
+  }
+
+  loadState.value = 'loading'
+  try {
+    const res = await fetch(s, { credentials: 'same-origin' })
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`)
+    }
+    const blob = await res.blob()
+    iframeSrc.value = URL.createObjectURL(blob)
+    loadState.value = 'ready'
+  } catch {
+    loadState.value = 'error'
+    iframeSrc.value = ''
+  }
+}
+
+watch(
+  () => props.src,
+  (s) => {
+    if (import.meta.server) {
+      if (!s) return
+      if (isPdfProxyPath(s)) {
+        loadState.value = 'loading'
+      } else {
+        iframeSrc.value = s
+        loadState.value = 'ready'
+      }
+      return
+    }
+    void resolveIframeSrc(s)
+  },
+  { immediate: true },
+)
+
+onMounted(() => {
+  if (import.meta.client && isPdfProxyPath(props.src) && loadState.value !== 'ready' && loadState.value !== 'error') {
+    void resolveIframeSrc(props.src)
+  }
+})
+
+onBeforeUnmount(() => {
+  revokeCurrentBlob()
 })
 </script>

@@ -1,4 +1,15 @@
+import type { H3Event } from 'h3'
 import { createError, getQuery } from 'h3'
+import { normalizePlaceViewcontentSearchUrl } from '@shared/digitalCommonsViewcontent'
+import {
+  applyDcViewcontentPathInfoHint,
+  fetchDcOutboundParentLink,
+  pickDcPdfHref,
+  repositoryUrlToHttpParentLink,
+  resolveDigitalCommonsApiToken,
+  resolveDigitalCommonsSiteHost,
+  resolveRepositoryHrefToAbsolute,
+} from '../../utils/digitalCommonsOutbound'
 
 type Query = {
   issueUrl?: string
@@ -24,6 +35,17 @@ function decode(text: string): string {
 function toAbsolute(base: string, url: string): string {
   try {
     return new URL(url, base).toString()
+  } catch {
+    return url
+  }
+}
+
+function toHttpsRepositoryUrl(url: string | null): string | null {
+  if (!url) return null
+  try {
+    const u = new URL(url)
+    if (u.protocol === 'http:') u.protocol = 'https:'
+    return u.toString()
   } catch {
     return url
   }
@@ -56,6 +78,91 @@ function parseEntries(html: string, issueUrl: string): Entry[] {
   return entries
 }
 
+function pickFirstAuthor(doc: Record<string, unknown>): string | null {
+  const a = doc.author
+  if (Array.isArray(a)) {
+    const s = a.find((x) => typeof x === 'string' && x.trim())
+    return typeof s === 'string' ? s.trim() : null
+  }
+  if (typeof a === 'string' && a.trim()) return a.trim()
+  return null
+}
+
+function mapOutboundDocToEntry(doc: Record<string, unknown>, siteHost: string): Entry | null {
+  const title = typeof doc.title === 'string' && doc.title.trim() ? doc.title.trim() : null
+  if (!title) return null
+  const rawArticle = typeof doc.url === 'string' && doc.url.trim() ? doc.url.trim() : null
+  const articleUrl = rawArticle ? toHttpsRepositoryUrl(resolveRepositoryHrefToAbsolute(rawArticle, siteHost)) : null
+  const rawPdf = pickDcPdfHref(doc)
+  const pdfUrl = rawPdf
+    ? normalizePlaceViewcontentSearchUrl(
+        applyDcViewcontentPathInfoHint(
+          toHttpsRepositoryUrl(resolveRepositoryHrefToAbsolute(rawPdf, siteHost)),
+          doc,
+        ),
+      )
+    : null
+  return {
+    title,
+    author: pickFirstAuthor(doc),
+    articleUrl,
+    pdfUrl,
+  }
+}
+
+function articleOrdinal(url: string | null): number {
+  if (!url) return 1e9
+  const m = url.match(/\/(\d+)$/)
+  return m ? Number.parseInt(m[1], 10) : 1e9
+}
+
+function inferIssueTitleFromIssueUrl(issueUrl: string): string | null {
+  const m = issueUrl.match(/\/vol(\d+)\/iss(\d+)/i)
+  if (!m) return null
+  return `${m[1]}, Issue ${m[2]}`
+}
+
+async function fetchEntriesFromOutboundApi(
+  h3Event: H3Event,
+  issueUrl: string,
+): Promise<{ entries: Entry[]; source: string } | null> {
+  const config = useRuntimeConfig(h3Event)
+  const token = resolveDigitalCommonsApiToken(config.digitalCommonsApiToken)
+  if (!token) return null
+
+  const siteHost = resolveDigitalCommonsSiteHost(config.digitalCommonsSiteHost)
+  const parentLink = repositoryUrlToHttpParentLink(issueUrl)
+
+  const docs = await fetchDcOutboundParentLink({
+    siteHost,
+    token,
+    parentLink,
+    limit: 100,
+  })
+
+  const entries = docs
+    .map((doc) => mapOutboundDocToEntry(doc, siteHost))
+    .filter((e): e is Entry => Boolean(e))
+    .sort((a, b) => articleOrdinal(a.articleUrl) - articleOrdinal(b.articleUrl))
+
+  if (entries.length === 0) return null
+  return { entries, source: 'digital-commons-api-v2' }
+}
+
+async function fetchIssueMetaFromHtml(issueUrl: string): Promise<{ issueTitle: string | null; coverUrl: string | null }> {
+  const html = await $fetch<string>(issueUrl, {
+    timeout: 20000,
+    headers: {
+      Accept: 'text/html,application/xhtml+xml',
+      'User-Agent': 'AsburyConnect-DigitalCommons/1.0',
+    },
+  })
+  return {
+    issueTitle: parseIssueTitle(html),
+    coverUrl: parseCoverUrl(html, issueUrl),
+  }
+}
+
 export default defineCachedEventHandler(async (event) => {
   const q = getQuery(event) as Query
   const raw = String(q.issueUrl || '').trim()
@@ -77,6 +184,29 @@ export default defineCachedEventHandler(async (event) => {
   }
 
   try {
+    const fromApi = await fetchEntriesFromOutboundApi(event, issueUrl).catch(() => null)
+    if (fromApi) {
+      let issueTitle: string | null = null
+      let coverUrl: string | null = null
+      try {
+        const meta = await fetchIssueMetaFromHtml(issueUrl)
+        issueTitle = meta.issueTitle
+        coverUrl = meta.coverUrl
+      } catch {
+        // optional: issue list already has a label
+      }
+      if (!issueTitle) issueTitle = inferIssueTitleFromIssueUrl(issueUrl)
+
+      return {
+        issueUrl,
+        issueTitle,
+        coverUrl,
+        entries: fromApi.entries,
+        source: fromApi.source,
+        fetchedAt: new Date().toISOString(),
+      }
+    }
+
     const html = await $fetch<string>(issueUrl, {
       timeout: 20000,
       headers: {
@@ -90,6 +220,8 @@ export default defineCachedEventHandler(async (event) => {
       issueTitle: parseIssueTitle(html),
       coverUrl: parseCoverUrl(html, issueUrl),
       entries: parseEntries(html, issueUrl),
+      source: 'digital-commons-html',
+      fetchedAt: new Date().toISOString(),
     }
   } catch (err: any) {
     throw createError({
@@ -102,6 +234,6 @@ export default defineCachedEventHandler(async (event) => {
   name: 'digital-commons-issue-entries',
   getKey: (event) => {
     const q = getQuery(event) as Query
-    return `v1:${String(q.issueUrl || '').trim()}`
+    return `v5:${String(q.issueUrl || '').trim()}`
   },
 })

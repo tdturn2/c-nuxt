@@ -20,60 +20,69 @@
           </div>
           <div v-for="n in 6" :key="n" class="h-24 rounded-lg border border-gray-200 bg-white animate-pulse" />
         </div>
-        <div v-else-if="error" class="rounded-lg bg-red-50 border border-red-200 p-4 text-red-800 text-sm">
-          Failed to load First Fruits works.
-        </div>
-        <div v-else-if="works.length === 0" class="py-8 text-gray-500">No First Fruits records found.</div>
         <div v-else class="space-y-8">
           <section>
             <div class="mb-3 flex items-end justify-between gap-3">
               <h2 class="text-lg font-semibold text-gray-900">Bookshelf</h2>
-              <p class="text-xs text-gray-500">Swipe or scroll horizontally</p>
+              <a
+                href="https://place.asburyseminary.edu/firstfruitsbooks/"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-xs text-[rgba(13,94,130,1)] hover:underline"
+              >
+                Browse all books
+              </a>
             </div>
-            <div class="overflow-x-auto pb-2">
-              <div class="flex gap-3 min-w-max pr-2">
-                <article v-for="item in bookWorks" :key="item.id" class="w-28 shrink-0 rounded-lg border border-gray-200 bg-white p-2 shadow-sm">
-                  <NuxtLink v-if="item.fileUrl" :to="pdfViewerLink(item.fileUrl, item.title)" class="block">
-                    <img v-if="item.thumbnailUrl" :src="item.thumbnailUrl" alt="" class="h-36 w-24 rounded border border-gray-200 object-cover bg-gray-100" loading="lazy" />
+            <div v-if="booksError" class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+              Failed to load books.
+              <span v-if="booksErrorDetail" class="block mt-1 text-xs">{{ booksErrorDetail }}</span>
+            </div>
+            <div v-else-if="bookWorks.length === 0" class="rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-500">
+              No books found in the First Fruits books collection.
+            </div>
+            <div v-else class="overflow-x-auto pb-2">
+                <div class="flex gap-3 min-w-max pr-2">
+                  <article v-for="item in bookWorks" :key="item.id" class="w-28 shrink-0 rounded-lg border border-gray-200 bg-white p-2 shadow-sm">
+                    <a v-if="item.url" :href="item.url" target="_blank" rel="noopener noreferrer" class="block">
+                      <img v-if="item.thumbnailUrl" :src="item.thumbnailUrl" alt="" class="h-36 w-24 rounded border border-gray-200 object-cover bg-gray-100" loading="lazy" />
+                      <div v-else class="flex h-36 w-24 items-center justify-center rounded border border-gray-200 bg-gray-50 text-[11px] text-gray-500">No cover</div>
+                    </a>
                     <div v-else class="flex h-36 w-24 items-center justify-center rounded border border-gray-200 bg-gray-50 text-[11px] text-gray-500">No cover</div>
-                  </NuxtLink>
-                  <a v-else-if="item.url" :href="item.url" target="_blank" rel="noopener noreferrer" class="block">
-                    <img v-if="item.thumbnailUrl" :src="item.thumbnailUrl" alt="" class="h-36 w-24 rounded border border-gray-200 object-cover bg-gray-100" loading="lazy" />
-                    <div v-else class="flex h-36 w-24 items-center justify-center rounded border border-gray-200 bg-gray-50 text-[11px] text-gray-500">Open record</div>
-                  </a>
-                  <div v-else class="flex h-36 w-24 items-center justify-center rounded border border-gray-200 bg-gray-50 text-[11px] text-gray-500">No cover</div>
 
-                  <div class="mt-2 min-w-0">
-                    <NuxtLink v-if="item.fileUrl" :to="pdfViewerLink(item.fileUrl, item.title)" class="line-clamp-2 text-xs font-semibold text-[rgba(13,94,130,1)] hover:underline">{{ item.title }}</NuxtLink>
-                    <a v-else-if="item.url" :href="item.url" target="_blank" rel="noopener noreferrer" class="line-clamp-2 text-xs font-semibold text-[rgba(13,94,130,1)] hover:underline">{{ item.title }}</a>
-                    <p v-else class="line-clamp-2 text-xs font-semibold text-gray-900">{{ item.title }}</p>
-                    <p class="mt-1 line-clamp-1 text-[11px] text-gray-600">{{ creatorsLabel(item.creators) }}</p>
-                    <p class="mt-1 text-[11px] text-gray-500">{{ item.year || '—' }}</p>
-                  </div>
-                </article>
+                    <div class="mt-2 min-w-0">
+                      <a v-if="item.url" :href="item.url" target="_blank" rel="noopener noreferrer" class="line-clamp-2 text-xs font-semibold text-[rgba(13,94,130,1)] hover:underline">{{ item.title }}</a>
+                      <p v-else class="line-clamp-2 text-xs font-semibold text-gray-900">{{ item.title }}</p>
+                      <p class="mt-1 line-clamp-1 text-[11px] text-gray-600">{{ creatorsLabel(item.creators) }}</p>
+                      <p class="mt-1 text-[11px] text-gray-500">{{ item.year || '—' }}</p>
+                    </div>
+                  </article>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
 
           <section>
             <div class="mb-3 flex items-end justify-between gap-3">
               <h2 class="text-lg font-semibold text-gray-900">Other Publications</h2>
               <p class="text-xs text-gray-500">Journals, papers, and more</p>
             </div>
-            <div v-if="otherWorks.length === 0" class="rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-500">No journals, papers, or other publication types found in the latest records.</div>
-            <div v-else class="overflow-x-auto pb-2">
-              <div class="flex gap-3 min-w-max pr-2">
-                <article v-for="item in otherWorks" :key="item.id" class="w-72 shrink-0 rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
-                  <div class="min-w-0">
-                    <NuxtLink v-if="item.fileUrl" :to="pdfViewerLink(item.fileUrl, item.title)" class="line-clamp-2 text-sm font-semibold text-[rgba(13,94,130,1)] hover:underline">{{ item.title }}</NuxtLink>
-                    <a v-else-if="item.url" :href="item.url" target="_blank" rel="noopener noreferrer" class="line-clamp-2 text-sm font-semibold text-[rgba(13,94,130,1)] hover:underline">{{ item.title }}</a>
-                    <p v-else class="line-clamp-2 text-sm font-semibold text-gray-900">{{ item.title }}</p>
-                    <p class="mt-1 text-xs text-gray-600 line-clamp-2">{{ creatorsLabel(item.creators) }}</p>
-                    <p class="mt-1 text-xs text-gray-500"><span v-if="item.source">{{ item.source }}</span><span v-if="item.source && item.year"> · </span><span v-if="item.year">{{ item.year }}</span></p>
-                  </div>
-                </article>
-              </div>
+            <div v-if="otherError" class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+              Failed to load other First Fruits publications.
             </div>
+            <div v-else-if="otherWorks.length === 0" class="rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-500">
+              No journals, papers, or other publication types found.
+            </div>
+            <div v-else class="overflow-x-auto pb-2">
+                <div class="flex gap-3 min-w-max pr-2">
+                  <article v-for="item in otherWorks" :key="item.id" class="w-72 shrink-0 rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
+                    <div class="min-w-0">
+                      <a v-if="item.url" :href="item.url" target="_blank" rel="noopener noreferrer" class="line-clamp-2 text-sm font-semibold text-[rgba(13,94,130,1)] hover:underline">{{ item.title }}</a>
+                      <p v-else class="line-clamp-2 text-sm font-semibold text-gray-900">{{ item.title }}</p>
+                      <p class="mt-1 text-xs text-gray-600 line-clamp-2">{{ creatorsLabel(item.creators) }}</p>
+                      <p class="mt-1 text-xs text-gray-500"><span v-if="item.source">{{ item.source }}</span><span v-if="item.source && item.year"> · </span><span v-if="item.year">{{ item.year }}</span></p>
+                    </div>
+                  </article>
+                </div>
+              </div>
           </section>
 
           <section>
@@ -82,17 +91,12 @@
             <div v-else class="overflow-x-auto pb-2">
               <div class="flex gap-3 min-w-max pr-2">
                 <article v-for="issue in asburyJournalIssues" :key="issue.issueUrl" class="w-32 shrink-0 rounded-lg border border-gray-200 bg-white p-2 shadow-sm">
-                  <NuxtLink v-if="issue.pdfUrl" :to="pdfViewerLink(issue.pdfUrl, `Asbury Journal ${issue.issueTitle}`)" class="block">
+                  <a :href="issue.issueUrl" target="_blank" rel="noopener noreferrer" class="block">
                     <img v-if="issue.coverUrl" :src="issue.coverUrl" alt="" class="h-36 w-24 rounded border border-gray-200 object-cover bg-gray-100" loading="lazy" />
                     <div v-else class="flex h-36 w-24 items-center justify-center rounded border border-gray-200 bg-gray-50 text-[11px] text-gray-500">No cover</div>
-                  </NuxtLink>
-                  <NuxtLink v-else :to="journalIssueLink(issue)" class="block">
-                    <img v-if="issue.coverUrl" :src="issue.coverUrl" alt="" class="h-36 w-24 rounded border border-gray-200 object-cover bg-gray-100" loading="lazy" />
-                    <div v-else class="flex h-36 w-24 items-center justify-center rounded border border-gray-200 bg-gray-50 text-[11px] text-gray-500">No cover</div>
-                  </NuxtLink>
+                  </a>
                   <div class="mt-2 min-w-0">
-                    <NuxtLink v-if="issue.pdfUrl" :to="pdfViewerLink(issue.pdfUrl, `Asbury Journal ${issue.issueTitle}`)" class="line-clamp-2 text-xs font-semibold text-[rgba(13,94,130,1)] hover:underline">{{ issue.issueTitle }}</NuxtLink>
-                    <NuxtLink v-else :to="journalIssueLink(issue)" class="line-clamp-2 text-xs font-semibold text-[rgba(13,94,130,1)] hover:underline">{{ issue.issueTitle }}</NuxtLink>
+                    <a :href="issue.issueUrl" target="_blank" rel="noopener noreferrer" class="line-clamp-2 text-xs font-semibold text-[rgba(13,94,130,1)] hover:underline">{{ issue.issueTitle }}</a>
                     <p class="mt-1 text-[11px] text-gray-500">{{ issue.year || '—' }}</p>
                   </div>
                 </article>
@@ -132,15 +136,8 @@
                   :key="entry.pdfUrl || entry.articleUrl || entry.title"
                   class="w-80 shrink-0 rounded-lg border border-gray-200 bg-white p-3 shadow-sm"
                 >
-                  <NuxtLink
-                    v-if="entry.pdfUrl"
-                    :to="pdfViewerLink(entry.pdfUrl, entry.title)"
-                    class="line-clamp-2 text-sm font-semibold text-[rgba(13,94,130,1)] hover:underline"
-                  >
-                    {{ entry.title }}
-                  </NuxtLink>
                   <a
-                    v-else-if="entry.articleUrl"
+                    v-if="entry.articleUrl"
                     :href="entry.articleUrl"
                     target="_blank"
                     rel="noopener noreferrer"
@@ -175,6 +172,8 @@ type FirstFruitsWork = {
   url: string | null
   fileUrl: string | null
   thumbnailUrl?: string | null
+  /** From server: First Fruits Books vs other series. */
+  shelf?: 'books' | 'other'
 }
 
 type JournalIssue = {
@@ -192,8 +191,49 @@ type CurrentIssueEntry = {
   pdfUrl: string | null
 }
 
-const { data, pending, error } = await useFetch<{ works?: FirstFruitsWork[] }>('/api/first-fruits/latest?limit=60', {
-  key: 'first-fruits-latest',
+const bookWorks = ref<FirstFruitsWork[]>([])
+const otherWorks = ref<FirstFruitsWork[]>([])
+const booksPending = ref(true)
+const otherPending = ref(true)
+const booksError = ref<unknown>(null)
+const otherError = ref<unknown>(null)
+
+const OTHER_SETS = 'firstfruitsjournals,firstfruitspapers,firstfruitsrussian,firstfruitsspanish'
+
+onMounted(async () => {
+  booksPending.value = true
+  otherPending.value = true
+  booksError.value = null
+  otherError.value = null
+
+  await Promise.all([
+    (async () => {
+      try {
+        const res = await $fetch<{ works?: FirstFruitsWork[] }>('/api/first-fruits/books', {
+          query: { limit: 60 },
+        })
+        bookWorks.value = Array.isArray(res?.works) ? res.works : []
+      } catch (e) {
+        booksError.value = e
+        bookWorks.value = []
+      } finally {
+        booksPending.value = false
+      }
+    })(),
+    (async () => {
+      try {
+        const res = await $fetch<{ works?: FirstFruitsWork[] }>('/api/first-fruits/latest', {
+          query: { limit: 40, sets: OTHER_SETS },
+        })
+        otherWorks.value = Array.isArray(res?.works) ? res.works : []
+      } catch (e) {
+        otherError.value = e
+        otherWorks.value = []
+      } finally {
+        otherPending.value = false
+      }
+    })(),
+  ])
 })
 
 const { data: asburyJournalData, pending: asburyJournalPending } = await useFetch<{ issues?: JournalIssue[] }>(
@@ -206,9 +246,13 @@ const { data: faithPhilosophyIssuesData, pending: faithPhilosophyIssuesPending }
   { key: 'faith-philosophy-issues' },
 )
 
-const works = computed(() => (Array.isArray(data.value?.works) ? data.value?.works : []))
-const bookWorks = computed(() => works.value.filter((w) => String(w.source || '').trim().toLowerCase() === 'books'))
-const otherWorks = computed(() => works.value.filter((w) => String(w.source || '').trim().toLowerCase() !== 'books'))
+function fetchErrorDetail(err: unknown): string {
+  const e = err as null | { statusMessage?: string; message?: string; data?: { statusMessage?: string } }
+  if (!e) return ''
+  return e.data?.statusMessage || e.statusMessage || e.message || ''
+}
+
+const booksErrorDetail = computed(() => fetchErrorDetail(booksError.value))
 
 const asburyJournalIssues = computed(() => (Array.isArray(asburyJournalData.value?.issues) ? asburyJournalData.value.issues : []))
 const faithPhilosophyIssues = computed(() =>
@@ -218,7 +262,7 @@ const faithPhilosophyIssues = computed(() =>
 const faithPhilosophyIssueUrl = computed(() => faithPhilosophyIssues.value[0]?.issueUrl || '')
 
 const { data: faithIssueEntriesData, pending: faithIssueEntriesPending } = await useAsyncData(
-  'faith-issue-entries',
+  'faith-issue-entries-v5',
   async () => {
     if (!faithPhilosophyIssueUrl.value) return { entries: [] as CurrentIssueEntry[] }
     return await $fetch<{ entries: CurrentIssueEntry[] }>(
@@ -233,7 +277,8 @@ const faithPhilosophyEntries = computed(() =>
 )
 const isLoading = computed(() =>
   Boolean(
-    pending.value ||
+    booksPending.value ||
+      otherPending.value ||
       asburyJournalPending.value ||
       faithPhilosophyIssuesPending.value ||
       faithIssueEntriesPending.value,
@@ -246,40 +291,5 @@ function creatorsLabel(creators: string[]) {
   return `${creators.slice(0, 3).join(', ')} +${creators.length - 3} more`
 }
 
-function pdfViewerLink(src: string, title: string) {
-  const normalizedSrc = toDirectDigitalCommonsPdfUrl(src)
-  return {
-    path: '/pdf',
-    query: { src: normalizedSrc, title, from: '/first-fruits' },
-  }
-}
-
-function toDirectDigitalCommonsPdfUrl(src: string): string {
-  try {
-    const url = new URL(src)
-    if (!url.hostname.endsWith('place.asburyseminary.edu')) return src
-
-    // Convert /context/.../viewcontent/<file>.pdf -> /cgi/viewcontent.cgi?params=/context/.../&path_info=<file>.pdf
-    const match = url.pathname.match(/^\/context\/(.+?)\/article\/(\d+)\/viewcontent\/(.+)$/i)
-    if (match) {
-      const [, contextPath, articleId, fileName] = match
-      const params = `/context/${contextPath}/article/${articleId}/`
-      return `https://${url.hostname}/cgi/viewcontent.cgi?params=${encodeURIComponent(params)}&path_info=${encodeURIComponent(fileName || '')}`
-    }
-
-    return src
-  } catch {
-    return src
-  }
-}
-
-function journalIssueLink(issue: JournalIssue) {
-  return {
-    path: '/journal-issue',
-    query: {
-      url: issue.issueUrl,
-      title: issue.issueTitle,
-    },
-  }
-}
+// PDF embedding is intentionally disabled; we link out to the repository pages instead.
 </script>

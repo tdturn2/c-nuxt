@@ -176,7 +176,15 @@
                 <div v-if="c.syllabus_url">
                   <span class="font-medium text-gray-700">Syllabus</span>
                   <p class="mt-1">
-                    <a :href="c.syllabus_url" target="_blank" rel="noopener noreferrer" class="text-[rgba(13,94,130,1)] hover:underline">View syllabus</a>
+                    <a
+                      :href="c.syllabus_url"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="inline-flex items-center gap-1 text-[rgba(13,94,130,1)] hover:underline"
+                    >
+                      View syllabus
+                      <UIcon name="i-heroicons-arrow-top-right-on-square" class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    </a>
                   </p>
                 </div>
                 <div v-if="c.seats"><span class="font-medium text-gray-700">Seats available</span><p class="mt-1 text-gray-600">{{ c.seats }}</p></div>
@@ -274,9 +282,10 @@
                           :href="c.syllabus_url"
                           target="_blank"
                           rel="noopener noreferrer"
-                          class="text-[rgba(13,94,130,1)] hover:underline"
+                          class="inline-flex items-center gap-1 text-[rgba(13,94,130,1)] hover:underline"
                         >
                           View syllabus
+                          <UIcon name="i-heroicons-arrow-top-right-on-square" class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                         </a>
                       </p>
                     </div>

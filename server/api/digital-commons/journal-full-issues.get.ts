@@ -54,9 +54,10 @@ function parseIssueTitle(html: string): string | null {
   return decode((m[1] ?? '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' '))
 }
 
-function parseFullIssuePdf(html: string): string | null {
+function parseFullIssuePdf(html: string, issueUrl: string): string | null {
   const m = html.match(/<p class="pdf"><a href="([^"]+)"[^>]*title="Download PDF of Journal in Entirety/i)
-  return m?.[1] ? decode(m[1]) : null
+  if (!m?.[1]) return null
+  return toAbsolute(issueUrl, decode(m[1]))
 }
 
 function parseCoverUrl(html: string, issueUrl: string): string | null {
@@ -86,7 +87,7 @@ async function fetchIssue(issueUrl: string): Promise<JournalIssue | null> {
   return {
     issueTitle,
     issueUrl,
-    pdfUrl: parseFullIssuePdf(html),
+    pdfUrl: parseFullIssuePdf(html, issueUrl),
     coverUrl: parseCoverUrl(html, issueUrl),
     year: parseYear(issueTitle),
   }

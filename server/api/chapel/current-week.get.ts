@@ -62,7 +62,8 @@ export default defineEventHandler(async () => {
 
   const makeParams = () => {
     const params = new URLSearchParams()
-    params.set('depth', '3')
+    // depth 2: speaker + photo (+ shallow connectUser) without huge nested user payloads
+    params.set('depth', '2')
     params.set('limit', '200')
     params.set('sort', 'date')
     params.set('where[date][greater_than_equal]', toYmdUtc(thisWeekTuesday))

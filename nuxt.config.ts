@@ -156,6 +156,20 @@ export default defineNuxtConfig({
     instructureBaseUrl: process.env.INSTRUCTURE_BASE_URL,
     instructureApiId: process.env.INSTRUCTURE_API_ID,
     instructureApiKey: process.env.INSTRUCTURE_API_KEY,
+    /** Elsevier Digital Commons Outbound API v2 (https://content-out.bepress.com/v2/.../query). Raw token in Authorization header. */
+    digitalCommonsApiToken:
+      process.env.NUXT_DIGITAL_COMMONS_API_TOKEN ||
+      process.env.DIGITAL_COMMONS_API_TOKEN ||
+      process.env.BEPRESS_API_TOKEN ||
+      '',
+    /** Repository host only, e.g. place.asburyseminary.edu (no scheme). */
+    digitalCommonsSiteHost: (
+      process.env.NUXT_DIGITAL_COMMONS_SITE_HOST ||
+      process.env.DIGITAL_COMMONS_SITE_URL ||
+      'place.asburyseminary.edu'
+    )
+      .replace(/^https?:\/\//i, '')
+      .replace(/\/.*$/, ''),
     // Public keys (exposed to client-side)
     public: {
       authAzureAdClientId: process.env.AUTH_AZURE_AD_CLIENT_ID,

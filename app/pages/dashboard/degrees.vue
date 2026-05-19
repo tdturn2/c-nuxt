@@ -1,6 +1,6 @@
 <template>
   <div class="flex min-h-0 bg-gray-50">
-    <LeftColumn />
+    <DashboardSidebar />
     <main class="flex-1 min-w-0 overflow-y-auto">
       <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 class="text-2xl font-bold text-gray-900 mb-6">Degree Builder</h1>

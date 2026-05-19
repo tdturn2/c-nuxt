@@ -321,8 +321,8 @@ const { data: speakersData } = await useFetch<ChapelResponse>('/api/chapel-podca
     sort: '-date',
     limit: 500,
     page: 1,
-    depth: 3
-  }
+    depth: 2,
+  },
 })
 
 const speakerOptionsList = computed(() => {
@@ -365,7 +365,7 @@ const queryParams = computed(() => {
     sort: sortOrder.value?.value ?? '-date',
     limit: debouncedSearch.value.trim() ? 100 : limit, // fetch more when searching
     page: page.value,
-    depth: 3
+    depth: 2,
   }
 
   const campus = selectedCampus.value?.value
@@ -381,8 +381,8 @@ const queryParams = computed(() => {
   // Server-side search across title and speaker name
   const q = debouncedSearch.value.trim()
   if (q) {
-    params['where[or][0][title][like]'] = q
-    params['where[or][1][speaker.name][like]'] = q
+    params['where[or][0][title][contains]'] = q
+    params['where[or][1][speaker.name][contains]'] = q
   }
 
   return params
