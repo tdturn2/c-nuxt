@@ -51,7 +51,7 @@ export default defineNuxtConfig({
   alias: {
     '@shared': join(projectDir, 'shared'),
   },
-  modules: ['@nuxt/ui', '@nuxt/image', '@sidebase/nuxt-auth'],
+  modules: ['@nuxt/ui', '@nuxt/image', '@sidebase/nuxt-auth', '@nuxt/content'],
   image: {
     domains: nuxtImageDomains,
     format: ['webp'],
@@ -146,7 +146,8 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     // Private keys (only available on server-side)
-    authSecret: process.env.NUXT_AUTH_SECRET,
+    // AUTH_SECRET was used for months; keep it primary so existing session cookies still decrypt.
+    authSecret: process.env.AUTH_SECRET || process.env.NUXT_AUTH_SECRET,
     azureAdClientId: process.env.AUTH_AZURE_AD_CLIENT_ID,
     azureAdMobileClientId: process.env.AUTH_AZURE_AD_MOBILE_CLIENT_ID,
     azureAdClientSecret: process.env.AUTH_AZURE_AD_CLIENT_SECRET,

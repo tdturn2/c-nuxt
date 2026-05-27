@@ -21,6 +21,13 @@
             >
               Create degree
             </button>
+            <button
+              type="button"
+              class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              @click="openImportModal()"
+            >
+              Import CSV
+            </button>
           </div>
 
           <div v-if="degreesListPending" class="py-4 text-gray-500">Loading degrees...</div>
@@ -78,12 +85,22 @@
       @update:open="(v: boolean) => !v && onCloseDegreeEdit()"
     >
       <template #header>
-        <div class="flex flex-col gap-0.5">
-          <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Edit degree</p>
-          <h2 v-if="bundle?.degree" class="text-base font-semibold text-gray-900 truncate">
-            {{ bundle.degree.name ?? bundle.degree.title ?? `Degree #${selectedDegreeId}` }}
-          </h2>
-          <p v-if="bundlePending" class="text-sm text-gray-500">Loading…</p>
+        <div class="flex items-start justify-between gap-3 w-full">
+          <div class="flex flex-col gap-0.5 min-w-0">
+            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Edit degree</p>
+            <h2 v-if="bundle?.degree" class="text-base font-semibold text-gray-900 truncate">
+              {{ bundle.degree.name ?? bundle.degree.title ?? `Degree #${selectedDegreeId}` }}
+            </h2>
+            <p v-if="bundlePending" class="text-sm text-gray-500">Loading…</p>
+          </div>
+          <button
+            v-if="selectedDegreeId != null && !bundlePending"
+            type="button"
+            class="shrink-0 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+            @click="openImportModal(selectedDegreeId)"
+          >
+            Import CSV
+          </button>
         </div>
       </template>
       <template #body>
@@ -519,10 +536,107 @@
         </div>
       </template>
     </UModal>
+
+    <!-- Import degree map CSV -->
+    <UModal v-model:open="importModalOpen" :ui="{ content: 'max-w-2xl' }">
+      <template #header>Import degree map (CSV)</template>
+      <template #body>
+        <div class="space-y-4 p-1 text-sm text-gray-700">
+          <p>
+            One row per course. Rows with the same <code class="text-xs bg-gray-100 px-1 rounded">section_name</code>
+            are grouped into one section. Download the template for column names.
+          </p>
+          <div class="flex flex-wrap gap-2">
+            <button
+              type="button"
+              class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              @click="downloadTemplate"
+            >
+              Download template
+            </button>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Degree</label>
+            <select
+              v-model.number="importDegreeId"
+              class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              :disabled="importPending"
+            >
+              <option :value="null" disabled>Select a degree…</option>
+              <option v-for="d in degreesList" :key="d.id" :value="d.id">
+                {{ d.name ?? d.title ?? `Degree #${d.id}` }}
+              </option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">CSV file</label>
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              class="block w-full text-sm text-gray-600 file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-gray-700"
+              :disabled="importPending"
+              @change="onImportFileChange"
+            >
+          </div>
+          <label class="flex items-center gap-2 text-sm text-gray-700">
+            <input v-model="importCreateMissingCourses" type="checkbox" class="rounded border-gray-300" :disabled="importPending">
+            Create missing courses when <code class="text-xs bg-gray-100 px-1 rounded">course_code</code> is not in the catalog
+          </label>
+          <div v-if="importParseErrors.length" class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+            <p class="font-medium mb-1">CSV errors</p>
+            <ul class="list-disc pl-5 space-y-0.5">
+              <li v-for="(msg, i) in importParseErrors" :key="i">{{ msg }}</li>
+            </ul>
+          </div>
+          <div v-else-if="importPreviewRows.length" class="rounded-md border border-gray-200 bg-gray-50 p-3 text-sm">
+            <p class="font-medium text-gray-900">{{ importPreviewRows.length }} course row(s) ready to import</p>
+            <p class="mt-1 text-gray-600">{{ importPreviewSectionCount }} section(s)</p>
+          </div>
+          <div v-if="importResult" class="rounded-md border border-gray-200 bg-white p-3 text-sm space-y-1">
+            <p class="font-medium text-gray-900">Import complete</p>
+            <p>Sections created: {{ importResult.sectionsCreated }} · updated: {{ importResult.sectionsUpdated }}</p>
+            <p>Courses added: {{ importResult.itemsCreated }} · skipped (duplicate): {{ importResult.itemsSkipped }}</p>
+            <p v-if="importResult.coursesCreated">New catalog courses: {{ importResult.coursesCreated }}</p>
+            <ul v-if="importResult.warnings?.length" class="mt-2 list-disc pl-5 text-amber-800">
+              <li v-for="(w, i) in importResult.warnings" :key="`w-${i}`">{{ w }}</li>
+            </ul>
+            <ul v-if="importResult.errors?.length" class="mt-2 list-disc pl-5 text-red-700">
+              <li v-for="(e, i) in importResult.errors" :key="`e-${i}`">{{ e }}</li>
+            </ul>
+          </div>
+          <p v-if="importError" class="text-sm text-red-600">{{ importError }}</p>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <button
+            type="button"
+            class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+            :disabled="importPending"
+            @click="importModalOpen = false"
+          >
+            Close
+          </button>
+          <button
+            type="button"
+            class="rounded-md bg-[rgba(13,94,130,1)] px-3 py-1.5 text-sm font-medium text-white hover:bg-[rgba(10,69,92,1)] disabled:opacity-50"
+            :disabled="importPending || !importDegreeId || !importPreviewRows.length || importParseErrors.length > 0"
+            @click="runImport"
+          >
+            {{ importPending ? 'Importing…' : 'Import' }}
+          </button>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
 
 <script setup lang="ts">
+import {
+  downloadDegreeMapCsvTemplate,
+  parseDegreeMapCsv,
+  type DegreeMapCsvRow,
+} from '@shared/degreeMapCsv'
 interface DegreeBundle {
   degree?: { id?: number; name?: string; title?: string; catalogYear?: string }
   specializations?: Array<{ id: number; name?: string; title?: string; order?: number }>
@@ -1136,5 +1250,98 @@ function loadBundleById(id: number) {
     .finally(() => {
       bundlePending.value = false
     })
+}
+
+type DegreeMapImportSummary = {
+  sectionsCreated: number
+  sectionsUpdated: number
+  itemsCreated: number
+  itemsSkipped: number
+  coursesCreated: number
+  errors: string[]
+  warnings: string[]
+}
+
+const importModalOpen = ref(false)
+const importDegreeId = ref<number | null>(null)
+const importCsvText = ref('')
+const importPreviewRows = ref<DegreeMapCsvRow[]>([])
+const importParseErrors = ref<string[]>([])
+const importCreateMissingCourses = ref(false)
+const importPending = ref(false)
+const importError = ref<string | null>(null)
+const importResult = ref<DegreeMapImportSummary | null>(null)
+
+const importPreviewSectionCount = computed(() => {
+  const names = new Set(importPreviewRows.value.map((r) => r.sectionName.trim().toLowerCase()))
+  return names.size
+})
+
+function openImportModal(degreeId?: number | null) {
+  importError.value = null
+  importResult.value = null
+  importCsvText.value = ''
+  importPreviewRows.value = []
+  importParseErrors.value = []
+  importCreateMissingCourses.value = false
+  importDegreeId.value =
+    degreeId != null && Number.isFinite(degreeId)
+      ? degreeId
+      : selectedDegreeId.value != null
+        ? selectedDegreeId.value
+        : null
+  importModalOpen.value = true
+}
+
+function downloadTemplate() {
+  downloadDegreeMapCsvTemplate()
+}
+
+async function onImportFileChange(event: Event) {
+  importError.value = null
+  importResult.value = null
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) {
+    importPreviewRows.value = []
+    importParseErrors.value = []
+    importCsvText.value = ''
+    return
+  }
+  const text = await file.text()
+  importCsvText.value = text
+  const parsed = parseDegreeMapCsv(text)
+  importParseErrors.value = parsed.errors
+  importPreviewRows.value = parsed.rows
+}
+
+async function runImport() {
+  if (!importDegreeId.value || !importPreviewRows.value.length) return
+  importPending.value = true
+  importError.value = null
+  importResult.value = null
+  try {
+    const res = await $fetch<{ summary?: DegreeMapImportSummary }>('/api/degrees/import-csv', {
+      method: 'POST',
+      body: {
+        degreeId: importDegreeId.value,
+        rows: importPreviewRows.value,
+        createMissingCourses: importCreateMissingCourses.value,
+      },
+    })
+    importResult.value = res?.summary ?? null
+    await fetchDegreesList()
+    if (selectedDegreeId.value === importDegreeId.value) {
+      await loadBundleById(importDegreeId.value)
+    }
+  } catch (err: any) {
+    const dataErrors = err?.data?.errors
+    if (Array.isArray(dataErrors)) {
+      importParseErrors.value = dataErrors.map(String)
+    }
+    importError.value = err?.data?.message ?? err?.statusMessage ?? err?.message ?? 'Import failed.'
+  } finally {
+    importPending.value = false
+  }
 }
 </script>

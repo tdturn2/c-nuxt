@@ -2,6 +2,13 @@
   <div class="flex min-h-screen items-center justify-center">
     <div class="text-center">
       <h1 class="text-2xl font-bold mb-4">Sign In</h1>
+      <div
+        v-if="authError"
+        class="mb-6 max-w-md mx-auto rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-left text-sm text-red-900"
+      >
+        <p class="font-semibold">Sign-in failed</p>
+        <p class="mt-1">{{ authError }}</p>
+      </div>
       <p class="mb-6" v-if="isRedirecting">Redirecting to Microsoft Entra...</p>
       <p class="mb-6" v-else>Click the button below to sign in with Microsoft Entra</p>
       <form 
@@ -37,6 +44,28 @@ const route = useRoute()
 const isRedirecting = ref(false)
 const signInForm = ref<HTMLFormElement | null>(null)
 const csrfToken = ref<string>('')
+const authErrorMessages: Record<string, string> = {
+  Configuration: 'Auth is misconfigured on the server (check AUTH base URL and secrets).',
+  AccessDenied: 'Access was denied. Your account may not be allowed to use this app.',
+  Verification: 'The sign-in link is no longer valid. Try again.',
+  OAuthSignin: 'Could not start Microsoft sign-in. Try again.',
+  OAuthCallback:
+    'Microsoft accepted your login, but Connect could not finish sign-in. The usual cause is an expired AUTH_AZURE_AD_CLIENT_SECRET — create a new client secret in Entra and update connect/.env (and Vercel).',
+  OAuthCreateAccount: 'Could not create your account after sign-in.',
+  EmailCreateAccount: 'Could not create your account.',
+  Callback: 'Sign-in callback failed. Try again.',
+  OAuthAccountNotLinked: 'This Microsoft account is not linked to an existing user.',
+  SessionRequired: 'Please sign in to continue.',
+  Default: 'Sign-in failed. Try again or contact support.',
+}
+
+const authError = computed(() => {
+  const raw = route.query.error
+  const code = Array.isArray(raw) ? raw[0] : raw
+  if (!code || typeof code !== 'string') return ''
+  return authErrorMessages[code] || authErrorMessages.Default
+})
+
 const callbackUrl = computed(() => {
   const raw = route.query.callbackUrl
   const value = Array.isArray(raw) ? raw[0] : raw

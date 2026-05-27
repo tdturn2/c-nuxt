@@ -1,11 +1,28 @@
 <template>
   <header class="border-b border-white/10 bg-gradient-to-r from-[rgba(13,94,130,1)] to-[rgba(10,69,92,1)] sticky top-0 z-50">
-    <div class="w-full flex items-center justify-between min-h-[60px] px-3 md:px-4">
+    <div class="w-full relative flex items-center justify-between min-h-[60px] px-3 md:px-4">
       
       <div class="flex items-center h-full gap-6 shrink-0">
         <NuxtLink to="/" class="flex items-center h-full" noPrefetch>
-          <img :src="connectLogoWide" alt="Logo" class="block w-[250px] h-auto pb-1" />
+          <img :src="connectLogoWide" alt="Logo" class="block h-9 w-auto" />
         </NuxtLink>
+      </div>
+
+      <div
+        v-if="isSignedIn"
+        class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 px-2 md:px-4 w-full flex justify-center pointer-events-none"
+      >
+        <button
+          type="button"
+          class="pointer-events-auto inline-flex h-9 items-center gap-2 rounded-md bg-white/10 hover:bg-white/15 text-white/95 px-3 text-sm transition-colors w-full max-w-lg min-w-0"
+          aria-label="Search the site"
+          @click="openSiteSearch"
+        >
+          <UIcon name="i-lucide-search" class="w-4 h-4 text-white/80 shrink-0" />
+          <span class="truncate hidden sm:inline">Search departments, resources, and people…</span>
+          <span class="truncate sm:hidden">Search…</span>
+          <span class="ml-auto text-[11px] text-white/70 hidden lg:inline shrink-0">⌘K</span>
+        </button>
       </div>
       
       <!-- Center nav: Home, Marketplace, Jobs -->
@@ -26,7 +43,7 @@
         </NuxtLink>
       </nav> -->
       
-      <div v-if="isSignedIn" class="ml-auto flex items-center justify-end gap-1 relative z-[1] rounded-t-md">
+      <div v-if="isSignedIn" class="flex items-center justify-end gap-1 relative z-[1] rounded-t-md">
         <!-- Grid Icon Dropdown -->
         <UNavigationMenu 
           :items="gridMenuItems" 
@@ -149,7 +166,12 @@ import PostModal from './PostModal.vue'
 import connectLogoWide from '../../assets/connect-logo.svg'
 
 const route = useRoute()
+const { open: openSiteSearchModal } = useContentSearch()
 const { activeTab } = useFeedFilter()
+
+function openSiteSearch() {
+  openSiteSearchModal.value = true
+}
 
 const centerNavItems = [
   { to: '/', icon: 'i-heroicons-home', label: 'Home' },
@@ -176,6 +198,7 @@ const { fetchUser } = useUsers()
 const { data: session, getCsrfToken } = useAuth()
 const { user: meUser } = useMe()
 const isSignedIn = computed(() => Boolean(session.value?.user?.email))
+
 const handleSignOut = async () => {
   try {
     // Get CSRF token the same way as on the signin page

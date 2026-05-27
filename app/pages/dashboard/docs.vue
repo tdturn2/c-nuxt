@@ -266,13 +266,16 @@
                   class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-[rgba(13,94,130,1)] focus:outline-none focus:ring-1 focus:ring-[rgba(13,94,130,1)] disabled:bg-gray-100 disabled:text-gray-500"
                   :disabled="!!editingId"
                 >
-                  <option value="">Select section…</option>
+                  <option value="">None (admin-only editing)</option>
                   <option v-for="opt in sectionOptions" :key="opt.id" :value="String(opt.id)">
                     {{ opt.label }}
                   </option>
                 </select>
                 <p v-if="editingId" class="mt-1 text-xs text-gray-500">
                   Section cannot be changed here.
+                </p>
+                <p v-else class="mt-1 text-xs text-gray-500">
+                  Optional. Leave empty for pages only Connect admins can edit.
                 </p>
               </div>
               <div>
@@ -1937,10 +1940,6 @@ async function savePage() {
   }
   if (!form.value.slug.trim()) {
     saveError.value = 'Slug is required.'
-    return
-  }
-  if (!editingId.value && !isConnectAdmin.value && !form.value.sectionId) {
-    saveError.value = 'Section is required.'
     return
   }
   if (!form.value.parentId && !form.value.navCategory) {

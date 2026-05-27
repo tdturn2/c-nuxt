@@ -10,6 +10,11 @@ export const CONNECT_PAGE_CATEGORIES = [
 
 export type ConnectPageCategory = typeof CONNECT_PAGE_CATEGORIES[number]['value']
 
+/** Top-level audience hub pages: footer nav only, excluded from Departments menu. */
+export const AUDIENCE_HUB_SLUGS = ['faculty', 'staff', 'students'] as const
+
+export type AudienceHubSlug = (typeof AUDIENCE_HUB_SLUGS)[number]
+
 export type ConnectPageNode = {
   id: number | string
   title?: string | null
@@ -21,6 +26,16 @@ export type ConnectPageNode = {
   order?: number | null
   updatedAt?: string
   createdAt?: string
+}
+
+export function normalizeConnectPageSlug(slug: unknown): string {
+  return (slug ?? '').toString().trim().toLowerCase().replace(/^\/+|\/+$/g, '')
+}
+
+export function isAudienceHubRootPage(page: Pick<ConnectPageNode, 'slug' | 'parentId'>): boolean {
+  if (page.parentId) return false
+  const normalized = normalizeConnectPageSlug(page.slug)
+  return (AUDIENCE_HUB_SLUGS as readonly string[]).includes(normalized)
 }
 
 type TreeNode = {
@@ -208,6 +223,7 @@ export function buildConnectPageCategoryNavItems(rawPages: any[]): NavigationMen
   for (const c of CONNECT_PAGE_CATEGORIES) grouped.set(c.value, [])
 
   for (const rootNode of tree) {
+    if (isAudienceHubRootPage(rootNode.page)) continue
     const category = getEffectiveCategory(rootNode.page)
     if (!category) continue
     const item = toMenuItem(rootNode)

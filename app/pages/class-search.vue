@@ -567,6 +567,7 @@ const rangeEnd = computed(() =>
 watch([searchQuery, () => selectedCategory.value, () => selectedFaculty.value, () => selectedLocation.value], () => {
   currentPage.value = 1
 })
+
 watch(termSlug, () => {
   selectedCategory.value = courseCategoryOptions[0] ?? defaultCourseCategory
   selectedFaculty.value = { label: 'All faculty', value: '' }

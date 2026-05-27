@@ -160,11 +160,7 @@ const mainNavItems = computed<NavigationMenuItem[]>(() => [
     label: 'Marketplace',
     icon: 'i-heroicons-shopping-bag',
     to: '/marketplace'
-  }
-  // { label: 'Faculty Resources', icon: 'i-lucide-message-circle', to: '/faculty' },
-  // { label: 'Staff Resources', icon: 'i-lucide-info', to: '/staff' },
-
-
+  },
 ])
 
 const filteredMainNavItems = computed(() =>
@@ -180,9 +176,31 @@ const filteredMainNavItems = computed(() =>
     })
 )
 
-const footerNavItems: NavigationMenuItem[] = [
-  
-]
+const isAudienceHubActive = (slug: string) => {
+  const base = `/${slug}`
+  return route.path === base || route.path.startsWith(`${base}/`)
+}
+
+const footerNavItems = computed<NavigationMenuItem[]>(() => [
+  {
+    label: 'Faculty',
+    icon: 'i-heroicons-academic-cap',
+    to: '/faculty',
+    active: isAudienceHubActive('faculty'),
+  },
+  {
+    label: 'Staff',
+    icon: 'i-heroicons-briefcase',
+    to: '/staff',
+    active: isAudienceHubActive('staff'),
+  },
+  {
+    label: 'Students',
+    icon: 'i-lucide-graduation-cap',
+    to: '/students',
+    active: isAudienceHubActive('students'),
+  },
+])
 </script>
 
 <template>
@@ -241,9 +259,19 @@ const footerNavItems: NavigationMenuItem[] = [
             class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
           />
         </div>
-        <div v-if="footerNavItems.length" class="w-full border-t border-gray-200 bg-gray-50/80 pt-3 pb-2 px-2">
+        <div
+          v-if="footerNavItems.length"
+          class="w-full shrink-0 border-t border-gray-200 bg-gray-50/80 pt-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] px-2"
+        >
+          <p class="px-2 pb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+            Resources
+          </p>
           <UNavigationMenu
             :items="footerNavItems"
+            :ui="{
+              link: 'font-medium data-[active=true]:text-gray-900 data-[active=true]:bg-gold/15 aria-[current=page]:text-gray-900',
+              linkLeadingIcon: 'group-data-[active=true]:text-gold group-aria-[current=page]:text-gold',
+            }"
             orientation="vertical"
           />
         </div>

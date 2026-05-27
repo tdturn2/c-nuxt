@@ -3,10 +3,8 @@ import { syncUserToPayload } from '../../utils/syncUser'
 
 const authSecret = useRuntimeConfig().authSecret
 if (!authSecret || String(authSecret).trim().length < 32) {
-  throw new Error('Missing or invalid NUXT_AUTH_SECRET for Nuxt Auth (must be >= 32 chars)')
+  throw new Error('Missing or invalid AUTH_SECRET / NUXT_AUTH_SECRET for Nuxt Auth (must be >= 32 chars)')
 }
-const isProduction = process.env.NODE_ENV === 'production'
-const sessionCookieName = isProduction ? '__Secure-connect.session-token' : 'connect.session-token'
 
 export default NuxtAuthHandler({
   secret: authSecret,
@@ -22,12 +20,13 @@ export default NuxtAuthHandler({
   },
   cookies: {
     sessionToken: {
-      name: sessionCookieName,
+      // Keep the cookie name that was used for months (Apr 2026 rename broke existing sessions).
+      name: 'next-auth.session-token',
       options: {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: isProduction
+        secure: process.env.NODE_ENV === 'production'
       }
     }
   },

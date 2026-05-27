@@ -14,6 +14,7 @@
       <Footer class="flex-shrink-0" />
       <NuxtRouteAnnouncer />
     </div>
+    <AppContentSearch />
     <!-- Audio Player using Howler -->
     <AudioPlayer />
     <!-- Video Player (Plyr + Vimeo) fixed at bottom -->

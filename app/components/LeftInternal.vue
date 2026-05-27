@@ -117,7 +117,7 @@ const footerNavItems: NavigationMenuItem[] = [
     </template>
 
     <template #footer="{ collapsed }">
-      <div v-if="!collapsed" class="w-full border-t border-gray-200 bg-gray-50/80 pt-3 pb-2 px-2">
+      <div v-if="!collapsed" class="w-full border-t border-gray-200 bg-gray-50/80 pt-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] px-2">
         <UNavigationMenu
           :collapsed="collapsed"
           :items="footerNavItems"
