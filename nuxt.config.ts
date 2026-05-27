@@ -51,7 +51,7 @@ export default defineNuxtConfig({
   alias: {
     '@shared': join(projectDir, 'shared'),
   },
-  modules: ['@nuxt/ui', '@nuxt/image', '@sidebase/nuxt-auth', '@nuxt/content'],
+  modules: ['@nuxt/ui', '@nuxt/image', '@sidebase/nuxt-auth'],
   image: {
     domains: nuxtImageDomains,
     format: ['webp'],

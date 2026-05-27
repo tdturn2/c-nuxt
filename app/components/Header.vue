@@ -166,7 +166,7 @@ import PostModal from './PostModal.vue'
 import connectLogoWide from '../../assets/connect-logo.svg'
 
 const route = useRoute()
-const { open: openSiteSearchModal } = useContentSearch()
+const { open: openSiteSearchModal } = useSiteSearchModal()
 const { activeTab } = useFeedFilter()
 
 function openSiteSearch() {
