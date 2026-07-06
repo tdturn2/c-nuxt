@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
-import { buildConnectPageCategoryNavItems, fetchAllConnectPages } from '~/composables/useConnectPagesTree'
+import {
+  buildConnectPageCategoryNavItems,
+  CONNECT_PAGES_TREE_KEY,
+  fetchAllConnectPages,
+} from '~/composables/useConnectPagesTree'
 
 const route = useRoute()
 const { asideWidthPx, collapsed, toggleCollapsed, startResize } = useSidebar()
@@ -10,11 +14,11 @@ const isInternalActive = computed(() =>
   route.path.startsWith('/internal/')
 )
 
-const { data: internalPagesData } = await useAsyncData<any>('left-column-internal-pages', () => fetchAllConnectPages({
+const { data: internalPagesData } = useAsyncData<any>(CONNECT_PAGES_TREE_KEY, () => fetchAllConnectPages({
   limit: 100,
   depth: 2,
   sort: 'order,title',
-}))
+}), { lazy: true })
 
 const internalDepartmentsItems = computed<NavigationMenuItem[]>(() => {
   const docs = Array.isArray(internalPagesData.value?.docs) ? internalPagesData.value.docs : []

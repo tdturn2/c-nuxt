@@ -10,6 +10,9 @@ export const CONNECT_PAGE_CATEGORIES = [
 
 export type ConnectPageCategory = typeof CONNECT_PAGE_CATEGORIES[number]['value']
 
+/** Shared Nuxt payload key so sidebar + catchall page reuse one tree fetch. */
+export const CONNECT_PAGES_TREE_KEY = 'connect-pages-tree'
+
 /** Top-level audience hub pages: footer nav only, excluded from Departments menu. */
 export const AUDIENCE_HUB_SLUGS = ['faculty', 'staff', 'students'] as const
 
@@ -172,7 +175,12 @@ export function buildConnectPageNavItems(rawPages: any[]): NavigationMenuItem[] 
     const children = node.children.map(toMenuItem).filter((i): i is NavigationMenuItem => i != null)
     if (!path && !children.length) return null
     const out: NavigationMenuItem = { label }
-    if (path) out.to = path
+    if (path) {
+      out.to = path
+      // Nuxt UI's NavigationMenu treats items-with-children as "groups" and may not navigate on click.
+      // Ensure parents can still be clicked to navigate to their own landing page.
+      out.onSelect = () => navigateTo(path)
+    }
     if (children.length) out.children = children
     return out
   }
@@ -214,7 +222,11 @@ export function buildConnectPageCategoryNavItems(rawPages: any[]): NavigationMen
     const children = node.children.map(toMenuItem).filter((i): i is NavigationMenuItem => i != null)
     if (!path && !children.length) return null
     const out: NavigationMenuItem = { label }
-    if (path) out.to = path
+    if (path) {
+      out.to = path
+      // Same reasoning as buildConnectPageNavItems: parent pages should be clickable even if they have children.
+      out.onSelect = () => navigateTo(path)
+    }
     if (children.length) out.children = children
     return out
   }
@@ -286,6 +298,49 @@ export function findConnectPageByPath(rawPages: any[], path: string) {
   const { pathById } = buildPagePathMap(pages)
   const match = pages.find((p) => pathById.get(String(p.id)) === normalizedPath)
   return match || null
+}
+
+export function hasRenderableConnectPageContent(content: unknown): boolean {
+  if (content == null) return false
+  if (typeof content === 'string') return content.trim().length > 0
+  if (typeof content !== 'object') return false
+  const c = content as Record<string, unknown>
+  if (typeof c.html === 'string') return c.html.trim().length > 0
+  const root = c.root as Record<string, unknown> | undefined
+  if (root && Array.isArray(root.children) && root.children.length > 0) return true
+  return false
+}
+
+/** True when the list/tree payload already has enough to render without a per-page fetch. */
+export function connectPageHasUsableDetail(doc: unknown): boolean {
+  if (!doc || typeof doc !== 'object') return false
+  const page = doc as ConnectPageNode & { contacts?: unknown; contactsHeading?: unknown }
+  if (hasRenderableConnectPageContent(page.content)) return true
+  if (Array.isArray(page.contacts) && page.contacts.length > 0) return true
+  if (typeof page.contactsHeading === 'string' && page.contactsHeading.trim()) return true
+  return false
+}
+
+export function getDirectChildConnectPages(
+  rawPages: any[],
+  parentId: string | number,
+): Array<{ id: string; title: string; path: string }> {
+  const docs = rawPages.map(normalizeConnectPage)
+  const { pathById } = buildPagePathMap(docs)
+  const currentId = String(parentId)
+  return docs
+    .filter((doc) => doc.parentId === currentId)
+    .sort(sortPages)
+    .map((doc) => {
+      const path = pathById.get(String(doc.id))
+      if (!path) return null
+      return {
+        id: String(doc.id),
+        title: (doc.title || doc.slug || `#${doc.id}`).toString(),
+        path,
+      }
+    })
+    .filter((doc): doc is { id: string; title: string; path: string } => doc != null)
 }
 
 export function getConnectPageBreadcrumbLabel(rawPages: any[], pageId: string | number): string {
