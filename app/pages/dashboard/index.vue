@@ -25,7 +25,7 @@
         <template v-else>
           <div class="grid gap-4 sm:grid-cols-2">
             <NuxtLink
-              v-for="section in sections"
+              v-for="section in visibleSections"
               :key="section.to"
               :to="section.to"
               class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm hover:shadow-md hover:border-gray-300 transition"
@@ -60,12 +60,41 @@ const { data: me, pending: mePending } = await useFetch<any>('/api/users/me', {
   key: 'dashboard-index-me',
 })
 
+const { data: connectUserData, execute: loadConnectUser } = await useFetch<any>('/api/connect-users/me', {
+  key: 'dashboard-index-connect-user',
+  immediate: false,
+})
+
 const canManageDashboard = computed(() => {
   const user = me.value
   if (!user) return false
   const roles: string[] = Array.isArray(user.roles) ? user.roles : []
   return roles.some((r) => String(r).toLowerCase() === 'staff')
 })
+
+const canManageAdmin = computed(() => {
+  const roles: string[] = [
+    ...(Array.isArray(connectUserData.value?.doc?.roles) ? connectUserData.value.doc.roles : []),
+    ...(Array.isArray(connectUserData.value?.doc?.fields?.roles) ? connectUserData.value.doc.fields.roles : []),
+    ...(Array.isArray(me.value?.roles) ? me.value.roles : []),
+  ]
+    .map((role) => String(role || '').trim().toLowerCase())
+    .filter(Boolean)
+
+  if (roles.includes('admin')) return true
+
+  const groups = Array.isArray(connectUserData.value?.doc?.groups) ? connectUserData.value.doc.groups : []
+  return groups.some((group: any) => {
+    const slug = String(group?.slug || '').trim().toLowerCase()
+    const name = String(group?.name || '').trim().toLowerCase()
+    const tag = `${slug} ${name}`.trim()
+    return tag === 'admin' || tag.includes('admin ') || tag.includes(' admin') || tag.includes('connect-admin') || tag.includes('connect admin')
+  })
+})
+
+watch(canManageDashboard, (allowed) => {
+  if (allowed) loadConnectUser()
+}, { immediate: true })
 
 const sections = [
   {
@@ -117,10 +146,28 @@ const sections = [
     icon: 'i-lucide-user-round-pen',
   },
   {
+    title: 'Faculty Publications',
+    description: 'Manage publication records for faculty members.',
+    to: '/dashboard/faculty-publications',
+    icon: 'i-lucide-book-open',
+    adminOnly: true,
+  },
+  {
+    title: 'Featured Publications',
+    description: 'Choose homepage featured book covers in connect-settings.',
+    to: '/dashboard/featured-publications',
+    icon: 'i-lucide-star',
+    adminOnly: true,
+  },
+  {
     title: 'Form Results',
     description: 'Review incoming form submissions and exported responses.',
     to: '/dashboard/form-results',
     icon: 'i-lucide-clipboard-list',
   },
 ]
+
+const visibleSections = computed(() =>
+  sections.filter((section) => !section.adminOnly || canManageAdmin.value),
+)
 </script>

@@ -25,7 +25,42 @@
 <script setup lang="ts">
 const route = useRoute()
 
-const items = [
+const { data: me } = useFetch<any>('/api/users/me', { key: 'dashboard-sidebar-me' })
+const { data: connectUserData, execute: loadConnectUser } = useFetch<any>('/api/connect-users/me', {
+  key: 'dashboard-sidebar-connect-user',
+  immediate: false,
+})
+
+const canManageDashboard = computed(() => {
+  const roles: string[] = Array.isArray(me.value?.roles) ? me.value.roles : []
+  return roles.some((r) => String(r).toLowerCase() === 'staff')
+})
+
+const canManageAdmin = computed(() => {
+  const roles: string[] = [
+    ...(Array.isArray(connectUserData.value?.doc?.roles) ? connectUserData.value.doc.roles : []),
+    ...(Array.isArray(connectUserData.value?.doc?.fields?.roles) ? connectUserData.value.doc.fields.roles : []),
+    ...(Array.isArray(me.value?.roles) ? me.value.roles : []),
+  ]
+    .map((role) => String(role || '').trim().toLowerCase())
+    .filter(Boolean)
+
+  if (roles.includes('admin')) return true
+
+  const groups = Array.isArray(connectUserData.value?.doc?.groups) ? connectUserData.value.doc.groups : []
+  return groups.some((group: any) => {
+    const slug = String(group?.slug || '').trim().toLowerCase()
+    const name = String(group?.name || '').trim().toLowerCase()
+    const tag = `${slug} ${name}`.trim()
+    return tag === 'admin' || tag.includes('admin ') || tag.includes(' admin') || tag.includes('connect-admin') || tag.includes('connect admin')
+  })
+})
+
+watch(canManageDashboard, (allowed) => {
+  if (allowed) loadConnectUser()
+}, { immediate: true })
+
+const allItems = [
   { label: 'Dashboard Home', to: '/dashboard', icon: 'i-lucide-layout-dashboard' },
   { label: 'Users & Groups', to: '/dashboard/users', icon: 'i-lucide-users-round' },
   { label: 'Docs / Pages', to: '/dashboard/docs', icon: 'i-lucide-file-text' },
@@ -35,8 +70,14 @@ const items = [
   { label: 'Daily Eucharist', to: '/dashboard/daily-eucharist', icon: 'i-lucide-calendar-heart' },
   { label: 'Chapel', to: '/dashboard/chapel', icon: 'i-lucide-mic-vocal' },
   { label: 'Chapel Speakers', to: '/dashboard/chapel-speakers', icon: 'i-lucide-user-round-pen' },
+  { label: 'Faculty Publications', to: '/dashboard/faculty-publications', icon: 'i-lucide-book-open', adminOnly: true },
+  { label: 'Featured Publications', to: '/dashboard/featured-publications', icon: 'i-lucide-star', adminOnly: true },
   { label: 'Form Results', to: '/dashboard/form-results', icon: 'i-lucide-clipboard-list' },
 ]
+
+const items = computed(() =>
+  allItems.filter((item) => !item.adminOnly || canManageAdmin.value),
+)
 
 function isActive(path: string) {
   if (path === '/dashboard') return route.path === '/dashboard'

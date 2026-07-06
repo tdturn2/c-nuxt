@@ -15,6 +15,7 @@
       <NuxtRouteAnnouncer />
     </div>
     <AppContentSearch />
+    <AdminDashboardFab />
     <!-- Audio Player using Howler -->
     <AudioPlayer />
     <!-- Video Player (Plyr + Vimeo) fixed at bottom -->

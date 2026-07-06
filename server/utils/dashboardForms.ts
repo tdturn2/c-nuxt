@@ -78,7 +78,10 @@ function getPayloadBaseUrl() {
   )
 }
 
-export async function requireDashboardStaff(event: any): Promise<DashboardFormsAuth> {
+export async function requireDashboardStaff(
+  event: any,
+  options?: { adminOnly?: boolean },
+): Promise<DashboardFormsAuth> {
   let { email } = await authenticateWithPayloadCMS(event)
   if (!email) {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
@@ -181,9 +184,14 @@ export async function requireDashboardStaff(event: any): Promise<DashboardFormsA
 
   const groupTags = [...groupObjectTags, ...resolvedGroupTags]
   const hasConnectAdminGroup = groupTags.some((value) => isAdminGroupTag(value))
-  const hasDashboardRole = roles.includes('staff') || roles.includes('admin')
+  const hasAdminRole = roles.includes('admin')
+  const hasDashboardRole = roles.includes('staff') || hasAdminRole
 
-  if (!hasDashboardRole && !hasConnectAdminGroup) {
+  if (options?.adminOnly) {
+    if (!hasAdminRole && !hasConnectAdminGroup) {
+      throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
+    }
+  } else if (!hasDashboardRole && !hasConnectAdminGroup) {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }
 
@@ -193,6 +201,10 @@ export async function requireDashboardStaff(event: any): Promise<DashboardFormsA
     payloadSessionCookie,
     payloadBaseUrl,
   }
+}
+
+export async function requireDashboardAdmin(event: any): Promise<DashboardFormsAuth> {
+  return requireDashboardStaff(event, { adminOnly: true })
 }
 
 export function getDashboardPayloadHeaders(event: any, auth: DashboardFormsAuth, extra?: Record<string, string>) {
