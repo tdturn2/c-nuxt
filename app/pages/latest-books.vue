@@ -64,8 +64,9 @@ type LatestBook = {
   author?: string | null
 }
 
-const { data, pending, error } = await useFetch<{ books?: LatestBook[] }>('/api/books/latest', {
+const { data, pending, error } = useFetch<{ books?: LatestBook[] }>('/api/books/latest', {
   key: 'latest-books',
+  lazy: true,
 })
 
 const books = computed(() => (Array.isArray(data.value?.books) ? data.value.books : []))

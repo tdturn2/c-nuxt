@@ -230,13 +230,13 @@ type ConnectPageDoc = {
   contacts?: Array<string | number | ConnectUser> | null
 }
 
-const { data: fetchData, pending, error } = await useAsyncData<
+const { data: fetchData, pending, error } = useAsyncData<
   { docs?: ConnectPageDoc[] }
 >('connect-page-catchall-tree', () => fetchAllConnectPages({
   limit: 100,
   depth: 2,
   sort: 'order,title',
-}))
+}), { lazy: true })
 
 const page = computed(() => {
   const docs = Array.isArray(fetchData.value?.docs) ? fetchData.value.docs : []
@@ -258,7 +258,7 @@ const hasPageDetailInTree = computed(() => {
   return hasContent || hasContacts || hasContactsHeading
 })
 
-const { data: pageDetail } = await useAsyncData<any>(
+const { data: pageDetail } = useAsyncData<any>(
   () => `connect-page-detail-${currentPageId.value}`,
   async () => {
     if (!currentPageId.value) return null
@@ -267,7 +267,7 @@ const { data: pageDetail } = await useAsyncData<any>(
       query: { depth: 2 },
     })
   },
-  { watch: [currentPageId, hasPageDetailInTree] }
+  { watch: [currentPageId, hasPageDetailInTree], lazy: true },
 )
 
 const childPages = computed(() => {
@@ -364,7 +364,7 @@ const contactIdsToHydrate = computed(() => {
   return [...out]
 })
 
-const { data: hydratedContacts } = await useAsyncData<Record<string, ConnectUser>>(
+const { data: hydratedContacts } = useAsyncData<Record<string, ConnectUser>>(
   () => `connect-page-contacts-${currentPageId.value}-${contactIdsToHydrate.value.join(',')}`,
   async () => {
     const ids = contactIdsToHydrate.value
@@ -388,7 +388,7 @@ const { data: hydratedContacts } = await useAsyncData<Record<string, ConnectUser
     }))
     return Object.fromEntries(entries)
   },
-  { watch: [currentPageId, contactIdsToHydrate] },
+  { watch: [currentPageId, contactIdsToHydrate], lazy: true },
 )
 
 const contacts = computed<ConnectUser[]>(() => {

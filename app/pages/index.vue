@@ -66,8 +66,9 @@ type FeaturedBook = {
   link?: string | null
 }
 
-const { data: featuredBooksData } = await useFetch<{ books?: FeaturedBook[] }>('/api/books/featured', {
+const { data: featuredBooksData } = useFetch<{ books?: FeaturedBook[] }>('/api/books/featured', {
   key: 'connect-featured-books',
+  lazy: true,
 })
 const featuredBooks = computed(() =>
   Array.isArray(featuredBooksData.value?.books) ? featuredBooksData.value.books : []

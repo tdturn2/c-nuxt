@@ -128,12 +128,13 @@ type DailyEucharistResponse = {
 
 const config = useRuntimeConfig()
 const payloadBaseUrl = String(config.public.payloadBaseUrl || '').replace(/\/$/, '')
-const { data, pending, error } = await useFetch<{ entries?: WeekEntry[] }>('/api/chapel/current-week', {
+const { data, pending, error } = useFetch<{ entries?: WeekEntry[] }>('/api/chapel/current-week', {
   key: 'chapel-current-week',
+  lazy: true,
 })
-const { data: dailyData, pending: dailyPending, error: dailyError } = await useFetch<DailyEucharistResponse>(
+const { data: dailyData, pending: dailyPending, error: dailyError } = useFetch<DailyEucharistResponse>(
   '/api/daily-eucharist/current-week',
-  { key: 'chapel-daily-eucharist-summary' },
+  { key: 'chapel-daily-eucharist-summary', lazy: true },
 )
 
 const weekEntries = computed(() => (Array.isArray(data.value?.entries) ? data.value!.entries! : []))
