@@ -7,8 +7,27 @@
           <Timeline api-url="/api/posts" />
         </div>
         <aside class="hidden w-72 flex-shrink-0 border-l border-gray-200/80 xl:block">
-          <div class="space-y-4 px-6 pt-8">
-            <NuxtLink to="/latest-books" v-if="featuredBooks.length" class="block overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+          <div class="flex flex-col items-center space-y-8 px-6 pt-[5.25rem]">
+            <NuxtLink
+              to="/chapel"
+              class="w-full max-w-[180px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow"
+            >
+              <div class="border-b border-gray-100 px-3 py-2">
+                <h2 class="text-sm font-semibold text-gray-900">Chapel This Week</h2>
+              </div>
+              <div class="flex justify-center px-4 py-5">
+                <img
+                  src="/estes-icon.png"
+                  alt="Estes Chapel"
+                  class="w-full max-w-[96px] object-contain"
+                >
+              </div>
+            </NuxtLink>
+            <NuxtLink
+              v-if="featuredBooks.length"
+              to="/latest-books"
+              class="w-full max-w-[180px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow"
+            >
               <div class="border-b border-gray-100 px-3 py-2">
                 <h2 class="text-sm font-semibold text-gray-900">Featured Facutly Publications</h2>
               </div>
@@ -31,19 +50,18 @@
                 </div>
               </div>
             </NuxtLink>
-            <NuxtLink to="/chapel" class="block">
-              <p class="mb-2 text-center text-sm font-semibold text-gray-900">Chapel Schedule</p>
+            <NuxtLink to="/media/wesworld" class="w-full max-w-[180px]">
               <img
-                src="/estes-icon.png"
-                alt="Estes Chapel"
-                class="mx-auto w-full max-w-[145px] rounded-xl border border-gray-100 bg-white p-3 shadow-sm"
+                src="https://ats-edu.storage.googleapis.com/uploads/WesWorld-1400.png"
+                alt="WesWorld"
+                class="w-full rounded-xl border border-gray-100 bg-white p-3 shadow-sm"
               >
             </NuxtLink>
-            <NuxtLink to="/first-fruits" class="block">
+            <NuxtLink to="/first-fruits" class="w-full max-w-[180px]">
               <img
                 :src="firstFruitsLogo"
                 alt="First Fruits"
-                class="mx-auto w-full max-w-[180px] rounded-xl border border-gray-100 bg-white p-3 shadow-sm"
+                class="w-full rounded-xl border border-gray-100 bg-white p-3 shadow-sm"
               >
             </NuxtLink>
           </div>

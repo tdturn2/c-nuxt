@@ -70,6 +70,33 @@
                 </tr>
               </tbody>
             </table>
+            <div
+              v-if="!loading && totalPages > 1"
+              class="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600"
+            >
+              <p>
+                Page {{ page }} of {{ totalPages }}
+                <span v-if="totalDocs">({{ totalDocs }} episodes)</span>
+              </p>
+              <div class="flex items-center gap-2">
+                <button
+                  type="button"
+                  class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  :disabled="!hasPrevPage || loading"
+                  @click="goToPage(page - 1)"
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  :disabled="!hasNextPage || loading"
+                  @click="goToPage(page + 1)"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </div>
         </template>
       </div>
@@ -333,9 +360,16 @@ const canManageDashboard = computed(() => {
   return roles.some((r) => String(r).toLowerCase() === 'staff')
 })
 
+const EPISODES_PER_PAGE = 50
+
 const episodes = ref<ChapelEpisode[]>([])
 const speakers = ref<DashboardChapelSpeaker[]>([])
 const mediaAssets = ref<any[]>([])
+const page = ref(1)
+const totalPages = ref(1)
+const totalDocs = ref(0)
+const hasNextPage = ref(false)
+const hasPrevPage = ref(false)
 const loading = ref(false)
 const saving = ref(false)
 const error = ref<string | null>(null)
@@ -565,18 +599,44 @@ function closeSpeakerModal() {
   speakerModalOpen.value = false
 }
 
-async function loadEpisodes() {
+function applyEpisodeListMeta(res: any) {
+  episodes.value = Array.isArray(res?.docs) ? res.docs : []
+  totalDocs.value = Number.isFinite(Number(res?.totalDocs)) ? Number(res.totalDocs) : episodes.value.length
+  totalPages.value = Math.max(1, Number.isFinite(Number(res?.totalPages)) ? Number(res.totalPages) : 1)
+  hasNextPage.value = res?.hasNextPage === true
+  hasPrevPage.value = res?.hasPrevPage === true
+  if (Number.isFinite(Number(res?.page)) && Number(res.page) >= 1) {
+    page.value = Number(res.page)
+  }
+}
+
+async function loadEpisodes(targetPage = page.value) {
   if (!canManageDashboard.value) return
   loading.value = true
   error.value = null
   try {
-    const res: any = await $fetch('/api/dashboard/chapel')
-    episodes.value = Array.isArray(res?.docs) ? res.docs : []
+    const res: any = await $fetch('/api/dashboard/chapel', {
+      query: {
+        page: targetPage,
+        limit: EPISODES_PER_PAGE,
+      },
+    })
+    applyEpisodeListMeta(res)
+    if (!episodes.value.length && targetPage > 1) {
+      await loadEpisodes(targetPage - 1)
+      return
+    }
   } catch (e: any) {
     error.value = e?.message || 'Failed to load chapel episodes.'
   } finally {
     loading.value = false
   }
+}
+
+function goToPage(nextPage: number) {
+  if (nextPage < 1 || loading.value) return
+  if (totalPages.value > 0 && nextPage > totalPages.value) return
+  void loadEpisodes(nextPage)
 }
 
 async function loadSpeakers() {
@@ -681,7 +741,7 @@ async function submitEpisode() {
       success.value = 'Chapel episode created.'
     }
     closeModal()
-    await loadEpisodes()
+    await loadEpisodes(isEditing.value ? page.value : 1)
   } catch (e: any) {
     error.value = e?.message || 'Failed to save chapel episode.'
   } finally {
