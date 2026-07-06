@@ -1,19 +1,10 @@
-import { defineEventHandler, readMultipartFormData, createError, getHeader, type H3Event } from 'h3'
+import { defineEventHandler, readMultipartFormData, createError, type H3Event } from 'h3'
 import { humanizeFilename } from '@shared/humanizeFilename'
 import { authenticateWithPayloadCMS } from '../../utils/payloadAuth'
-
-/** Prefer server bearer on Vercel; otherwise forward Connect cookies + connect-users JWT. */
-function payloadRequestHeaders(event: H3Event, token: string | null, serverBearer: string): Record<string, string> {
-  const headers: Record<string, string> = {}
-  if (serverBearer) {
-    headers.Authorization = `Bearer ${serverBearer}`
-    return headers
-  }
-  const cookie = getHeader(event, 'cookie')
-  if (cookie) headers.Cookie = cookie
-  if (token) headers.Authorization = `Bearer ${token}`
-  return headers
-}
+import {
+  getDashboardPayloadHeaders,
+  requireDashboardStaff,
+} from '../../utils/dashboardForms'
 
 function payloadOrigin(raw: string): string {
   let b = raw.trim().replace(/\/+$/, '')
@@ -50,23 +41,32 @@ function pickUrlFromPayload(payloadBaseUrl: string, json: any): { id: unknown; f
   }
 }
 
+function multipartHeaders(headers: Record<string, string>): Record<string, string> {
+  const next = { ...headers }
+  delete next['Content-Type']
+  return next
+}
+
+async function postConnectPagesMedia(
+  event: H3Event,
+  uploadUrl: string,
+  body: FormData,
+  headers: Record<string, string>,
+) {
+  const res = await fetch(uploadUrl, {
+    method: 'POST',
+    headers: multipartHeaders(headers),
+    body,
+  })
+  const json = await res.json().catch(() => ({}))
+  return { res, json }
+}
+
 export default defineEventHandler(async (event) => {
+  const auth = await requireDashboardStaff(event)
   const config = useRuntimeConfig()
   const serverBearer = String(config.payloadServerBearer || '').trim()
-  const payloadBaseUrl =
-    (config.payloadBaseUrl || config.public.payloadBaseUrl || '').trim() ||
-    (import.meta.dev ? 'http://localhost:3002' : '')
-
-  if (!payloadBaseUrl) {
-    throw createError({ statusCode: 500, statusMessage: 'Missing PAYLOAD_BASE_URL' })
-  }
-
-  const origin = payloadOrigin(payloadBaseUrl)
-
-  const { token, email } = await authenticateWithPayloadCMS(event)
-  if (!email) {
-    throw createError({ statusCode: 401, statusMessage: 'Unauthorized - must be signed in to upload' })
-  }
+  const payloadBaseUrl = auth.payloadBaseUrl
 
   const formData = await readMultipartFormData(event)
   const file = formData?.find((field) => field.name === 'file')
@@ -75,7 +75,6 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'File is required' })
   }
 
-  // Collection has no title field; use `alt` as the human-readable label (accessibility + dashboard list).
   const explicitAlt = formData?.find((field) => field.name === 'alt')?.data?.toString('utf-8')?.trim()
   const originalName = file.filename || 'upload'
   const resolvedAlt = explicitAlt || humanizeFilename(originalName)
@@ -85,39 +84,85 @@ export default defineEventHandler(async (event) => {
   fd.append('file', blob, originalName)
   fd.append('_payload', JSON.stringify({ alt: resolvedAlt }))
 
-  const headers = payloadRequestHeaders(event, token, serverBearer)
-  if (!serverBearer && !token && !getHeader(event, 'cookie')) {
-    throw createError({
-      statusCode: 401,
-      statusMessage:
-        'No Payload credentials to forward (missing connect-users token and Cookie header). Ensure /api/connect-users/sync returns a token or Payload session cookies are sent to Connect.',
+  const uploadUrl = `${payloadBaseUrl}/api/connect-pages-media`
+  const attempts: Array<{ label: string; headers: Record<string, string> }> = [
+    {
+      label: 'dashboard-token',
+      headers: getDashboardPayloadHeaders(event, auth, {}),
+    },
+  ]
+
+  if (serverBearer) {
+    attempts.push({
+      label: 'server-bearer',
+      headers: { Authorization: `Bearer ${serverBearer}` },
     })
   }
 
-  const res = await fetch(`${origin}/api/connect-pages-media`, {
-    method: 'POST',
-    headers,
-    body: fd,
+  let lastStatus = 403
+  let lastJson: any = {}
+
+  for (const attempt of attempts) {
+    const { res, json } = await postConnectPagesMedia(event, uploadUrl, fd, attempt.headers)
+    if (res.ok) {
+      const { id, filename, url } = pickUrlFromPayload(payloadBaseUrl, json)
+      if (!url) {
+        throw createError({
+          statusCode: 500,
+          statusMessage: 'Upload succeeded but no file URL was returned',
+          data: json,
+        })
+      }
+      return { id, filename, url }
+    }
+
+    lastStatus = res.status
+    lastJson = json
+    if (res.status !== 403) {
+      throw createError({
+        statusCode: res.status,
+        statusMessage: res.statusText || 'Failed to upload connect-pages-media',
+        data: json,
+      })
+    }
+  }
+
+  const refreshed = await authenticateWithPayloadCMS(event).catch(() => null)
+  if (refreshed?.token || refreshed?.payloadSessionCookie) {
+    const { res, json } = await postConnectPagesMedia(
+      event,
+      uploadUrl,
+      fd,
+      getDashboardPayloadHeaders(event, {
+        token: refreshed.token,
+        payloadSessionCookie: refreshed.payloadSessionCookie,
+      }, {}),
+    )
+    if (res.ok) {
+      const { id, filename, url } = pickUrlFromPayload(payloadBaseUrl, json)
+      if (!url) {
+        throw createError({
+          statusCode: 500,
+          statusMessage: 'Upload succeeded but no file URL was returned',
+          data: json,
+        })
+      }
+      return { id, filename, url }
+    }
+    lastStatus = res.status
+    lastJson = json
+  }
+
+  throw createError({
+    statusCode: lastStatus || 403,
+    statusMessage: lastJson?.errors?.[0]?.message || 'Failed to upload connect-pages-media',
+    data: {
+      ...lastJson,
+      hint: serverBearer
+        ? 'Payload rejected both dashboard token and PAYLOAD_SERVER_BEARER for connect-pages-media create. Ensure PAYLOAD_SERVER_BEARER is a valid Payload admin (users collection) API token.'
+        : 'Payload rejected dashboard token for connect-pages-media create. Set PAYLOAD_SERVER_BEARER on Vercel to a Payload admin (users collection) API token.',
+      hasServerBearer: Boolean(serverBearer),
+      attempts: attempts.map((attempt) => attempt.label),
+    },
   })
-  const json = await res.json().catch(() => ({}))
-
-  if (!res.ok) {
-    throw createError({
-      statusCode: res.status,
-      statusMessage: res.statusText || 'Failed to upload connect-pages-media',
-      data: json,
-    })
-  }
-
-  const { id, filename, url } = pickUrlFromPayload(payloadBaseUrl, json)
-
-  if (!url) {
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Upload succeeded but no file URL was returned',
-      data: json,
-    })
-  }
-
-  return { id, filename, url }
 })
