@@ -6,6 +6,7 @@ import {
 } from '~/composables/useConnectPagesTree'
 
 const route = useRoute()
+const isHome = computed(() => route.path === '/')
 const { asideWidthPx, collapsed, toggleCollapsed, startResize } = useSidebar()
 const menuSearchQuery = ref('')
 const isInternalActive = computed(() =>
@@ -204,7 +205,8 @@ const footerNavItems = computed<NavigationMenuItem[]>(() => [
 
 <template>
   <aside
-    class="sidebar-aside sticky top-[3.75rem] self-start flex-shrink-0 h-[calc(100vh-3.75rem)] flex items-stretch border-r border-gray-200 bg-white transition-[width] duration-200 ease-out"
+    class="sidebar-aside sticky top-[3.75rem] self-start flex-shrink-0 flex items-stretch border-r border-gray-200 bg-white transition-[width] duration-200 ease-out"
+    :class="isHome ? 'h-full' : 'h-[calc(100vh-3.75rem)]'"
     :style="{ width: `${asideWidthPx}px` }"
   >
     <!-- Collapsed: show only expand button -->
