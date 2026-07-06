@@ -156,11 +156,11 @@ const mainNavItems = computed<NavigationMenuItem[]>(() => [
     icon: 'i-heroicons-briefcase',
     to: '/jobs'
   },
-  {
-    label: 'Marketplace',
-    icon: 'i-heroicons-shopping-bag',
-    to: '/marketplace'
-  },
+  // {
+  //   label: 'Marketplace',
+  //   icon: 'i-heroicons-shopping-bag',
+  //   to: '/marketplace'
+  // },
 ])
 
 const filteredMainNavItems = computed(() =>
