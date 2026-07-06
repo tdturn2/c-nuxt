@@ -2,8 +2,7 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
 import {
   buildConnectPageCategoryNavItems,
-  CONNECT_PAGES_TREE_KEY,
-  fetchAllConnectPages,
+  useConnectPagesTreeData,
 } from '~/composables/useConnectPagesTree'
 
 const route = useRoute()
@@ -53,11 +52,7 @@ function filterMenuByLabel(item: NavigationMenuItem, query: string): NavigationM
   return labelMatch ? item : null
 }
 
-const { data: pagesData } = useAsyncData<any>(CONNECT_PAGES_TREE_KEY, () => fetchAllConnectPages({
-  limit: 100,
-  depth: 2,
-  sort: 'order,title',
-}), { lazy: true })
+const { data: pagesData } = useConnectPagesTreeData()
 
 const mainNavItems = computed<NavigationMenuItem[]>(() => {
   const docs = Array.isArray(pagesData.value?.docs) ? pagesData.value.docs : []

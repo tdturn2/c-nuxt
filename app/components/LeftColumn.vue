@@ -2,8 +2,7 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
 import {
   buildConnectPageCategoryNavItems,
-  CONNECT_PAGES_TREE_KEY,
-  fetchAllConnectPages,
+  useConnectPagesTreeData,
 } from '~/composables/useConnectPagesTree'
 
 const route = useRoute()
@@ -14,11 +13,7 @@ const isInternalActive = computed(() =>
   route.path.startsWith('/internal/')
 )
 
-const { data: internalPagesData } = useAsyncData<any>(CONNECT_PAGES_TREE_KEY, () => fetchAllConnectPages({
-  limit: 100,
-  depth: 2,
-  sort: 'order,title',
-}), { lazy: true })
+const { data: internalPagesData } = useConnectPagesTreeData()
 
 const internalDepartmentsItems = computed<NavigationMenuItem[]>(() => {
   const docs = Array.isArray(internalPagesData.value?.docs) ? internalPagesData.value.docs : []

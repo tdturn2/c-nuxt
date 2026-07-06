@@ -47,19 +47,14 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
 import {
   buildConnectPageCategoryNavItems,
-  CONNECT_PAGES_TREE_KEY,
-  fetchAllConnectPages,
+  useConnectPagesTreeData,
 } from '~/composables/useConnectPagesTree'
 
 useHead({ title: 'Departments and Offices | Asbury Connect' })
 
-const { data: pagesData, pending, status } = useAsyncData<any>(CONNECT_PAGES_TREE_KEY, () => fetchAllConnectPages({
-  limit: 100,
-  depth: 2,
-  sort: 'order,title',
-}), { lazy: true })
+const { data: pagesData, pending, status } = useConnectPagesTreeData()
 
-const isTreeLoading = computed(() => pending.value || status.value === 'idle')
+const isTreeLoading = computed(() => (pending.value || status.value === 'idle') && !pagesData.value?.docs?.length)
 
 const categorySections = computed(() => {
   const docs = Array.isArray(pagesData.value?.docs) ? pagesData.value.docs : []

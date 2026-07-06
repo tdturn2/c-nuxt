@@ -1,174 +1,137 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
+import {
+  AUDIENCE_HUB_SLUGS,
+  buildPagePathMap,
+  buildPageTree,
+  CONNECT_PAGE_CATEGORIES,
+  connectPageHasUsableDetail,
+  findConnectPageByPath,
+  getConnectPageBreadcrumbLabel,
+  getDirectChildConnectPages,
+  hasRenderableConnectPageContent,
+  isAudienceHubRootPage,
+  normalizeConnectPage,
+  normalizeConnectPageLookupPath,
+  normalizeConnectPageSlug,
+  normalizeParentId,
+  sortConnectPages,
+  type AudienceHubSlug,
+  type ConnectPageCategory,
+  type ConnectPageNode,
+} from '@shared/connectPagesTreeCore'
 
-export const CONNECT_PAGE_CATEGORIES = [
-  { value: 'academic-affairs', label: 'Academic Affairs' },
-  { value: 'advancement', label: 'Advancement' },
-  { value: 'student-life-and-formation', label: 'Student Life and Formation' },
-  { value: 'enrollment-management', label: 'Enrollment Management' },
-  { value: 'finance-and-administration', label: 'Finance and Administration' },
-] as const
-
-export type ConnectPageCategory = typeof CONNECT_PAGE_CATEGORIES[number]['value']
+export {
+  AUDIENCE_HUB_SLUGS,
+  CONNECT_PAGE_CATEGORIES,
+  buildPagePathMap,
+  buildPageTree,
+  connectPageHasUsableDetail,
+  findConnectPageByPath,
+  getConnectPageBreadcrumbLabel,
+  getDirectChildConnectPages,
+  hasRenderableConnectPageContent,
+  isAudienceHubRootPage,
+  normalizeConnectPage,
+  normalizeConnectPageLookupPath,
+  normalizeConnectPageSlug,
+  normalizeParentId,
+  type AudienceHubSlug,
+  type ConnectPageCategory,
+  type ConnectPageNode,
+}
 
 /** Shared Nuxt payload key so sidebar + catchall page reuse one tree fetch. */
 export const CONNECT_PAGES_TREE_KEY = 'connect-pages-tree'
 
-/** Top-level audience hub pages: footer nav only, excluded from Departments menu. */
-export const AUDIENCE_HUB_SLUGS = ['faculty', 'staff', 'students'] as const
+const SESSION_TREE_KEY = 'connect-pages-tree-v1'
+const SESSION_TREE_TTL_MS = 15 * 60 * 1000
 
-export type AudienceHubSlug = (typeof AUDIENCE_HUB_SLUGS)[number]
+export type ConnectPagesTreeData = { docs?: any[] }
 
-export type ConnectPageNode = {
-  id: number | string
-  title?: string | null
-  slug?: string | null
-  content?: unknown
-  navCategory?: string | null
-  parent?: number | string | { id?: number | string } | null
-  parentId: string | null
-  order?: number | null
-  updatedAt?: string
-  createdAt?: string
+/** Fast nav tree: one server call, depth 0, server-side pagination + cache. */
+export async function fetchConnectPagesTree(): Promise<ConnectPagesTreeData> {
+  return await $fetch<ConnectPagesTreeData>('/api/connect-pages/tree')
 }
 
-export function normalizeConnectPageSlug(slug: unknown): string {
-  return (slug ?? '').toString().trim().toLowerCase().replace(/^\/+|\/+$/g, '')
-}
+/** @deprecated Prefer fetchConnectPagesTree for nav; still used where full depth is required. */
+export async function fetchAllConnectPages(query?: {
+  depth?: number
+  sort?: string
+  limit?: number
+}) {
+  const docs: any[] = []
+  const perPage = Math.max(1, query?.limit ?? 100)
+  const depth = query?.depth ?? 2
+  const sort = query?.sort ?? 'order,title'
+  let page = 1
+  let hasNextPage = true
+  let guard = 0
 
-export function isAudienceHubRootPage(page: Pick<ConnectPageNode, 'slug' | 'parentId'>): boolean {
-  if (page.parentId) return false
-  const normalized = normalizeConnectPageSlug(page.slug)
-  return (AUDIENCE_HUB_SLUGS as readonly string[]).includes(normalized)
-}
-
-type TreeNode = {
-  page: ConnectPageNode
-  children: TreeNode[]
-}
-
-const collator = new Intl.Collator('en', { sensitivity: 'base' })
-
-export function normalizeParentId(parent: unknown): string | null {
-  if (parent == null) return null
-  if (typeof parent === 'object') {
-    const id = (parent as { id?: number | string }).id
-    if (id == null) return null
-    return String(id)
-  }
-  return String(parent)
-}
-
-export function normalizeConnectPage(page: any): ConnectPageNode {
-  const rawCategory = typeof page?.navCategory === 'string' ? page.navCategory.trim().toLowerCase() : ''
-  const allowed = new Set<string>(CONNECT_PAGE_CATEGORIES.map((c) => c.value))
-  return {
-    ...page,
-    navCategory: allowed.has(rawCategory) ? rawCategory : null,
-    parentId: normalizeParentId(page?.parent),
-  }
-}
-
-function sortPages(a: ConnectPageNode, b: ConnectPageNode) {
-  const orderA = typeof a.order === 'number' ? a.order : Number.MAX_SAFE_INTEGER
-  const orderB = typeof b.order === 'number' ? b.order : Number.MAX_SAFE_INTEGER
-  if (orderA !== orderB) return orderA - orderB
-  return collator.compare((a.title || a.slug || '').toString(), (b.title || b.slug || '').toString())
-}
-
-export function buildPageTree(rawPages: any[]): TreeNode[] {
-  const pages = rawPages.map(normalizeConnectPage)
-  const nodesById = new Map<string, TreeNode>()
-  const roots: TreeNode[] = []
-
-  for (const page of pages) {
-    nodesById.set(String(page.id), { page, children: [] })
+  while (hasNextPage && guard < 500) {
+    const res = await $fetch<any>('/api/connect-pages', {
+      query: {
+        page,
+        limit: perPage,
+        depth,
+        sort,
+      },
+    })
+    const chunk = Array.isArray(res?.docs) ? res.docs : []
+    docs.push(...chunk)
+    hasNextPage = Boolean(res?.hasNextPage)
+    page = Number(res?.nextPage || page + 1)
+    guard += 1
   }
 
-  for (const page of pages) {
-    const node = nodesById.get(String(page.id))
-    if (!node) continue
-    if (!page.parentId) {
-      roots.push(node)
-      continue
-    }
-    const parent = nodesById.get(page.parentId)
-    if (!parent || page.parentId === String(page.id)) {
-      roots.push(node)
-      continue
-    }
-    parent.children.push(node)
-  }
-
-  const sortTree = (nodes: TreeNode[]) => {
-    nodes.sort((a, b) => sortPages(a.page, b.page))
-    nodes.forEach((n) => sortTree(n.children))
-    return nodes
-  }
-
-  return sortTree(roots)
+  return { docs }
 }
 
-export function buildPagePathMap(rawPages: any[]) {
-  const pages = rawPages.map(normalizeConnectPage)
-  const byId = new Map<string, ConnectPageNode>()
-  for (const page of pages) byId.set(String(page.id), page)
-
-  const cache = new Map<string, string | null>()
-  const makePath = (page: ConnectPageNode, stack = new Set<string>()): string | null => {
-    const pageId = String(page.id)
-    if (cache.has(pageId)) return cache.get(pageId) ?? null
-
-    const slug = (page.slug || '').toString().trim().replace(/^\/+|\/+$/g, '')
-    if (!slug) {
-      cache.set(pageId, null)
-      return null
-    }
-
-    if (!page.parentId) {
-      const out = `/${slug}`
-      cache.set(pageId, out)
-      return out
-    }
-
-    if (stack.has(pageId)) {
-      cache.set(pageId, null)
-      return null
-    }
-
-    const parent = byId.get(page.parentId)
-    if (!parent) {
-      const out = `/${slug}`
-      cache.set(pageId, out)
-      return out
-    }
-
-    stack.add(pageId)
-    const parentPath = makePath(parent, stack)
-    stack.delete(pageId)
-    if (!parentPath) {
-      const out = `/${slug}`
-      cache.set(pageId, out)
-      return out
-    }
-    const out = `${parentPath}/${slug}`
-    cache.set(pageId, out)
-    return out
+function readSessionTreeCache(): ConnectPagesTreeData | null {
+  if (!import.meta.client) return null
+  try {
+    const raw = sessionStorage.getItem(SESSION_TREE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { at?: number; docs?: any[] }
+    if (!parsed?.docs?.length || !parsed.at) return null
+    if (Date.now() - parsed.at > SESSION_TREE_TTL_MS) return null
+    return { docs: parsed.docs }
+  } catch {
+    return null
   }
+}
 
-  const pathById = new Map<string, string>()
-  for (const page of pages) {
-    const path = makePath(page)
-    if (path) pathById.set(String(page.id), path)
-  }
+function writeSessionTreeCache(data: ConnectPagesTreeData | null) {
+  if (!import.meta.client || !data?.docs?.length) return
+  try {
+    sessionStorage.setItem(SESSION_TREE_KEY, JSON.stringify({ at: Date.now(), docs: data.docs }))
+  } catch {}
+}
 
-  return { byId, pathById }
+/** Cached connect-pages tree for sidebar + department navigation. */
+export function useConnectPagesTreeData() {
+  return useAsyncData<ConnectPagesTreeData>(
+    CONNECT_PAGES_TREE_KEY,
+    async () => {
+      const data = await fetchConnectPagesTree()
+      writeSessionTreeCache(data)
+      return data
+    },
+    {
+      lazy: true,
+      getCachedData(key, nuxtApp) {
+        const fromPayload = nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+        if (fromPayload) return fromPayload as ConnectPagesTreeData
+        return readSessionTreeCache()
+      },
+    },
+  )
 }
 
 export function buildConnectPageNavItems(rawPages: any[]): NavigationMenuItem[] {
   const tree = buildPageTree(rawPages)
   const { pathById } = buildPagePathMap(rawPages)
 
-  const toMenuItem = (node: TreeNode): NavigationMenuItem | null => {
+  const toMenuItem = (node: ReturnType<typeof buildPageTree>[number]): NavigationMenuItem | null => {
     const id = String(node.page.id)
     const path = pathById.get(id)
     const label = (node.page.title || node.page.slug || '').toString().trim() || `#${id}`
@@ -177,8 +140,6 @@ export function buildConnectPageNavItems(rawPages: any[]): NavigationMenuItem[] 
     const out: NavigationMenuItem = { label }
     if (path) {
       out.to = path
-      // Nuxt UI's NavigationMenu treats items-with-children as "groups" and may not navigate on click.
-      // Ensure parents can still be clicked to navigate to their own landing page.
       out.onSelect = () => navigateTo(path)
     }
     if (children.length) out.children = children
@@ -215,7 +176,7 @@ export function buildConnectPageCategoryNavItems(rawPages: any[]): NavigationMen
     return null
   }
 
-  const toMenuItem = (node: TreeNode): NavigationMenuItem | null => {
+  const toMenuItem = (node: ReturnType<typeof buildPageTree>[number]): NavigationMenuItem | null => {
     const id = String(node.page.id)
     const path = pathById.get(id)
     const label = (node.page.title || node.page.slug || '').toString().trim() || `#${id}`
@@ -224,7 +185,6 @@ export function buildConnectPageCategoryNavItems(rawPages: any[]): NavigationMen
     const out: NavigationMenuItem = { label }
     if (path) {
       out.to = path
-      // Same reasoning as buildConnectPageNavItems: parent pages should be clickable even if they have children.
       out.onSelect = () => navigateTo(path)
     }
     if (children.length) out.children = children
@@ -250,113 +210,5 @@ export function buildConnectPageCategoryNavItems(rawPages: any[]): NavigationMen
   }))
 }
 
-export async function fetchAllConnectPages(query?: {
-  depth?: number
-  sort?: string
-  limit?: number
-}) {
-  const docs: any[] = []
-  const perPage = Math.max(1, query?.limit ?? 100)
-  const depth = query?.depth ?? 2
-  const sort = query?.sort ?? 'order,title'
-  let page = 1
-  let hasNextPage = true
-  let guard = 0
-
-  while (hasNextPage && guard < 500) {
-    const res = await $fetch<any>('/api/connect-pages', {
-      query: {
-        page,
-        limit: perPage,
-        depth,
-        sort,
-      },
-    })
-    const chunk = Array.isArray(res?.docs) ? res.docs : []
-    docs.push(...chunk)
-    hasNextPage = Boolean(res?.hasNextPage)
-    page = Number(res?.nextPage || page + 1)
-    guard += 1
-  }
-
-  return { docs }
-}
-
-/** Strip query/hash so lookups work for URLs like `/docs/page#faq` or pasted full paths. */
-export function normalizeConnectPageLookupPath(path: string) {
-  let p = typeof path === 'string' ? path.trim() : ''
-  const qi = p.indexOf('?')
-  if (qi >= 0) p = p.slice(0, qi)
-  const hi = p.indexOf('#')
-  if (hi >= 0) p = p.slice(0, hi)
-  return `/${p.replace(/^\/+|\/+$/g, '')}`.replace(/\/+/g, '/')
-}
-
-export function findConnectPageByPath(rawPages: any[], path: string) {
-  const normalizedPath = normalizeConnectPageLookupPath(path)
-  const pages = rawPages.map(normalizeConnectPage)
-  const { pathById } = buildPagePathMap(pages)
-  const match = pages.find((p) => pathById.get(String(p.id)) === normalizedPath)
-  return match || null
-}
-
-export function hasRenderableConnectPageContent(content: unknown): boolean {
-  if (content == null) return false
-  if (typeof content === 'string') return content.trim().length > 0
-  if (typeof content !== 'object') return false
-  const c = content as Record<string, unknown>
-  if (typeof c.html === 'string') return c.html.trim().length > 0
-  const root = c.root as Record<string, unknown> | undefined
-  if (root && Array.isArray(root.children) && root.children.length > 0) return true
-  return false
-}
-
-/** True when the list/tree payload already has enough to render without a per-page fetch. */
-export function connectPageHasUsableDetail(doc: unknown): boolean {
-  if (!doc || typeof doc !== 'object') return false
-  const page = doc as ConnectPageNode & { contacts?: unknown; contactsHeading?: unknown }
-  if (hasRenderableConnectPageContent(page.content)) return true
-  if (Array.isArray(page.contacts) && page.contacts.length > 0) return true
-  if (typeof page.contactsHeading === 'string' && page.contactsHeading.trim()) return true
-  return false
-}
-
-export function getDirectChildConnectPages(
-  rawPages: any[],
-  parentId: string | number,
-): Array<{ id: string; title: string; path: string }> {
-  const docs = rawPages.map(normalizeConnectPage)
-  const { pathById } = buildPagePathMap(docs)
-  const currentId = String(parentId)
-  return docs
-    .filter((doc) => doc.parentId === currentId)
-    .sort(sortPages)
-    .map((doc) => {
-      const path = pathById.get(String(doc.id))
-      if (!path) return null
-      return {
-        id: String(doc.id),
-        title: (doc.title || doc.slug || `#${doc.id}`).toString(),
-        path,
-      }
-    })
-    .filter((doc): doc is { id: string; title: string; path: string } => doc != null)
-}
-
-export function getConnectPageBreadcrumbLabel(rawPages: any[], pageId: string | number): string {
-  const pages = rawPages.map(normalizeConnectPage)
-  const byId = new Map<string, ConnectPageNode>()
-  for (const page of pages) byId.set(String(page.id), page)
-
-  const parts: string[] = []
-  let current = byId.get(String(pageId)) || null
-  const seen = new Set<string>()
-  while (current) {
-    const id = String(current.id)
-    if (seen.has(id)) break
-    seen.add(id)
-    parts.unshift((current.title || current.slug || `#${id}`).toString())
-    current = current.parentId ? (byId.get(current.parentId) || null) : null
-  }
-  return parts.join(' / ')
-}
+// Keep sortPages name for any external imports (alias).
+export const sortPages = sortConnectPages
