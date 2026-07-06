@@ -43,26 +43,23 @@ export {
 /** Shared Nuxt payload key so sidebar + catchall page reuse one tree fetch. */
 export const CONNECT_PAGES_TREE_KEY = 'connect-pages-tree'
 
-const SESSION_TREE_KEY = 'connect-pages-tree-v1'
-const SESSION_TREE_TTL_MS = 15 * 60 * 1000
+export const CONNECT_PAGES_TREE_QUERY = {
+  limit: 100,
+  depth: 2,
+  sort: 'order,title',
+} as const
 
 export type ConnectPagesTreeData = { docs?: any[] }
 
-/** Fast nav tree: one server call, depth 0, server-side pagination + cache. */
-export async function fetchConnectPagesTree(): Promise<ConnectPagesTreeData> {
-  return await $fetch<ConnectPagesTreeData>('/api/connect-pages/tree')
-}
-
-/** @deprecated Prefer fetchConnectPagesTree for nav; still used where full depth is required. */
 export async function fetchAllConnectPages(query?: {
   depth?: number
   sort?: string
   limit?: number
 }) {
   const docs: any[] = []
-  const perPage = Math.max(1, query?.limit ?? 100)
-  const depth = query?.depth ?? 2
-  const sort = query?.sort ?? 'order,title'
+  const perPage = Math.max(1, query?.limit ?? CONNECT_PAGES_TREE_QUERY.limit)
+  const depth = query?.depth ?? CONNECT_PAGES_TREE_QUERY.depth
+  const sort = query?.sort ?? CONNECT_PAGES_TREE_QUERY.sort
   let page = 1
   let hasNextPage = true
   let guard = 0
@@ -86,44 +83,12 @@ export async function fetchAllConnectPages(query?: {
   return { docs }
 }
 
-function readSessionTreeCache(): ConnectPagesTreeData | null {
-  if (!import.meta.client) return null
-  try {
-    const raw = sessionStorage.getItem(SESSION_TREE_KEY)
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as { at?: number; docs?: any[] }
-    if (!parsed?.docs?.length || !parsed.at) return null
-    if (Date.now() - parsed.at > SESSION_TREE_TTL_MS) return null
-    return { docs: parsed.docs }
-  } catch {
-    return null
-  }
-}
-
-function writeSessionTreeCache(data: ConnectPagesTreeData | null) {
-  if (!import.meta.client || !data?.docs?.length) return
-  try {
-    sessionStorage.setItem(SESSION_TREE_KEY, JSON.stringify({ at: Date.now(), docs: data.docs }))
-  } catch {}
-}
-
-/** Cached connect-pages tree for sidebar + department navigation. */
+/** Load the full connect-pages tree (depth 2) for nav + department pages. */
 export function useConnectPagesTreeData() {
   return useAsyncData<ConnectPagesTreeData>(
     CONNECT_PAGES_TREE_KEY,
-    async () => {
-      const data = await fetchConnectPagesTree()
-      writeSessionTreeCache(data)
-      return data
-    },
-    {
-      lazy: true,
-      getCachedData(key, nuxtApp) {
-        const fromPayload = nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
-        if (fromPayload) return fromPayload as ConnectPagesTreeData
-        return readSessionTreeCache()
-      },
-    },
+    () => fetchAllConnectPages({ ...CONNECT_PAGES_TREE_QUERY }),
+    { lazy: true },
   )
 }
 

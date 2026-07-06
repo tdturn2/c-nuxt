@@ -122,20 +122,6 @@ export default defineNuxtConfig({
           'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
         },
       },
-      '/api/connect-pages/tree': {
-        cors: true,
-        headers: {
-          'Access-Control-Allow-Methods': 'GET,HEAD',
-          'Cache-Control': 'private, max-age=60, stale-while-revalidate=300',
-        },
-      },
-      '/api/connect-pages/resolve-path': {
-        cors: true,
-        headers: {
-          'Access-Control-Allow-Methods': 'GET,HEAD',
-          'Cache-Control': 'private, max-age=30, stale-while-revalidate=120',
-        },
-      },
       '/api/**': { cors: true, headers: { 'Access-Control-Allow-Methods': 'GET,HEAD,PUT,PATCH,POST,DELETE' } },
     }
   },

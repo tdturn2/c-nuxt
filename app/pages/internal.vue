@@ -13,6 +13,9 @@
         </p>
 
         <div v-if="isTreeLoading" class="py-12 text-center text-gray-500">Loading...</div>
+        <div v-else-if="treeError" class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          {{ treeError }}
+        </div>
         <div v-else-if="!categorySections.length" class="py-12 text-center text-gray-500">
           No departments are available yet.
         </div>
@@ -52,9 +55,14 @@ import {
 
 useHead({ title: 'Departments and Offices | Asbury Connect' })
 
-const { data: pagesData, pending, status } = useConnectPagesTreeData()
+const { data: pagesData, pending, status, error } = useConnectPagesTreeData()
 
 const isTreeLoading = computed(() => (pending.value || status.value === 'idle') && !pagesData.value?.docs?.length)
+const treeError = computed(() => {
+  const e = error.value as any
+  if (!e) return ''
+  return e?.data?.message ?? e?.statusMessage ?? e?.message ?? 'Failed to load departments.'
+})
 
 const categorySections = computed(() => {
   const docs = Array.isArray(pagesData.value?.docs) ? pagesData.value.docs : []

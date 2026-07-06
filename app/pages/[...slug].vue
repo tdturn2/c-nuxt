@@ -7,7 +7,7 @@
     </aside>
     <main class="flex-1 min-w-0 overflow-y-auto">
       <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div v-if="isPageLoading" class="py-12 text-center text-gray-500">
+        <div v-if="isTreeLoading" class="py-12 text-center text-gray-500">
           Loading...
         </div>
         <div v-else-if="error" class="rounded-lg bg-red-50 border border-red-200 p-4 text-red-800 text-sm">
@@ -18,7 +18,7 @@
         </div>
         <article v-else>
           <h1 class="text-3xl font-bold text-gray-900 mb-6">
-            {{ page?.title }}
+            {{ effectivePage?.title || page?.title }}
           </h1>
 
           <section
@@ -134,12 +134,12 @@
               <ConnectInlineForm v-else :slug="segment.value" />
             </template>
           </div>
-          <div v-else-if="page?.content" class="prose prose-gray max-w-none text-gray-600">
+          <div v-else-if="effectivePage?.content" class="prose prose-gray max-w-none text-gray-600">
             <p>Content format is not supported for display.</p>
           </div>
 
           <p
-            v-if="!childPages.length && !renderedContentSegments.length && !contacts.length && !isPageLoading"
+            v-if="!childPages.length && !renderedContentSegments.length && !contacts.length && !isTreeLoading"
             class="text-sm text-gray-500"
           >
             Browse sub-pages in this section using the menu on the left.
@@ -153,7 +153,10 @@
 
 <script setup lang="ts">
 import {
-  normalizeConnectPageLookupPath,
+  connectPageHasUsableDetail,
+  findConnectPageByPath,
+  getDirectChildConnectPages,
+  useConnectPagesTreeData,
 } from '~/composables/useConnectPagesTree'
 import ConnectInlineForm from '~/components/forms/ConnectInlineForm.vue'
 import {
@@ -239,31 +242,18 @@ type ConnectPageDoc = {
   contacts?: Array<string | number | ConnectUser> | null
 }
 
-const normalizedPath = computed(() => normalizeConnectPageLookupPath(route.path))
+const { data: fetchData, pending, error, status } = useConnectPagesTreeData()
 
-type ResolvedConnectPage = {
-  page?: ConnectPageDoc | null
-  children?: Array<{ id: string; title: string; path: string }>
-}
-
-const { data: resolved, pending: resolvePending, error, status: resolveStatus } = useAsyncData<ResolvedConnectPage>(
-  () => `connect-page-resolve-${normalizedPath.value}`,
-  () => $fetch<ResolvedConnectPage>('/api/connect-pages/resolve-path', {
-    query: { path: normalizedPath.value },
-  }),
-  { watch: [normalizedPath], lazy: true },
-)
-
-const isPageLoading = computed(() => {
-  if (resolved.value?.page) return false
-  return resolvePending.value || resolveStatus.value === 'idle'
-})
+const isTreeLoading = computed(() => (pending.value || status.value === 'idle') && !fetchData.value?.docs?.length)
 const errorMessage = computed(() => {
   const e = error.value as any
   return e?.data?.message ?? e?.statusMessage ?? e?.message ?? 'Failed to load page.'
 })
 
-const page = computed(() => resolved.value?.page ?? null)
+const page = computed(() => {
+  const docs = Array.isArray(fetchData.value?.docs) ? fetchData.value.docs : []
+  return findConnectPageByPath(docs, route.path)
+})
 
 const currentPageId = computed(() => {
   const id = (page.value as any)?.id
@@ -271,9 +261,31 @@ const currentPageId = computed(() => {
   return String(id).trim()
 })
 
+const hasPageDetailInTree = computed(() => connectPageHasUsableDetail(page.value))
+
+const { data: pageDetail } = useAsyncData<any>(
+  () => `connect-page-detail-${currentPageId.value}`,
+  async () => {
+    if (!currentPageId.value) return null
+    if (hasPageDetailInTree.value) return page.value
+    return await $fetch(`/api/connect-pages/${encodeURIComponent(currentPageId.value)}`, {
+      query: { depth: 2 },
+    })
+  },
+  { watch: [currentPageId, hasPageDetailInTree], lazy: true },
+)
+
+const effectivePage = computed(() => {
+  const detail = pageDetail.value
+  if (detail && typeof detail === 'object') return detail
+  return page.value
+})
+
 const childPages = computed(() => {
-  const children = resolved.value?.children
-  return Array.isArray(children) ? children : []
+  const docs = Array.isArray(fetchData.value?.docs) ? fetchData.value.docs : []
+  const current = page.value
+  if (!current) return [] as Array<{ id: string; title: string; path: string }>
+  return getDirectChildConnectPages(docs, current.id)
 })
 
 function normalizeContactRef(raw: unknown): ResolvedContactRef | null {
@@ -318,7 +330,10 @@ function normalizeContactRef(raw: unknown): ResolvedContactRef | null {
 }
 
 const rawContactRefs = computed<ResolvedContactRef[]>(() => {
-  const raw = (page.value as any)?.contacts
+  const detailContacts = (pageDetail.value as any)?.contacts
+  const raw = Array.isArray(detailContacts)
+    ? detailContacts
+    : (page.value as any)?.contacts
   if (!Array.isArray(raw)) return [] as ResolvedContactRef[]
   return raw
     .map((item) => normalizeContactRef(item))
@@ -382,7 +397,11 @@ const contacts = computed<ConnectUser[]>(() => {
 })
 
 const contactsHeading = computed(() => {
-  const h = String((page.value as any)?.contactsHeading ?? '').trim()
+  const h = String(
+    (pageDetail.value as any)?.contactsHeading ??
+    (page.value as any)?.contactsHeading ??
+    '',
+  ).trim()
   return h || 'Contacts'
 })
 
@@ -951,7 +970,7 @@ function lexicalToHtml(node: any): string {
 }
 
 const contentHtml = computed(() => {
-  const c = page.value?.content as any
+  const c = effectivePage.value?.content as any
   if (!c) return ''
   if (typeof c === 'string') return c
   if (c && typeof c === 'object' && 'html' in c && typeof (c as { html: string }).html === 'string') {
@@ -1046,7 +1065,7 @@ function onContentClick(event: MouseEvent) {
 
 useHead({
   title: () => {
-    const title = page.value?.title
+    const title = effectivePage.value?.title || page.value?.title
     return title ? `${title} | Asbury Connect` : 'Asbury Connect'
   },
 })
