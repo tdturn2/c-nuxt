@@ -1,75 +1,62 @@
 <template>
   <header class="border-b border-white/10 bg-gradient-to-r from-[rgba(13,94,130,1)] to-[rgba(10,69,92,1)] sticky top-0 z-50">
-    <div class="w-full relative flex items-center justify-between min-h-[60px] px-3 md:px-4">
-      
-      <div class="flex items-center h-full gap-6 shrink-0">
-        <NuxtLink to="/" class="flex items-center h-full" noPrefetch>
-          <img :src="connectLogoWide" alt="Logo" class="block h-9 w-auto" />
+    <div class="w-full flex items-center gap-2 sm:gap-3 min-h-[60px] px-3 md:px-4">
+      <div class="flex items-center shrink-0">
+        <NuxtLink to="/" class="flex items-center" noPrefetch>
+          <img :src="connectLogoWide" alt="Logo" class="block h-8 w-auto sm:h-9" />
         </NuxtLink>
       </div>
 
       <div
         v-if="isSignedIn"
-        class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 px-2 md:px-4 w-full flex justify-center pointer-events-none"
+        class="hidden md:flex flex-1 min-w-0 justify-center px-2"
       >
         <button
           type="button"
-          class="pointer-events-auto inline-flex h-9 items-center gap-2 rounded-md bg-white/10 hover:bg-white/15 text-white/95 px-3 text-sm transition-colors w-full max-w-lg min-w-0"
+          class="inline-flex h-9 w-full max-w-lg min-w-0 items-center gap-2 rounded-md bg-white/10 px-3 text-sm text-white/95 transition-colors hover:bg-white/15"
           aria-label="Search the site"
           @click="openSiteSearch"
         >
-          <UIcon name="i-lucide-search" class="w-4 h-4 text-white/80 shrink-0" />
-          <span class="truncate hidden sm:inline">Search departments, resources, and people…</span>
-          <span class="truncate sm:hidden">Search…</span>
-          <span class="ml-auto text-[11px] text-white/70 hidden lg:inline shrink-0">⌘K</span>
+          <UIcon name="i-lucide-search" class="h-4 w-4 shrink-0 text-white/80" />
+          <span class="truncate">Search departments, resources, and people…</span>
+          <span class="ml-auto shrink-0 text-[11px] text-white/70">⌘K</span>
         </button>
       </div>
-      
-      <!-- Center nav: Home, Marketplace, Jobs -->
-      <!-- <nav v-if="isSignedIn" class="flex items-center justify-center gap-2">
-        <NuxtLink
-          v-for="item in centerNavItems"
-          :key="item.to"
-          :to="item.to"
-          :aria-label="item.label"
-          :class="[
-            'p-1.5 rounded-md transition-colors',
-            isActive(item.to)
-              ? 'bg-white/10 text-white'
-              : 'text-white/70 hover:text-white hover:bg-white/20'
-          ]"
+
+      <div v-if="isSignedIn" class="ml-auto flex items-center justify-end gap-0.5 sm:gap-1 shrink-0">
+        <button
+          type="button"
+          class="md:hidden flex h-9 w-9 items-center justify-center rounded-md text-white/90 transition-colors hover:bg-white/10 hover:text-white"
+          aria-label="Search the site"
+          @click="openSiteSearch"
         >
-          <UIcon :name="item.icon" class="w-6 h-6" />
-        </NuxtLink>
-      </nav> -->
-      
-      <div v-if="isSignedIn" class="flex items-center justify-end gap-1 relative z-[1] rounded-t-md">
-        <!-- Grid Icon Dropdown -->
-        <UNavigationMenu 
-          :items="gridMenuItems" 
-          content-orientation="horizontal" 
-          class="flex items-center [&>div>div]:min-w-[320px]"
-          :ui="{ content: 'min-w-[320px]' }"
+          <UIcon name="i-lucide-search" class="h-5 w-5" />
+        </button>
+
+        <UNavigationMenu
+          :items="gridMenuItems"
+          content-orientation="horizontal"
+          class="flex items-center [&>div>div]:min-w-0 md:[&>div>div]:min-w-[320px]"
+          :ui="{ content: 'min-w-0 max-w-[calc(100vw-1.5rem)] md:min-w-[320px]' }"
         />
-        
-        <!-- Notification Bell Popover -->
+
         <UPopover :popper="{ placement: 'bottom-end' }">
           <button
             type="button"
-            class="relative mt-0.5 mr-2 w-9 h-9 flex items-center justify-center rounded-md text-white/90 hover:text-white hover:bg-white/10 transition-colors"
+            class="relative mt-0.5 flex h-9 w-9 items-center justify-center rounded-md text-white/90 transition-colors hover:bg-white/10 hover:text-white sm:mr-1"
             aria-label="Notifications"
           >
-            <UIcon name="i-heroicons-bell" class="w-5 h-5" />
+            <UIcon name="i-heroicons-bell" class="h-5 w-5" />
             <span
               v-if="unreadCount > 0"
-              class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold flex items-center justify-center leading-none"
+              class="absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white"
             >
               {{ unreadCount > 99 ? '99+' : unreadCount }}
             </span>
           </button>
 
           <template #content>
-            <div class="w-[360px] p-2">
+            <div class="w-[min(360px,calc(100vw-1.5rem))] p-2">
               <div class="flex items-center gap-2 border-b border-gray-200 pb-2 mb-2">
                 <button
                   type="button"
@@ -137,7 +124,7 @@
         <UDropdownMenu :items="accountDropdownItems" :popper="{ placement: 'bottom-end' }">
           <button
             type="button"
-            class="mr-2 flex items-center justify-center rounded-full ring-2 ring-white/50 hover:ring-white focus:outline-none focus:ring-2 focus:ring-white overflow-hidden w-9 h-9 shrink-0"
+            class="mr-0.5 flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full ring-2 ring-white/50 hover:ring-white focus:outline-none focus:ring-2 focus:ring-white sm:mr-2"
             aria-label="Account menu"
           >
             <img

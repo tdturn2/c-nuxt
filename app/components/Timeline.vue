@@ -105,6 +105,25 @@
         @post-edit-request="openPostEditor"
         @post-comment-request="openPostComments"
       />
+      <div v-if="hasMoreOlderPosts" class="border-t border-gray-200 py-6 text-center">
+        <button
+          type="button"
+          class="rounded-full border border-gray-300 bg-white px-5 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+          @click="showOlderPosts"
+        >
+          {{ showOlderPostsLabel }}
+        </button>
+      </div>
+    </div>
+    <div v-else-if="hasMoreOlderPosts" class="py-8 text-center">
+      <p class="mb-4 text-sm text-gray-500">No recent posts in this feed.</p>
+      <button
+        type="button"
+        class="rounded-full border border-gray-300 bg-white px-5 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+        @click="showOlderPosts"
+      >
+        {{ showOlderPostsLabel }}
+      </button>
     </div>
     <div v-else class="text-center py-8 text-gray-500">
       No posts yet
@@ -193,6 +212,10 @@ const props = defineProps<{
 
 const apiUrl = props.apiUrl || '/api/posts'
 
+const RECENT_DAYS = 8
+const OLDER_BATCH_SIZE = 10
+const RECENT_MS = RECENT_DAYS * 24 * 60 * 60 * 1000
+
 const { data, pending, error, refresh } = await useFetch<TimelineResponse>(apiUrl)
 const { data: sliderData } = await useFetch<{ docs?: HomeSlide[] }>('/api/home-slider', {
   key: 'connect-home-slider',
@@ -243,35 +266,32 @@ function getImageUrl(image: any) {
 }
 
 const handlePostUpdated = (updatedPost: PostWithUser | Post) => {
-  const updateList = (list: PostWithUser[]) => {
-    const idx = list.findIndex(p => p.id === updatedPost.id)
-    const existing = idx >= 0 ? list[idx] : null
-    if (existing) {
-      const next = [...list]
-      next[idx!] = { ...existing, ...updatedPost, user: existing.user } as PostWithUser
-      return next
-    }
-    return list
+  const idx = allPostsWithUsers.value.findIndex(p => p.id === updatedPost.id)
+  if (idx >= 0) {
+    const existing = allPostsWithUsers.value[idx]
+    const next = [...allPostsWithUsers.value]
+    next[idx] = { ...existing, ...updatedPost, user: existing.user } as PostWithUser
+    allPostsWithUsers.value = next
   }
-  allPostsWithUsers.value = updateList(allPostsWithUsers.value)
-  displayedPosts.value = updateList(displayedPosts.value)
-}
-
-const handleModalPostUpdated = (updatedPost: PostWithUser | Post) => {
-  handlePostUpdated(updatedPost)
+  filterPosts()
   if (selectedPost.value?.id === updatedPost.id) {
     selectedPost.value = { ...(selectedPost.value as any), ...updatedPost }
   }
 }
 
+const handleModalPostUpdated = (updatedPost: PostWithUser | Post) => {
+  handlePostUpdated(updatedPost)
+}
+
 const handlePostDeleted = (postId: number) => {
   allPostsWithUsers.value = allPostsWithUsers.value.filter(p => p.id !== postId)
-  displayedPosts.value = displayedPosts.value.filter(p => p.id !== postId)
+  filterPosts()
   if (selectedPost.value?.id === postId) {
     isPostModalOpen.value = false
     selectedPost.value = null
     selectedPostUser.value = null
     postModalStartInEditMode.value = false
+    postModalStartWithCommentsOpen.value = false
   }
 }
 
@@ -300,6 +320,7 @@ const handlePostModalOpenUpdate = (open: boolean) => {
 }
 
 const handlePostCreated = async () => {
+  olderPostsVisibleCount.value = 0
   // Refresh the timeline data after a new post is created
   await refresh()
   
@@ -341,68 +362,93 @@ const allPostsWithUsers = ref<PostWithUser[]>(
 const loadingUsers = ref(false)
 
 // Use a ref for displayed posts to prevent hydration mismatch
-// Initialize with all posts (no filtering during SSR) - ensure same on server and client
-const displayedPosts = ref<PostWithUser[]>(
-  data.value?.docs?.map(post => ({
-    ...post,
-    user: null
-  })) as PostWithUser[] || []
-)
+const displayedPosts = ref<PostWithUser[]>([])
+
+const olderPostsVisibleCount = ref(0)
+const hiddenOlderCount = ref(0)
+
+const hasMoreOlderPosts = computed(() => hiddenOlderCount.value > 0)
+
+const showOlderPostsLabel = computed(() => {
+  const count = Math.min(hiddenOlderCount.value, OLDER_BATCH_SIZE)
+  return count === 1 ? 'Show 1 older post' : `Show ${count} older posts`
+})
+
+function isPinnedPost(post: PostWithUser) {
+  return post.categories?.includes('pinned') ?? false
+}
+
+function isRecentPost(post: PostWithUser) {
+  const created = new Date(post.createdAt).getTime()
+  if (!Number.isFinite(created)) return true
+  return Date.now() - created <= RECENT_MS
+}
+
+function sortByNewest(posts: PostWithUser[]) {
+  return [...posts].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  )
+}
+
+function showOlderPosts() {
+  olderPostsVisibleCount.value += OLDER_BATCH_SIZE
+  filterPosts()
+}
 
 // Filter posts based on active category tab
 const filterPosts = () => {
   if (!allPostsWithUsers.value.length) {
     displayedPosts.value = []
+    hiddenOlderCount.value = 0
     return
   }
-  
+
   const category = activeCategoryTab.value
-  
+  let categoryFiltered: PostWithUser[]
+
   if (category === 'official') {
-    // General: posts with audience "all" or null/undefined/empty array
-    displayedPosts.value = allPostsWithUsers.value.filter(post => 
-      !post.audience || 
-      post.audience.length === 0 || 
-      post.audience.includes('all')
+    categoryFiltered = allPostsWithUsers.value.filter(post =>
+      !post.audience ||
+      post.audience.length === 0 ||
+      post.audience.includes('all'),
     )
   } else if (category === 'students') {
-    // Students: posts with audience "students"
-    displayedPosts.value = allPostsWithUsers.value.filter(post => 
-      post.audience && post.audience.includes('students')
+    categoryFiltered = allPostsWithUsers.value.filter(post =>
+      post.audience && post.audience.includes('students'),
     )
   } else if (category === 'staff') {
-    // Staff: posts with audience "staff" OR "employees"
-    displayedPosts.value = allPostsWithUsers.value.filter(post => 
+    categoryFiltered = allPostsWithUsers.value.filter(post =>
       post.audience && (
-        post.audience.includes('staff') || 
+        post.audience.includes('staff') ||
         post.audience.includes('employees')
-      )
+      ),
     )
   } else if (category === 'faculty') {
-    // Faculty: posts with audience "faculty" OR "employees"
-    displayedPosts.value = allPostsWithUsers.value.filter(post => 
+    categoryFiltered = allPostsWithUsers.value.filter(post =>
       post.audience && (
-        post.audience.includes('faculty') || 
+        post.audience.includes('faculty') ||
         post.audience.includes('employees')
-      )
+      ),
     )
   } else {
-    // Default: show all posts
-    displayedPosts.value = allPostsWithUsers.value
+    categoryFiltered = allPostsWithUsers.value
   }
 
-  // Pin posts with category "pinned" to the top
-  displayedPosts.value = [...displayedPosts.value].sort((a, b) => {
-    const aPinned = a.categories?.includes('pinned') ?? false
-    const bPinned = b.categories?.includes('pinned') ?? false
-    if (aPinned && !bPinned) return -1
-    if (!aPinned && bPinned) return 1
-    return 0
-  })
+  const pinned = sortByNewest(categoryFiltered.filter(isPinnedPost))
+  const nonPinned = categoryFiltered.filter((post) => !isPinnedPost(post))
+  const recent = sortByNewest(nonPinned.filter(isRecentPost))
+  const older = sortByNewest(nonPinned.filter((post) => !isRecentPost(post)))
+  const olderVisible = older.slice(0, olderPostsVisibleCount.value)
+
+  displayedPosts.value = [...pinned, ...recent, ...olderVisible]
+  hiddenOlderCount.value = Math.max(0, older.length - olderVisible.length)
 }
+
+filterPosts()
 
 // Watch for category tab changes and filter posts
 watch(activeCategoryTab, () => {
+  olderPostsVisibleCount.value = 0
   filterPosts()
 }, { immediate: false })
 

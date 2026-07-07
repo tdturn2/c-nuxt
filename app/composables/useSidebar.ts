@@ -4,10 +4,34 @@ const DEFAULT_WIDTH = 320
 const MIN_WIDTH = 200
 const MAX_WIDTH = 480
 const COLLAPSED_WIDTH = 48
+/** Tailwind `md` breakpoint — sidebar defaults collapsed below this width. */
+const MOBILE_MAX_WIDTH = 767
+
+function isMobileViewport(): boolean {
+  if (!import.meta.client) return false
+  return window.matchMedia(`(max-width: ${MOBILE_MAX_WIDTH}px)`).matches
+}
+
+function readStoredCollapsed(): boolean | null {
+  if (!import.meta.client) return null
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY_COLLAPSED)
+    if (stored === 'true') return true
+    if (stored === 'false') return false
+  } catch (_) {}
+  return null
+}
+
+function resolveCollapsedDefault(): boolean {
+  const stored = readStoredCollapsed()
+  if (stored !== null) return stored
+  return isMobileViewport()
+}
 
 export function useSidebar() {
   const width = useState('sidebar-width', () => DEFAULT_WIDTH)
   const collapsed = useState('sidebar-collapsed', () => false)
+  const mobileListenersAttached = useState('sidebar-mobile-listeners', () => false)
 
   if (import.meta.client) {
     try {
@@ -16,9 +40,17 @@ export function useSidebar() {
         const n = Number(storedW)
         if (!Number.isNaN(n) && n >= MIN_WIDTH && n <= MAX_WIDTH) width.value = n
       }
-      const storedC = localStorage.getItem(STORAGE_KEY_COLLAPSED)
-      if (storedC === 'true') collapsed.value = true
     } catch (_) {}
+
+    collapsed.value = resolveCollapsedDefault()
+
+    if (!mobileListenersAttached.value) {
+      mobileListenersAttached.value = true
+      const mq = window.matchMedia(`(max-width: ${MOBILE_MAX_WIDTH}px)`)
+      mq.addEventListener('change', (event) => {
+        if (event.matches) collapsed.value = true
+      })
+    }
   }
 
   watch(width, (w) => {
