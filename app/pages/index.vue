@@ -50,10 +50,10 @@
                 </div>
               </div>
             </NuxtLink>
-            <NuxtLink to="/media/wesworld" class="w-full max-w-[180px]">
+            <NuxtLink to="/media/elementary" class="w-full max-w-[180px]">
               <img
-                src="https://ats-edu.storage.googleapis.com/uploads/WesWorld-1400.png"
-                alt="WesWorld"
+                src="https://ats-edu.storage.googleapis.com/uploads/Elementary_Podcast_Square_Cover.jpg"
+                alt="It's Elementary"
                 class="w-full rounded-xl border border-gray-100 bg-white p-3 shadow-sm"
               >
             </NuxtLink>
