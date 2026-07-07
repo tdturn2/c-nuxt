@@ -25,9 +25,38 @@ function normalizeRelId(value: any): number | string | null {
   return null
 }
 
+function normalizeSectionSlug(value: unknown): string | null {
+  if (value == null || value === '') return null
+  if (typeof value === 'string') {
+    const slug = value.trim().toLowerCase()
+    return slug.length ? slug : null
+  }
+  const id = normalizeRelId(value)
+  return id != null ? String(id).trim().toLowerCase() : null
+}
+
+function editableSectionSlugs(connectUser: any): string[] {
+  const raw = [
+    ...(Array.isArray(connectUser?.editableSections) ? connectUser.editableSections : []),
+    ...(Array.isArray(connectUser?.fields?.editableSections) ? connectUser.fields.editableSections : []),
+  ]
+  return raw
+    .map(normalizeSectionSlug)
+    .filter((slug): slug is string => Boolean(slug))
+}
+
 function toIdList(value: any): Array<number | string> {
   if (!Array.isArray(value)) return []
   return value.map(normalizeRelId).filter((v): v is number | string => v != null)
+}
+
+function connectUserRoles(connectUser: any): string[] {
+  return [
+    ...(Array.isArray(connectUser?.roles) ? connectUser.roles : []),
+    ...(Array.isArray(connectUser?.fields?.roles) ? connectUser.fields.roles : []),
+  ]
+    .map((role) => String(role || '').trim().toLowerCase())
+    .filter(Boolean)
 }
 
 /** e.g. http://localhost:3002/api → http://localhost:3002 */
@@ -127,13 +156,11 @@ export async function handleConnectPagesPayloadUpdate(event: H3Event) {
   })
 
   const connectUser = Array.isArray(connectUserRes?.docs) ? connectUserRes.docs[0] : null
-  const connectUserRoles: string[] = [
-    ...(Array.isArray(connectUser?.roles) ? connectUser.roles : []),
-    ...(Array.isArray(connectUser?.fields?.roles) ? connectUser.fields.roles : []),
-  ].filter((r): r is string => typeof r === 'string' && r.length > 0)
+  const roles = connectUserRoles(connectUser)
 
-  const isConnectAdmin = connectUserRoles.includes('admin')
-  const isAdminSession = isPayloadAdminJwt || isConnectAdmin
+  const isConnectAdmin = roles.includes('admin')
+  const isConnectStaff = roles.includes('staff')
+  const isAdminSession = isPayloadAdminJwt || isConnectAdmin || isConnectStaff
 
   const existing: any = await $fetch(`${origin}/api/connect-pages/${encodeURIComponent(id)}?depth=2`).catch((err: any) => {
     throw createError({
@@ -143,26 +170,22 @@ export async function handleConnectPagesPayloadUpdate(event: H3Event) {
     })
   })
 
-  const existingSectionId =
-    normalizeRelId(existing?.section) ??
-    normalizeRelId(existing?.fields?.section) ??
-    normalizeRelId(existing?.sectionId) ??
+  const existingSection =
+    normalizeSectionSlug(existing?.section) ??
+    normalizeSectionSlug(existing?.fields?.section) ??
     null
 
   if (!isAdminSession) {
     if (!connectUser) throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
 
-    const editableSectionIds = [
-      ...toIdList(connectUser?.editableSections),
-      ...toIdList(connectUser?.fields?.editableSections),
-    ]
+    const editableSections = editableSectionSlugs(connectUser)
 
-    if (!existingSectionId || !editableSectionIds.includes(existingSectionId)) {
+    if (!existingSection || !editableSections.includes(existingSection)) {
       throw createError({ statusCode: 403, statusMessage: 'Forbidden - not allowed to edit this section' })
     }
 
-    const requestedSectionId = normalizeRelId(body.section)
-    if (requestedSectionId && requestedSectionId !== existingSectionId) {
+    const requestedSection = normalizeSectionSlug(body.section)
+    if (requestedSection && requestedSection !== existingSection) {
       throw createError({ statusCode: 403, statusMessage: 'Forbidden - cannot change section' })
     }
   }
