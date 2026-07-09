@@ -174,6 +174,10 @@ import {
   connectMagicMergeSeparator,
   parseConnectMagicJsonArray,
 } from '~/utils/connectMagicBlocks'
+import {
+  buildConnectVideosCollectionHtml,
+  parseConnectVideoRows,
+} from '~/utils/connectVideosCollectionHtml'
 
 const route = useRoute()
 const runtimeConfig = useRuntimeConfig()
@@ -520,27 +524,13 @@ function lexicalToHtml(node: any): string {
     }
     const parsed = parseConnectMagicJsonArray(t)
     if (!parsed) {
-      return '<div class="connect-video-collection not-prose my-2 text-xs text-red-600">@connect-videos: invalid JSON</div>'
+      return '<div class="connect-video-collection connect-video-collection--error not-prose my-2 text-xs text-red-600">@connect-videos: invalid JSON</div>'
     }
-    const rows: { title: string; id: string }[] = []
-    for (const row of parsed) {
-      if (!row || typeof row !== 'object') continue
-      const o = row as Record<string, unknown>
-      const id = String(o.vimeoId ?? o.vimeo_id ?? '').trim()
-      if (!id) continue
-      const title = String(o.title ?? '').trim() || `Video ${id}`
-      rows.push({ title, id })
-    }
+    const rows = parseConnectVideoRows(parsed)
     if (!rows.length) {
-      return '<div class="connect-video-collection not-prose my-2 text-xs text-gray-500">@connect-videos: no valid items</div>'
+      return '<div class="connect-video-collection connect-video-collection--empty not-prose my-2 text-xs text-gray-500">@connect-videos: no valid items</div>'
     }
-    const lis = rows
-      .map(
-        (r) =>
-          `<li class="my-0.5"><button type="button" class="text-[rgba(13,94,130,1)] hover:underline text-left w-full font-normal bg-transparent border-0 p-0 cursor-pointer" data-connect-play-vimeo="${escapeHtml(r.id)}" data-connect-video-title="${escapeHtml(r.title)}">${escapeHtml(r.title)}</button></li>`,
-      )
-      .join('')
-    return `<div class="connect-video-collection not-prose my-3 rounded border border-gray-200 bg-gray-50 p-3 text-sm"><ul class="list-none m-0 p-0 space-y-0.5">${lis}</ul></div>`
+    return buildConnectVideosCollectionHtml(rows)
   }
 
   /**
@@ -1144,5 +1134,82 @@ article .connect-page-body.prose li > p:last-child {
   vertical-align: middle;
   position: relative;
   top: -0.06em;
+}
+
+/* @connect-videos compact list */
+article .connect-page-body.prose .connect-video-collection a,
+article .connect-page-body.prose .connect-video-collection button {
+  text-decoration: none;
+}
+
+article .connect-video-collection__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(229, 231, 235, 1);
+  border-radius: 0.625rem;
+  background: #fff;
+  overflow: hidden;
+}
+
+article .connect-video-collection__item + .connect-video-collection__item {
+  border-top: 1px solid rgba(243, 244, 246, 1);
+}
+
+article .connect-video-collection__row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.75rem;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+article .connect-video-collection__row:hover {
+  background: rgba(13, 94, 130, 0.05);
+}
+
+article .connect-video-collection__row:focus-visible {
+  outline: 2px solid rgba(13, 94, 130, 0.35);
+  outline-offset: -2px;
+}
+
+article .connect-video-collection__play {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  border-radius: 9999px;
+  color: rgba(13, 94, 130, 1);
+  background: rgba(13, 94, 130, 0.1);
+}
+
+article .connect-video-collection__play svg {
+  width: 0.625rem;
+  height: 0.625rem;
+  margin-left: 0.05rem;
+}
+
+article .connect-video-collection__row:hover .connect-video-collection__play {
+  color: #fff;
+  background: rgba(13, 94, 130, 1);
+}
+
+article .connect-video-collection__title {
+  min-width: 0;
+  font-size: 0.875rem;
+  line-height: 1.35;
+  font-weight: 500;
+  color: #1f2937;
+}
+
+article .connect-video-collection__row:hover .connect-video-collection__title {
+  color: rgba(13, 94, 130, 1);
 }
 </style>

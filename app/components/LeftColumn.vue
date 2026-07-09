@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
 import {
-  buildConnectPageCategoryNavItems,
+  buildConnectPageContextualNavItems,
+  buildDepartmentsSidebarNavItems,
   useConnectPagesTreeData,
 } from '~/composables/useConnectPagesTree'
 
@@ -9,16 +10,18 @@ const route = useRoute()
 const isHome = computed(() => route.path === '/')
 const { asideWidthPx, collapsed, toggleCollapsed, startResize } = useSidebar()
 const menuSearchQuery = ref('')
-const isInternalActive = computed(() =>
-  route.path === '/internal' ||
-  route.path.startsWith('/internal/')
-)
 
 const { data: internalPagesData } = useConnectPagesTreeData()
 
 const internalDepartmentsItems = computed<NavigationMenuItem[]>(() => {
   const docs = Array.isArray(internalPagesData.value?.docs) ? internalPagesData.value.docs : []
-  return buildConnectPageCategoryNavItems(docs)
+  return buildDepartmentsSidebarNavItems(docs, route.path)
+})
+
+const isDepartmentsSectionActive = computed(() => {
+  const docs = Array.isArray(internalPagesData.value?.docs) ? internalPagesData.value.docs : []
+  if (route.path === '/internal' || route.path.startsWith('/internal/')) return true
+  return buildConnectPageContextualNavItems(docs, route.path) != null
 })
 
 const isMenuItemActive = (item: NavigationMenuItem): boolean => {
@@ -79,7 +82,7 @@ const mainNavItems = computed<NavigationMenuItem[]>(() => [
     label: 'Departments and Offices',
     icon: 'i-heroicons-building-office-2',
     to: '/internal',
-    defaultOpen: isInternalActive.value,
+    defaultOpen: isDepartmentsSectionActive.value,
     children: internalDepartmentsItems.value,
   },
   {
@@ -253,11 +256,13 @@ const footerNavItems = computed<NavigationMenuItem[]>(() => [
             :key="`left-nav-${route.path}-${menuSearchQuery.trim()}`"
             :items="filteredMainNavItems"
             :ui="{
-              link: 'data-[active=true]:text-gray-700 data-[active=true]:bg-gold/10 aria-[current=page]:text-gray-700',
-              linkLeadingIcon: 'group-data-[active=true]:text-gold group-aria-[current=page]:text-gold'
+              link: 'connect-left-nav__link data-[active=true]:text-gray-700 data-[active=true]:bg-gold/10 aria-[current=page]:text-gray-700',
+              linkLeadingIcon: 'group-data-[active=true]:text-gold group-aria-[current=page]:text-gold',
+              childList: 'connect-left-nav__child-list',
+              childItem: 'connect-left-nav__child-item',
             }"
             orientation="vertical"
-            class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
+            class="connect-left-nav flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
           />
         </div>
         <div
@@ -290,4 +295,35 @@ const footerNavItems = computed<NavigationMenuItem[]>(() => [
     </template>
   </aside>
 </template>
+
+<style scoped>
+.connect-left-nav :deep(.connect-left-nav__link) {
+  min-width: 0;
+}
+
+.connect-left-nav :deep(.connect-left-nav__link span:last-child),
+.connect-left-nav :deep(.connect-left-nav__link) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Tighter nesting under Departments and Offices */
+.connect-left-nav :deep(.connect-left-nav__child-list) {
+  margin-top: 0.125rem;
+  padding-left: 0.625rem;
+}
+
+.connect-left-nav :deep(.connect-left-nav__child-list .connect-left-nav__child-list) {
+  padding-left: 0.5rem;
+}
+
+.connect-left-nav :deep(.connect-left-nav__child-list .connect-left-nav__child-list .connect-left-nav__child-list) {
+  padding-left: 0.375rem;
+}
+
+.connect-left-nav :deep(.connect-left-nav__child-item) {
+  margin-top: 0.0625rem;
+}
+</style>
 

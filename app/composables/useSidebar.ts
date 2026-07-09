@@ -2,7 +2,7 @@ const STORAGE_KEY_WIDTH = 'connect-sidebar-width'
 const STORAGE_KEY_COLLAPSED = 'connect-sidebar-collapsed'
 const DEFAULT_WIDTH = 320
 const MIN_WIDTH = 200
-const MAX_WIDTH = 480
+const MAX_WIDTH = 560
 const COLLAPSED_WIDTH = 48
 /** Tailwind `md` breakpoint — sidebar defaults collapsed below this width. */
 const MOBILE_MAX_WIDTH = 767
