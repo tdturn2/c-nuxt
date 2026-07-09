@@ -168,6 +168,12 @@ import {
   normalizeVimeoCollectionIframeUrl,
   normalizeVimeoVideoId,
 } from '~/utils/vimeoEmbed'
+import {
+  collectConnectMagicPlainText,
+  connectMagicBlockJsonParses,
+  connectMagicMergeSeparator,
+  parseConnectMagicJsonArray,
+} from '~/utils/connectMagicBlocks'
 
 const route = useRoute()
 const runtimeConfig = useRuntimeConfig()
@@ -512,14 +518,9 @@ function lexicalToHtml(node: any): string {
     if (!jsonStr) {
       return '<div class="connect-video-collection not-prose my-2 text-xs text-amber-800">@connect-videos: empty JSON</div>'
     }
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(jsonStr)
-    } catch {
+    const parsed = parseConnectMagicJsonArray(t)
+    if (!parsed) {
       return '<div class="connect-video-collection not-prose my-2 text-xs text-red-600">@connect-videos: invalid JSON</div>'
-    }
-    if (!Array.isArray(parsed)) {
-      return '<div class="connect-video-collection not-prose my-2 text-xs text-red-600">@connect-videos: expected JSON array</div>'
     }
     const rows: { title: string; id: string }[] = []
     for (const row of parsed) {
@@ -554,14 +555,9 @@ function lexicalToHtml(node: any): string {
     if (!jsonStr) {
       return '<div class="connect-faq-block not-prose my-2 text-xs text-amber-800">@connect-faq: empty JSON</div>'
     }
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(jsonStr)
-    } catch {
+    const parsed = parseConnectMagicJsonArray(t)
+    if (!parsed) {
       return '<div class="connect-faq-block not-prose my-2 text-xs text-red-600">@connect-faq: invalid JSON</div>'
-    }
-    if (!Array.isArray(parsed)) {
-      return '<div class="connect-faq-block not-prose my-2 text-xs text-red-600">@connect-faq: expected JSON array</div>'
     }
     const items: { question: string; answer: string; id: string }[] = []
     for (const row of parsed) {
@@ -736,15 +732,14 @@ function lexicalToHtml(node: any): string {
     return ''
   }
 
-  /** Pasted multi-line @connect-faq / @connect-videos often becomes several Lexical paragraphs; merge before parse. */
   const getLexicalNodeMagicPlain = (n: any): string | null => {
     if (!n || typeof n !== 'object') return null
-    if (n.type === 'paragraph') return collectPlainText(n.children || []).trim()
+    if (n.type === 'paragraph') return collectConnectMagicPlainText(n.children || []).trim()
     if (n.type === 'code') {
       return (
         typeof n.code === 'string'
           ? n.code
-          : collectPlainText(Array.isArray(n.children) ? n.children : [])
+          : collectConnectMagicPlainText(Array.isArray(n.children) ? n.children : [])
       ).trim()
     }
     return null
@@ -786,22 +781,10 @@ function lexicalToHtml(node: any): string {
       }
     }
     if (t.toLowerCase().startsWith('@connect-videos')) {
-      const jsonStr = t.replace(/^@connect-videos\s*/i, '').trim()
-      if (!jsonStr) return false
-      try {
-        return Array.isArray(JSON.parse(jsonStr))
-      } catch {
-        return false
-      }
+      return connectMagicBlockJsonParses(t)
     }
     if (t.toLowerCase().startsWith('@connect-faq')) {
-      const jsonStr = t.replace(/^@connect-faq\s*/i, '').trim()
-      if (!jsonStr) return false
-      try {
-        return Array.isArray(JSON.parse(jsonStr))
-      } catch {
-        return false
-      }
+      return connectMagicBlockJsonParses(t)
     }
     if (t.toLowerCase().startsWith('@connect-form')) {
       const payload = t.replace(/^@connect-form\s*/i, '').trim()
@@ -840,7 +823,7 @@ function lexicalToHtml(node: any): string {
       const nextPlain = getLexicalNodeMagicPlain(children[j + 1])
       if (nextPlain === null) break
       j++
-      merged += '\n' + nextPlain
+      merged += connectMagicMergeSeparator(merged) + nextPlain
     }
     return null
   }
@@ -863,7 +846,7 @@ function lexicalToHtml(node: any): string {
   }
   if (node.type === 'paragraph') {
     const ch = node.children || []
-    const plain = collectPlainText(ch)
+    const plain = collectConnectMagicPlainText(ch)
     const magic = buildConnectMagicBlockHtml(plain)
     if (magic !== null) return magic
     const inner = ch.map(lexicalToHtml).join('')

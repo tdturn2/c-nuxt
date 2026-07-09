@@ -689,6 +689,10 @@ import { CONNECT_PAGE_CATEGORIES, type ConnectPageCategory } from '~/composables
 import { buildPagePathMap, buildPageTree } from '~/composables/useConnectPagesTree'
 import { humanizeFilename } from '@shared/humanizeFilename'
 import { lexicalUploadNodeToTipTapImage, tipTapImageToLexicalUploadNode } from '~/utils/connectPagesDocImage'
+import {
+  connectMagicBlockJsonParses,
+  connectMagicMergeSeparator,
+} from '~/utils/connectMagicBlocks'
 
 const route = useRoute()
 const runtimeConfig = useRuntimeConfig()
@@ -1478,30 +1482,37 @@ function tipTapParagraphPlainText(node: any): string {
   return parts.join('')
 }
 
-function connectMagicBlockJsonParses(raw: string): boolean {
-  const t = raw.trim()
-  if (t.toLowerCase().startsWith('@connect-videos')) {
-    const jsonStr = t.replace(/^@connect-videos\s*/i, '').trim()
-    if (!jsonStr) return false
-    try {
-      return Array.isArray(JSON.parse(jsonStr))
-    } catch {
-      return false
+/** Plain text for @connect-* paragraphs — ignore hardBreaks the editor inserts at wrap points. */
+function tipTapParagraphMagicPlainText(node: any): string {
+  if (!node || node.type !== 'paragraph') return ''
+  const parts: string[] = []
+  const walk = (nodes: any[] | undefined) => {
+    if (!Array.isArray(nodes)) return
+    for (const x of nodes) {
+      if (!x) continue
+      if (x.type === 'text') parts.push(x.text || '')
+      else if (Array.isArray(x.content)) walk(x.content)
     }
   }
-  if (t.toLowerCase().startsWith('@connect-faq')) {
-    const jsonStr = t.replace(/^@connect-faq\s*/i, '').trim()
-    if (!jsonStr) return false
-    try {
-      return Array.isArray(JSON.parse(jsonStr))
-    } catch {
-      return false
-    }
-  }
-  return false
+  walk(node.content)
+  return parts.join('')
 }
 
-/** Merge pasted multi-paragraph @connect-* blocks into one code block so Payload stores valid JSON in one Lexical node. */
+function tipTapCodeBlockPlainText(node: any): string {
+  if (!node || node.type !== 'codeBlock') return ''
+  const parts: string[] = []
+  const walk = (nodes: any[] | undefined) => {
+    if (!Array.isArray(nodes)) return
+    for (const x of nodes) {
+      if (!x) continue
+      if (x.type === 'text') parts.push(x.text || '')
+      else if (Array.isArray(x.content)) walk(x.content)
+    }
+  }
+  walk(node.content)
+  return parts.join('')
+}
+
 function collapseConnectMagicBlocksInTipTapDoc(doc: any): any {
   if (!doc || doc.type !== 'doc' || !Array.isArray(doc.content)) return doc
   const content = doc.content
@@ -1509,18 +1520,23 @@ function collapseConnectMagicBlocksInTipTapDoc(doc: any): any {
   let i = 0
   while (i < content.length) {
     const n = content[i]
-    if (n?.type !== 'paragraph') {
+    const magicPlain = n?.type === 'paragraph'
+      ? tipTapParagraphMagicPlainText(n).trim()
+      : n?.type === 'codeBlock'
+        ? tipTapCodeBlockPlainText(n).trim()
+        : ''
+    if (!magicPlain) {
       out.push(n)
       i++
       continue
     }
-    let merged = tipTapParagraphPlainText(n).trim()
-    const low = merged.toLowerCase()
+    const low = magicPlain.toLowerCase()
     if (!low.startsWith('@connect-faq') && !low.startsWith('@connect-videos')) {
       out.push(n)
       i++
       continue
     }
+    let merged = magicPlain
     let j = i
     const max = Math.min(content.length, i + 80)
     let found = false
@@ -1536,9 +1552,14 @@ function collapseConnectMagicBlocksInTipTapDoc(doc: any): any {
         break
       }
       const next = content[j + 1]
-      if (next?.type !== 'paragraph') break
+      const nextPlain = next?.type === 'paragraph'
+        ? tipTapParagraphMagicPlainText(next).trim()
+        : next?.type === 'codeBlock'
+          ? tipTapCodeBlockPlainText(next).trim()
+          : ''
+      if (!nextPlain) break
       j++
-      merged += '\n' + tipTapParagraphPlainText(next).trim()
+      merged += connectMagicMergeSeparator(merged) + nextPlain
     }
     if (!found) {
       out.push(n)
