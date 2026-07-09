@@ -1,9 +1,11 @@
 export const CONNECT_PAGE_CATEGORIES = [
   { value: 'academic-affairs', label: 'Academic Affairs' },
   { value: 'advancement', label: 'Advancement' },
-  { value: 'student-life-and-formation', label: 'Student Life and Formation' },
-  { value: 'enrollment-management', label: 'Enrollment Management' },
+  { value: 'beeson-center', label: 'Beeson Center' },
+  { value: 'enrollment-management', label: 'Enrollment Services' },
   { value: 'finance-and-administration', label: 'Finance and Administration' },
+  { value: 'presidents-office', label: "President's Office" },
+  { value: 'student-life-and-formation', label: 'Student Life and Formation' },
 ] as const
 
 export type ConnectPageCategory = typeof CONNECT_PAGE_CATEGORIES[number]['value']

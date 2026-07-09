@@ -62,7 +62,7 @@
       <div class="mt-4 space-y-4">
         <div
           v-for="(field, idx) in form.schema.fields"
-          :key="field.id || idx"
+          :key="fieldBuilderKey(field, idx)"
           class="rounded-md border border-gray-200 p-4"
         >
           <div class="mb-3 flex items-center gap-2 border-b border-gray-100 pb-2">
@@ -239,6 +239,8 @@
 import type { ConnectFormDefinition, FormFieldType, FormSchemaV1, FormStatus } from '~/types/forms'
 import { validateFormSchemaV1 } from '~/utils/forms/validation'
 
+type BuilderField = FormSchemaV1['fields'][number] & { _builderKey?: string }
+
 type BuilderState = {
   id?: string | number
   slug: string
@@ -280,6 +282,26 @@ const schemaErrors = ref<string[]>([])
 const localMessage = ref<string | null>(null)
 const resolvedSaveLabel = computed(() => props.saveLabel || 'Save')
 
+function fieldBuilderKey(field: BuilderField, idx: number) {
+  return field._builderKey || `field-row-${idx}`
+}
+
+function ensureBuilderKey(field: BuilderField): BuilderField {
+  if (!field._builderKey) {
+    field._builderKey = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `fk_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+  }
+  return field
+}
+
+function ensureSchemaFieldKeys(schema: FormSchemaV1): FormSchemaV1 {
+  for (const field of schema.fields as BuilderField[]) {
+    ensureBuilderKey(field)
+  }
+  return schema
+}
+
 const form = ref<BuilderState>({
   slug: '',
   title: '',
@@ -294,12 +316,12 @@ const form = ref<BuilderState>({
     description: '',
     layout: { columns: 1 },
     fields: [
-      {
+      ensureBuilderKey({
         id: 'field_1',
         type: 'text',
         label: 'New field',
         required: false,
-      },
+      }),
     ],
     rules: [],
   },
@@ -316,7 +338,7 @@ watch(
   () => props.modelValue,
   (val) => {
     if (!val) return
-    const normalizedSchema = normalizeIncomingSchema(val.schema)
+    const normalizedSchema = ensureSchemaFieldKeys(normalizeIncomingSchema(val.schema))
     form.value = {
       id: val.id,
       slug: val.slug || '',
@@ -359,13 +381,13 @@ function normalizeIncomingSchema(schema: any): FormSchemaV1 {
         const id = String(field?.id ?? `field_${idx + 1}`).trim()
         if (!id) return null
         const type = normalizeType(field?.type)
-        const coerced: any = {
+        const coerced: BuilderField = ensureBuilderKey({
           ...field,
           id,
           type,
           label: String(field?.label ?? id),
           required: !!field?.required,
-        }
+        })
         if (Array.isArray(field?.options)) {
           coerced.options = field.options
             .map((opt: any) => ({
@@ -395,12 +417,12 @@ function normalizeIncomingSchema(schema: any): FormSchemaV1 {
 }
 
 function addField() {
-  form.value.schema.fields.push({
+  form.value.schema.fields.push(ensureBuilderKey({
     id: `field_${form.value.schema.fields.length + 1}`,
     type: 'text',
     label: 'New field',
     required: false,
-  })
+  }))
 }
 
 function setFieldTab(index: number, tab: 'field' | 'settings') {
