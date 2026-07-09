@@ -176,7 +176,9 @@ import {
 } from '~/utils/connectMagicBlocks'
 import {
   buildConnectVideosCollectionHtml,
+  buildConnectVimeoCollectionListHtml,
   parseConnectVideoRows,
+  parseConnectVimeoCollectionPayload,
 } from '~/utils/connectVideosCollectionHtml'
 
 const route = useRoute()
@@ -619,56 +621,9 @@ function lexicalToHtml(node: any): string {
     const t = raw.trim()
     if (!t.toLowerCase().startsWith('@connect-vimeo-collection')) return null
     const payload = t.replace(/^@connect-vimeo-collection\s*/i, '').trim()
-    if (!payload) {
-      return '<div class="connect-vimeo-collection-block not-prose my-2 text-xs text-amber-800">@connect-vimeo-collection: missing payload</div>'
-    }
-
-    const rows: Array<{ title: string; iframeUrl: string }> = []
-    if (payload.startsWith('{') || payload.startsWith('[')) {
-      try {
-        const parsed = JSON.parse(payload) as unknown
-        if (Array.isArray(parsed)) {
-          for (const row of parsed) {
-            if (!row || typeof row !== 'object') continue
-            const item = row as Record<string, unknown>
-            const parsedTitle = String(item.title ?? '').trim()
-            const parsedUrl = String(item.url ?? item.vimeoUrl ?? '').trim()
-            const iframeUrl = normalizeVimeoCollectionIframeUrl(parsedUrl)
-            if (!iframeUrl) continue
-            rows.push({ title: parsedTitle || 'Vimeo Collection', iframeUrl })
-          }
-        } else if (parsed && typeof parsed === 'object') {
-          const item = parsed as Record<string, unknown>
-          const parsedTitle = String(item.title ?? '').trim()
-          const parsedUrl = String(item.url ?? item.vimeoUrl ?? '').trim()
-          const iframeUrl = normalizeVimeoCollectionIframeUrl(parsedUrl)
-          if (!iframeUrl) {
-            return '<div class="connect-vimeo-collection-block not-prose my-2 text-xs text-red-600">@connect-vimeo-collection: invalid collection url</div>'
-          }
-          rows.push({ title: parsedTitle || 'Vimeo Collection', iframeUrl })
-        } else {
-          return '<div class="connect-vimeo-collection-block not-prose my-2 text-xs text-red-600">@connect-vimeo-collection: invalid JSON</div>'
-        }
-      } catch {
-        return '<div class="connect-vimeo-collection-block not-prose my-2 text-xs text-red-600">@connect-vimeo-collection: invalid JSON</div>'
-      }
-    } else {
-      const iframeUrl = normalizeVimeoCollectionIframeUrl(payload)
-      if (!iframeUrl) {
-        return '<div class="connect-vimeo-collection-block not-prose my-2 text-xs text-red-600">@connect-vimeo-collection: invalid collection url</div>'
-      }
-      rows.push({ title: 'Vimeo Collection', iframeUrl })
-    }
-
-    if (!rows.length) {
-      return '<div class="connect-vimeo-collection-block not-prose my-2 text-xs text-gray-500">@connect-vimeo-collection: no valid items</div>'
-    }
-    const list = rows
-      .map((row) =>
-        `<li class="my-0.5"><button type="button" class="group flex w-full items-start gap-2 rounded px-1.5 py-1 text-left font-normal bg-transparent border-0 cursor-pointer hover:bg-white/70" data-connect-play-vimeo-collection="${escapeHtml(row.iframeUrl)}" data-connect-video-title="${escapeHtml(row.title)}"><span class="mt-[0.42rem] inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[rgba(13,94,130,1)]"></span><span class="text-[rgba(13,94,130,1)]" data-video-link="true">${escapeHtml(row.title)}</span></button></li>`
-      )
-      .join('')
-    return `<div class="connect-vimeo-collection-block not-prose my-2 rounded border border-gray-200 bg-gray-50 px-3 py-2 text-sm"><ul class="m-0 p-0 space-y-0.5">${list}</ul></div>`
+    const { rows, errorHtml } = parseConnectVimeoCollectionPayload(payload)
+    if (errorHtml) return errorHtml
+    return buildConnectVimeoCollectionListHtml(rows)
   }
 
   const buildConnectMagicBlockHtml = (raw: string): string | null =>

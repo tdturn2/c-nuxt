@@ -294,7 +294,7 @@ const gridMenuItems = ref<NavigationMenuItem[]>([
       {
         label: 'EARS',
         icon: 'i-heroicons-bell-alert',
-        to: '/departments/library/emergency-alert-response-system-ears/'
+        to: '/lits/ears',
       },
       {
         label: 'Portal',
