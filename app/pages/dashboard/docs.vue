@@ -692,6 +692,7 @@ import { lexicalUploadNodeToTipTapImage, tipTapImageToLexicalUploadNode } from '
 import {
   connectMagicBlockJsonParses,
   connectMagicMergeSeparator,
+  isConnectJsonMagic,
 } from '~/utils/connectMagicBlocks'
 
 const route = useRoute()
@@ -1562,8 +1563,19 @@ function collapseConnectMagicBlocksInTipTapDoc(doc: any): any {
       merged += connectMagicMergeSeparator(merged) + nextPlain
     }
     if (!found) {
-      out.push(n)
-      i++
+      // Keep the full merged magic line even when JSON.parse fails in-editor (e.g. mid-edit).
+      // Previously only the first paragraph was saved, truncating long @connect-videos lists on Vercel.
+      if (j > i && isConnectJsonMagic(merged)) {
+        out.push({
+          type: 'codeBlock',
+          attrs: { language: 'json' },
+          content: merged ? [{ type: 'text', text: merged }] : [],
+        })
+        i = j + 1
+      } else {
+        out.push(n)
+        i++
+      }
     }
   }
   return { ...doc, content: out }
