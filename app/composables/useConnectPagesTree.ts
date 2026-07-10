@@ -184,11 +184,16 @@ export function buildConnectPageCategoryNavItems(rawPages: any[]): NavigationMen
     grouped.get(category)?.push(item)
   }
 
-  return CONNECT_PAGE_CATEGORIES.map((c) => ({
-    label: c.label,
-    icon: 'i-lucide-folder-open',
-    children: grouped.get(c.value) ?? [],
-  }))
+  return CONNECT_PAGE_CATEGORIES.map((c) => {
+    const path = CONNECT_PAGE_CATEGORY_PATHS[c.value]
+    return {
+      label: c.label,
+      icon: 'i-lucide-folder-open',
+      to: path,
+      onSelect: () => navigateTo(path),
+      children: grouped.get(c.value) ?? [],
+    }
+  })
 }
 
 function withNavTooltips(item: NavigationMenuItem): NavigationMenuItem {
@@ -280,12 +285,18 @@ export function buildConnectPageCategoryNavItemsWithAccordion(
 
   return categories.map((category) => {
     const categoryValue = CONNECT_PAGE_CATEGORIES.find((c) => c.label === category.label)?.value
+    const categoryPath = categoryValue ? CONNECT_PAGE_CATEGORY_PATHS[categoryValue] : undefined
     const shouldOpen = activeCategory
       ? categoryValue === activeCategory
       : false
+    const normalizedActivePath = activePath ? normalizeConnectPageLookupPath(activePath) : ''
+    const isCategoryLandingActive = Boolean(
+      categoryPath && normalizedActivePath === normalizeConnectPageLookupPath(categoryPath),
+    )
     return withNavTooltips({
       ...category,
       defaultOpen: shouldOpen,
+      active: isCategoryLandingActive,
     })
   })
 }

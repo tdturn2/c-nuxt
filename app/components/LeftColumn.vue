@@ -233,25 +233,25 @@ const showResourcesSection = computed(() => filteredResourceNavItems.value.lengt
     :class="isHome ? 'h-full' : 'h-[calc(100vh-3.75rem)]'"
     :style="{ width: `${asideWidthPx}px` }"
   >
-    <!-- Collapsed: show only expand button -->
+    <!-- Collapsed: expand control pinned to top of rail -->
     <div
       v-if="collapsed"
-      class="flex flex-col items-center py-4 w-full min-w-0"
+      class="flex w-full min-w-0 flex-col items-center px-2 pt-2"
     >
       <button
         type="button"
         aria-label="Expand sidebar"
-        class="p-2 rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+        class="sidebar-toggle-btn"
         @click="toggleCollapsed"
       >
-        <UIcon name="i-heroicons-chevron-right" class="w-5 h-5" />
+        <UIcon name="i-lucide-chevrons-right" class="h-4 w-4" />
       </button>
     </div>
 
     <!-- Expanded: full sidebar content -->
     <template v-else>
       <div class="flex flex-col flex-1 min-w-0 overflow-hidden w-full">
-        <div class="flex items-center justify-between gap-1 px-2 pt-2 pb-1">
+        <div class="flex items-center gap-1.5 px-2 pt-2 pb-1">
           <UInput
             v-model="menuSearchQuery"
             type="search"
@@ -260,16 +260,16 @@ const showResourcesSection = computed(() => filteredResourceNavItems.value.lengt
             color="neutral"
             variant="outline"
             size="sm"
-            class="shrink-0 flex-1 min-w-0"
+            class="min-h-8 shrink-0 flex-1 min-w-0"
             autocomplete="off"
           />
           <button
             type="button"
             aria-label="Collapse sidebar"
-            class="p-2 rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700 shrink-0"
+            class="sidebar-toggle-btn"
             @click="toggleCollapsed"
           >
-            <UIcon name="i-heroicons-chevron-left" class="w-5 h-5" />
+            <UIcon name="i-lucide-chevrons-left" class="h-4 w-4" />
           </button>
         </div>
         <div class="connect-left-nav-scroll flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden gap-4 px-2 my-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
@@ -318,6 +318,27 @@ const showResourcesSection = computed(() => filteredResourceNavItems.value.lengt
 </template>
 
 <style scoped>
+.sidebar-toggle-btn {
+  display: flex;
+  height: 2rem;
+  width: 2rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  color: var(--color-gold);
+  transition: background-color 150ms, color 150ms;
+}
+
+.sidebar-toggle-btn:hover {
+  background-color: color-mix(in srgb, var(--color-gold) 12%, transparent);
+}
+
+.sidebar-toggle-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-gold) 35%, transparent);
+}
+
 .connect-left-nav :deep(.connect-left-nav__link) {
   min-width: 0;
 }

@@ -1,7 +1,7 @@
 <template>
   <header class="border-b border-white/10 bg-gradient-to-r from-[rgba(13,94,130,1)] to-[rgba(10,69,92,1)] sticky top-0 z-50">
     <div class="w-full flex items-center gap-2 sm:gap-3 min-h-[60px] px-3 md:px-4">
-      <div class="flex items-center shrink-0">
+      <div class="ml-6 flex shrink-0 items-center">
         <NuxtLink to="/" class="flex items-center" noPrefetch>
           <img :src="connectLogoWide" alt="Logo" class="block h-8 w-auto sm:h-9" />
         </NuxtLink>
