@@ -44,6 +44,8 @@ export default defineEventHandler(async (event) => {
   const payloadBody: Record<string, unknown> = {}
   if (body.name !== undefined) payloadBody.name = toTrimmed(body.name)
   if (body.email !== undefined) payloadBody.email = toTrimmed(body.email).toLowerCase()
+  if (body.employeeTitle !== undefined) payloadBody.employeeTitle = toTrimmed(body.employeeTitle)
+  if (body.phone !== undefined) payloadBody.phone = toTrimmed(body.phone)
   if (body.roles !== undefined) payloadBody.roles = toRoleArray(body.roles)
   if (body.groups !== undefined) payloadBody.groups = toIdArray(body.groups)
   if (body.avatarConnectUserMedia !== undefined) payloadBody.avatarConnectUserMedia = body.avatarConnectUserMedia

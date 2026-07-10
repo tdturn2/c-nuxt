@@ -46,6 +46,8 @@ export default defineEventHandler(async (event) => {
   const payloadBody = {
     email,
     name,
+    employeeTitle: toTrimmed(body.employeeTitle),
+    phone: toTrimmed(body.phone),
     password,
     roles: toRoleArray(body.roles),
     groups: toIdArray(body.groups),

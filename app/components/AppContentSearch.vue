@@ -24,6 +24,7 @@
           close
           placeholder="Search departments, resources, and people…"
           @update:model-value="onSelect"
+          @update:open="onPaletteOpenChange"
         />
       </template>
     </UModal>
@@ -54,6 +55,11 @@ function onSelect(item: any) {
   if (item?.disabled) return
   open.value = false
   searchTerm.value = ''
+}
+
+function onPaletteOpenChange(isOpen: boolean) {
+  open.value = isOpen
+  if (!isOpen) searchTerm.value = ''
 }
 
 function onKeydown(e: KeyboardEvent) {

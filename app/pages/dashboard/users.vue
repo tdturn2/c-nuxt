@@ -5,7 +5,7 @@
       <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="mb-6">
           <h1 class="text-2xl font-bold text-gray-900">User Management</h1>
-          <p class="mt-1 text-sm text-gray-600">Create accounts, assign roles/groups, and update avatar media.</p>
+          <p class="mt-1 text-sm text-gray-600">Create accounts, assign roles/groups, and update profile details including title and phone.</p>
         </div>
 
         <div v-if="mePending" class="py-8 text-gray-500">Checking access...</div>
@@ -38,6 +38,8 @@
                 <tr>
                   <th class="px-4 py-2 text-left font-semibold">Name</th>
                   <th class="px-4 py-2 text-left font-semibold">Email</th>
+                  <th class="px-4 py-2 text-left font-semibold">Title</th>
+                  <th class="px-4 py-2 text-left font-semibold">Phone</th>
                   <th class="px-4 py-2 text-left font-semibold">Roles</th>
                   <th class="px-4 py-2 text-left font-semibold">Groups</th>
                   <th class="px-4 py-2 text-right font-semibold">Actions</th>
@@ -45,14 +47,16 @@
               </thead>
               <tbody>
                 <tr v-if="loading" class="border-t border-gray-200">
-                  <td colspan="5" class="px-4 py-4 text-gray-500">Loading users...</td>
+                  <td colspan="7" class="px-4 py-4 text-gray-500">Loading users...</td>
                 </tr>
                 <tr v-else-if="!users.length" class="border-t border-gray-200">
-                  <td colspan="5" class="px-4 py-4 text-gray-500">No users found.</td>
+                  <td colspan="7" class="px-4 py-4 text-gray-500">No users found.</td>
                 </tr>
                 <tr v-for="user in users" :key="String(user.id)" class="border-t border-gray-200">
                   <td class="px-4 py-3 font-medium text-gray-900">{{ user.name || '—' }}</td>
                   <td class="px-4 py-3 text-gray-700">{{ user.email || '—' }}</td>
+                  <td class="px-4 py-3 text-gray-700">{{ user.employeeTitle || '—' }}</td>
+                  <td class="px-4 py-3 text-gray-700">{{ user.phone || '—' }}</td>
                   <td class="px-4 py-3 text-gray-700">{{ formatRoles(user.roles) }}</td>
                   <td class="px-4 py-3 text-gray-700">{{ formatGroupNames(user.groups) }}</td>
                   <td class="px-4 py-3 text-right space-x-2">
@@ -107,6 +111,10 @@
           <div class="grid gap-3 sm:grid-cols-2">
             <input v-model="userForm.name" type="text" placeholder="Display name" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
             <input v-model="userForm.email" type="email" placeholder="email@domain.edu" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
+          </div>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <input v-model="userForm.employeeTitle" type="text" placeholder="Job title" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
+            <input v-model="userForm.phone" type="tel" placeholder="Phone" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
           </div>
           <input
             v-model="userForm.password"
@@ -226,6 +234,8 @@ type UserItem = {
   id: string | number
   name?: string
   email?: string
+  employeeTitle?: string | null
+  phone?: string | null
   roles?: string[]
   groups?: Array<GroupItem | string | number>
   avatarConnectUserMedia?: { id?: string | number; url?: string } | string | number | null
@@ -261,6 +271,8 @@ const avatarUploadInputRef = ref<HTMLInputElement | null>(null)
 const userForm = ref({
   name: '',
   email: '',
+  employeeTitle: '',
+  phone: '',
   password: '',
   roles: [] as string[],
   groups: [] as Array<string | number>,
@@ -300,6 +312,8 @@ function resetUserForm() {
   userForm.value = {
     name: '',
     email: '',
+    employeeTitle: '',
+    phone: '',
     password: '',
     roles: [],
     groups: [],
@@ -394,6 +408,8 @@ async function openEditUserModal(user: UserItem) {
   userForm.value = {
     name: user.name || '',
     email: user.email || '',
+    employeeTitle: user.employeeTitle || '',
+    phone: user.phone || '',
     password: '',
     roles: Array.isArray(user.roles) ? user.roles.map((role) => String(role)) : [],
     groups: Array.isArray(user.groups) ? user.groups.map(extractGroupId) : [],
@@ -456,6 +472,8 @@ async function saveUser() {
   const payload = {
     name: userForm.value.name.trim(),
     email: userForm.value.email.trim(),
+    employeeTitle: userForm.value.employeeTitle.trim(),
+    phone: userForm.value.phone.trim(),
     password: userForm.value.password.trim(),
     roles: userForm.value.roles,
     groups: userForm.value.groups,
