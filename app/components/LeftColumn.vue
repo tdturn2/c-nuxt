@@ -184,7 +184,7 @@ const isAudienceHubActive = (slug: string) => {
   return route.path === base || route.path.startsWith(`${base}/`)
 }
 
-const footerNavItems = computed<NavigationMenuItem[]>(() => [
+const resourceNavItems = computed<NavigationMenuItem[]>(() => [
   {
     label: 'Faculty',
     icon: 'i-heroicons-academic-cap',
@@ -204,6 +204,14 @@ const footerNavItems = computed<NavigationMenuItem[]>(() => [
     active: isAudienceHubActive('students'),
   },
 ])
+
+const filteredResourceNavItems = computed(() => {
+  const q = menuSearchQuery.value.trim().toLowerCase()
+  if (!q) return resourceNavItems.value
+  return resourceNavItems.value.filter((item) => (item.label ?? '').toLowerCase().includes(q))
+})
+
+const showResourcesSection = computed(() => filteredResourceNavItems.value.length > 0)
 </script>
 
 <template>
@@ -251,7 +259,7 @@ const footerNavItems = computed<NavigationMenuItem[]>(() => [
             <UIcon name="i-heroicons-chevron-left" class="w-5 h-5" />
           </button>
         </div>
-        <div class="flex flex-col flex-1 min-h-0 overflow-hidden gap-4 px-2 my-2">
+        <div class="connect-left-nav-scroll flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden gap-4 px-2 my-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
           <UNavigationMenu
             :key="`left-nav-${route.path}-${menuSearchQuery.trim()}`"
             :items="filteredMainNavItems"
@@ -262,24 +270,24 @@ const footerNavItems = computed<NavigationMenuItem[]>(() => [
               childItem: 'connect-left-nav__child-item',
             }"
             orientation="vertical"
-            class="connect-left-nav flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
+            class="connect-left-nav shrink-0"
           />
-        </div>
-        <div
-          v-if="footerNavItems.length"
-          class="w-full shrink-0 border-t border-gray-200 bg-gray-50/80 pt-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] px-2"
-        >
-          <p class="px-2 pb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
-            Resources
-          </p>
-          <UNavigationMenu
-            :items="footerNavItems"
-            :ui="{
-              link: 'font-medium data-[active=true]:text-gray-900 data-[active=true]:bg-gold/15 aria-[current=page]:text-gray-900',
-              linkLeadingIcon: 'group-data-[active=true]:text-gold group-aria-[current=page]:text-gold',
-            }"
-            orientation="vertical"
-          />
+          <div
+            v-if="showResourcesSection"
+            class="connect-left-nav-resources shrink-0 rounded-lg border border-gray-200 bg-gray-50/80 px-1 py-2"
+          >
+            <p class="px-2 pb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+              Resources
+            </p>
+            <UNavigationMenu
+              :items="filteredResourceNavItems"
+              :ui="{
+                link: 'font-medium data-[active=true]:text-gray-900 data-[active=true]:bg-gold/15 aria-[current=page]:text-gray-900',
+                linkLeadingIcon: 'group-data-[active=true]:text-gold group-aria-[current=page]:text-gold',
+              }"
+              orientation="vertical"
+            />
+          </div>
         </div>
       </div>
 
