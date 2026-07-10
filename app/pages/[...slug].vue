@@ -60,7 +60,7 @@
               <li
                 v-for="c in contacts"
                 :key="c.id"
-                class="flex gap-3 sm:gap-4 px-4 py-3.5 sm:px-5 sm:py-4 min-w-0 transition-colors hover:bg-gray-50/90"
+                class="flex items-center gap-3 sm:gap-4 px-4 py-3.5 sm:px-5 sm:py-4 min-w-0 transition-colors hover:bg-gray-50/90"
               >
                 <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 ring-1 ring-gray-200/60 shrink-0">
                   <img
@@ -79,40 +79,44 @@
                     {{ initialsForContact(c.name) }}
                   </div>
                 </div>
-                <div class="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-                  <div class="min-w-0">
-                    <div class="font-semibold text-gray-900 leading-snug">
-                      {{ c.name || '—' }}
-                    </div>
-                    <p v-if="c.employeeTitle" class="mt-0.5 text-sm text-gray-600 leading-snug">
-                      {{ c.employeeTitle }}
-                    </p>
+                <div class="min-w-0 flex-1">
+                  <div class="font-semibold text-gray-900 leading-snug">
+                    {{ c.name || '—' }}
                   </div>
-                  <div
-                    v-if="c.email || c.phone"
-                    class="mt-2 sm:mt-0 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm shrink-0 sm:justify-end"
+                  <p v-if="c.employeeTitle" class="mt-0.5 text-sm text-gray-600 leading-snug">
+                    {{ c.employeeTitle }}
+                  </p>
+                </div>
+                <div
+                  v-if="c.email || c.phone"
+                  class="flex shrink-0 items-center justify-end gap-3"
+                >
+                  <UTooltip
+                    v-if="c.email"
+                    :text="c.email"
+                    :delay-duration="0"
                   >
                     <a
-                      v-if="c.email"
-                      class="text-[rgba(13,94,130,1)] hover:underline truncate max-w-full sm:max-w-[14rem]"
                       :href="`mailto:${c.email}`"
-                      :title="c.email"
+                      class="inline-flex h-8 w-8 items-center justify-center rounded-md text-[rgba(13,94,130,1)] hover:bg-[rgba(13,94,130,0.08)]"
+                      :aria-label="`Email ${c.name || 'contact'}`"
                     >
-                      {{ c.email }}
+                      <UIcon name="i-lucide-mail" class="h-4 w-4" />
                     </a>
+                  </UTooltip>
+                  <UTooltip
+                    v-if="c.phone"
+                    :text="c.phone"
+                    :delay-duration="0"
+                  >
                     <span
-                      v-if="c.email && c.phone"
-                      class="hidden sm:inline text-gray-300 select-none"
-                      aria-hidden="true"
-                    >·</span>
-                    <a
-                      v-if="c.phone"
-                      class="text-[rgba(13,94,130,1)] hover:underline whitespace-nowrap"
-                      :href="`tel:${toTelHref(c.phone)}`"
+                      class="inline-flex h-8 w-8 items-center justify-center rounded-md text-[rgba(13,94,130,1)]"
+                      :aria-label="`Phone ${c.phone}`"
+                      tabindex="0"
                     >
-                      {{ c.phone }}
-                    </a>
-                  </div>
+                      <UIcon name="i-lucide-phone" class="h-4 w-4" />
+                    </span>
+                  </UTooltip>
                 </div>
               </li>
             </ul>
@@ -424,10 +428,6 @@ const contactsHeading = computed(() => {
   ).trim()
   return h || 'Contacts'
 })
-
-function toTelHref(phoneRaw: string) {
-  return phoneRaw.replace(/[^\d+]/g, '')
-}
 
 function initialsForContact(name: string | null | undefined) {
   const parts = String(name ?? '')
