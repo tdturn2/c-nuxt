@@ -184,26 +184,34 @@ const isAudienceHubActive = (slug: string) => {
   return route.path === base || route.path.startsWith(`${base}/`)
 }
 
-const resourceNavItems = computed<NavigationMenuItem[]>(() => [
-  {
-    label: 'Faculty',
-    icon: 'i-heroicons-academic-cap',
-    to: '/faculty',
-    active: isAudienceHubActive('faculty'),
-  },
-  {
-    label: 'Staff',
-    icon: 'i-heroicons-briefcase',
-    to: '/staff',
-    active: isAudienceHubActive('staff'),
-  },
-  {
-    label: 'Students',
-    icon: 'i-lucide-graduation-cap',
-    to: '/students',
-    active: isAudienceHubActive('students'),
-  },
-])
+const { canAccessFacultyHub, facultyHubAccessReady } = useFacultyHubAccess()
+
+const resourceNavItems = computed<NavigationMenuItem[]>(() => {
+  const items: NavigationMenuItem[] = []
+  if (facultyHubAccessReady.value && canAccessFacultyHub.value) {
+    items.push({
+      label: 'Faculty',
+      icon: 'i-heroicons-academic-cap',
+      to: '/faculty',
+      active: isAudienceHubActive('faculty'),
+    })
+  }
+  items.push(
+    {
+      label: 'Staff',
+      icon: 'i-heroicons-briefcase',
+      to: '/staff',
+      active: isAudienceHubActive('staff'),
+    },
+    {
+      label: 'Students',
+      icon: 'i-lucide-graduation-cap',
+      to: '/students',
+      active: isAudienceHubActive('students'),
+    },
+  )
+  return items
+})
 
 const filteredResourceNavItems = computed(() => {
   const q = menuSearchQuery.value.trim().toLowerCase()

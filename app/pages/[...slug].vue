@@ -13,6 +13,15 @@
         <div v-else-if="error" class="rounded-lg bg-red-50 border border-red-200 p-4 text-red-800 text-sm">
           {{ errorMessage }}
         </div>
+        <div v-else-if="isFacultyHubRoute && !facultyHubAccessReady" class="py-12 text-center text-gray-500">
+          Checking access...
+        </div>
+        <div
+          v-else-if="isFacultyHubRoute && !canAccessFacultyHub && authStatus === 'authenticated'"
+          class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900 text-sm"
+        >
+          You do not have access to faculty resources. Access requires the faculty role or membership in the faculty-access or admin group.
+        </div>
         <div v-else-if="!page" class="py-12 text-center text-gray-500">
           Page not found.
         </div>
@@ -184,6 +193,7 @@ import {
 
 const route = useRoute()
 const runtimeConfig = useRuntimeConfig()
+const { isFacultyHubRoute, facultyHubAccessReady, canAccessFacultyHub, authStatus } = useFacultyHubAccess()
 
 function normalizeConnectPageMediaUrl(url: string): string {
   const base =

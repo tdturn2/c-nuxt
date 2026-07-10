@@ -1,5 +1,6 @@
 import { defineEventHandler, getRouterParam, getQuery, createError } from 'h3'
 import { authenticateWithPayloadCMS, getPayloadProxyHeaders } from '../../utils/payloadAuth'
+import { assertFacultyHubPageReadable } from '../../utils/facultyHubAccess'
 
 /** Load one connect-page doc (full `content` Lexical). Forwards session so Payload returns fields editors are allowed to read. */
 export default defineEventHandler(async (event) => {
@@ -25,6 +26,7 @@ export default defineEventHandler(async (event) => {
 
   try {
     const data: any = await $fetch(url, { headers })
+    await assertFacultyHubPageReadable(event, id, payloadBaseUrl, headers)
     const shouldHydrateContactsFromPublic = (doc: any) => {
       if (!doc || typeof doc !== 'object') return false
       if (!('contacts' in doc)) return false
