@@ -285,7 +285,7 @@
                   class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-[rgba(13,94,130,1)] focus:outline-none focus:ring-1 focus:ring-[rgba(13,94,130,1)] disabled:bg-gray-100 disabled:text-gray-500"
                   :disabled="!!form.parentId"
                 >
-                  <option value="">Select category…</option>
+                  <option value="">None — hidden from Departments nav</option>
                   <option
                     v-for="opt in categoryOptions"
                     :key="opt.value"
@@ -296,6 +296,9 @@
                 </select>
                 <p v-if="form.parentId" class="mt-1 text-xs text-gray-500">
                   Child pages inherit category from the top parent.
+                </p>
+                <p v-else class="mt-1 text-xs text-gray-500">
+                  Choose None to keep this page out of the Departments sidebar. It remains reachable by URL.
                 </p>
               </div>
             </div>
@@ -1975,17 +1978,15 @@ async function savePage() {
     saveError.value = 'Slug is required.'
     return
   }
-  if (!form.value.parentId && !form.value.navCategory) {
-    saveError.value = 'Category is required for top-level pages.'
-    return
-  }
 
   const docForSave = collapseConnectMagicBlocksInTipTapDoc(
     JSON.parse(JSON.stringify(contentTipTap.value)) as any,
   )
   const content = tipTapToLexical(docForSave)
   const parent = form.value.parentId ? Number(form.value.parentId) : null
-  const navCategory = parent ? undefined : (form.value.navCategory as ConnectPageCategory)
+  const navCategory = parent
+    ? undefined
+    : (form.value.navCategory.trim() || null) as ConnectPageCategory | null
   const section = form.value.sectionId ? Number(form.value.sectionId) : undefined
   const contactsHeadingValue = contactsHeading.value.trim() || null
   const contacts = contactIds.value.map(toPayloadId).filter((v) => v != null)

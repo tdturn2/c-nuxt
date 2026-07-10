@@ -23,31 +23,28 @@
 
           <section
             v-if="childPages.length"
-            class="not-prose mb-8 rounded-2xl border border-gray-200/80 bg-white/90 p-4 sm:p-5 shadow-sm"
+            class="not-prose mb-8 rounded-2xl border border-gray-200/80 bg-[rgba(13,94,130,0.03)] p-4 sm:p-5 shadow-sm"
             aria-labelledby="child-pages-heading"
           >
-            <div class="flex items-center justify-between gap-3 mb-3">
-              <h2 id="child-pages-heading" class="text-base sm:text-lg font-semibold text-gray-900">
-                Explore this section
+            <div class="mb-3 flex items-baseline justify-between gap-3">
+              <h2 id="child-pages-heading" class="text-base font-semibold text-gray-900 sm:text-lg">
+                {{ childPagesHeading }}
               </h2>
-              <span class="text-xs font-medium text-gray-500">
-                {{ childPages.length }} {{ childPages.length === 1 ? 'page' : 'pages' }}
+              <span v-if="childPages.length > 6" class="shrink-0 rounded-full bg-white px-2 py-0.5 text-xs font-medium text-gray-500 ring-1 ring-gray-200/80">
+                {{ childPages.length }} pages
               </span>
             </div>
-            <div class="grid gap-2 sm:grid-cols-2">
+            <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
               <NuxtLink
                 v-for="child in childPages"
                 :key="child.id"
                 :to="child.path"
-                class="group flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50/70 px-3 py-2.5 text-sm font-medium text-gray-700 transition-all hover:border-[rgba(13,94,130,0.35)] hover:bg-white hover:text-[rgba(13,94,130,1)] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(13,94,130,0.35)] focus-visible:ring-offset-2"
+                class="rounded-xl border border-gray-200/90 bg-white px-3 py-2.5 text-sm font-medium leading-snug text-gray-700 transition-colors hover:border-[rgba(13,94,130,0.35)] hover:text-[rgba(13,94,130,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(13,94,130,0.35)] focus-visible:ring-offset-2"
+                :class="isChildPageActive(child.path)
+                  ? 'border-l-2 border-l-[rgba(13,94,130,1)] bg-white text-[rgba(13,94,130,1)]'
+                  : 'border-l-2 border-l-transparent'"
               >
-                <span class="truncate pr-3">{{ child.title }}</span>
-                <span
-                  class="text-gray-400 transition-transform group-hover:translate-x-0.5 group-hover:text-[rgba(13,94,130,1)]"
-                  aria-hidden="true"
-                >
-                  →
-                </span>
+                <span class="line-clamp-2">{{ child.title }}</span>
               </NuxtLink>
             </div>
           </section>
@@ -299,6 +296,17 @@ const childPages = computed(() => {
   if (!current) return [] as Array<{ id: string; title: string; path: string }>
   return getDirectChildConnectPages(docs, current.id)
 })
+
+const childPagesHeading = computed(() => {
+  const title = (effectivePage.value?.title || page.value?.title || '').toString().trim()
+  return title ? `Pages in ${title}` : 'Pages in this section'
+})
+
+function isChildPageActive(path: string): boolean {
+  const current = route.path.replace(/\/$/, '') || '/'
+  const target = path.replace(/\/$/, '') || '/'
+  return current === target || current.startsWith(`${target}/`)
+}
 
 function normalizeContactRef(raw: unknown): ResolvedContactRef | null {
   if (raw == null) return null
