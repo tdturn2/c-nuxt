@@ -2,10 +2,10 @@
 import { defineEventHandler, getQuery, createError } from 'h3'
 import { authenticateWithPayloadCMS, getPayloadProxyHeaders } from '../utils/payloadAuth'
 import {
-  filterConnectPagesForFacultyHubAccess,
-  loadConnectUserDocForEvent,
-} from '../utils/facultyHubAccess'
-import { hasFacultyHubAccess, isFacultyHubPageId } from '@shared/facultyHubAccess'
+  filterConnectPagesForAudienceHubAccess,
+  loadAudienceHubAccess,
+  assertAudienceHubPageReadable,
+} from '../utils/audienceHubPages'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -58,8 +58,7 @@ export default defineEventHandler(async (event) => {
   }
   try {
     const data: any = await $fetch(url, { headers })
-    const connectUserDoc = await loadConnectUserDocForEvent(event)
-    const facultyHubAllowed = hasFacultyHubAccess(connectUserDoc)
+    const { facultyHubAllowed, staffHubAllowed } = await loadAudienceHubAccess(event)
     let publicData: any = null
 
     const shouldHydrateContactsFromPublic = (doc: any) => {
@@ -91,9 +90,10 @@ export default defineEventHandler(async (event) => {
     }
 
     if (Array.isArray(data?.docs)) {
-      const docs = filterConnectPagesForFacultyHubAccess(
+      const docs = filterConnectPagesForAudienceHubAccess(
         data.docs.map((doc: any) => normalizeDoc(doc)),
         facultyHubAllowed,
+        staffHubAllowed,
       )
       const needsFallback = docs.some((doc: any) => shouldHydrateContactsFromPublic(doc))
       if (needsFallback) {
@@ -111,15 +111,8 @@ export default defineEventHandler(async (event) => {
       }
     }
     const normalized = normalizeDoc(data)
-    if (!facultyHubAllowed && normalized?.id != null) {
-      const listRes: any = await $fetch(
-        `${payloadBaseUrl}/api/connect-pages?limit=500&depth=0&pagination=false`,
-        { headers: { Accept: 'application/json' } },
-      ).catch(() => null)
-      const pages = Array.isArray(listRes?.docs) ? listRes.docs : []
-      if (isFacultyHubPageId(normalized.id, pages)) {
-        throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
-      }
+    if ((!facultyHubAllowed || !staffHubAllowed) && normalized?.id != null) {
+      await assertAudienceHubPageReadable(event, normalized.id, payloadBaseUrl, headers)
     }
     if (shouldHydrateContactsFromPublic(normalized)) {
       const publicRes = await loadPublicDataIfNeeded()

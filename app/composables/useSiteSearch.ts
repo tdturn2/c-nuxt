@@ -1,7 +1,9 @@
 import type { CommandPaletteGroup, CommandPaletteItem } from '@nuxt/ui'
 import { useDebounceFn } from '@vueuse/core'
 import { extractLexicalPlainText } from '@shared/lexicalPlainText'
+import { canAccessAudienceHubPath } from '@shared/audienceHubAccess'
 import { isFacultyHubPath } from '@shared/facultyHubAccess'
+import { isStaffHubPath } from '@shared/staffHubAccess'
 import { SITE_SEARCH_RESOURCE_LINKS } from '@shared/siteSearchNav'
 import {
   CONNECT_PAGE_CATEGORIES,
@@ -35,10 +37,11 @@ function formatUserRoles(roles: string[] | undefined): string {
   return labels.join(', ')
 }
 
-function resourceItems(canAccessFacultyHub: boolean): CommandPaletteItem[] {
+function resourceItems(canAccessFacultyHub: boolean, canAccessStaffHub: boolean): CommandPaletteItem[] {
   const out: CommandPaletteItem[] = []
   for (const link of SITE_SEARCH_RESOURCE_LINKS) {
     if (!canAccessFacultyHub && isFacultyHubPath(link.to)) continue
+    if (!canAccessStaffHub && isStaffHubPath(link.to)) continue
     out.push({
       id: `res:${link.to}`,
       label: link.label,
@@ -48,6 +51,7 @@ function resourceItems(canAccessFacultyHub: boolean): CommandPaletteItem[] {
     })
     for (const child of link.children ?? []) {
       if (!canAccessFacultyHub && isFacultyHubPath(child.to)) continue
+      if (!canAccessStaffHub && isStaffHubPath(child.to)) continue
       out.push({
         id: `res:${child.to}`,
         label: child.label,
@@ -64,7 +68,7 @@ function resourceItems(canAccessFacultyHub: boolean): CommandPaletteItem[] {
 export function useSiteSearch(searchTerm: Ref<string>) {
   const loading = ref(false)
   const loaded = ref(false)
-  const { canAccessFacultyHub } = useFacultyHubAccess()
+  const { canAccessFacultyHub, canAccessStaffHub, connectUserDoc } = useAudienceHubAccess()
 
   const people = ref<SearchUser[]>([])
   const peopleLoading = ref(false)
@@ -185,7 +189,7 @@ export function useSiteSearch(searchTerm: Ref<string>) {
     const resourcesGroup: CommandPaletteGroup<CommandPaletteItem> = {
       id: 'resources',
       label: 'Resources',
-      items: resourceItems(canAccessFacultyHub.value),
+      items: resourceItems(canAccessFacultyHub.value, canAccessStaffHub.value),
     }
     const loadingGroup: CommandPaletteGroup<CommandPaletteItem> | null = loading.value
       ? { id: 'loading', label: 'Pages', items: [{ id: 'loading', label: 'Loading pages…', disabled: true }], ignoreFilter: true }
@@ -195,7 +199,7 @@ export function useSiteSearch(searchTerm: Ref<string>) {
         ...group,
         items: group.items.filter((item) => {
           const to = typeof item.to === 'string' ? item.to : ''
-          return canAccessFacultyHub.value || !isFacultyHubPath(to)
+          return canAccessAudienceHubPath(to, connectUserDoc.value)
         }),
       }))
       .filter((group) => group.items.length > 0)

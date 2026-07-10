@@ -1,42 +1,59 @@
 <template>
-  <div class="flex min-h-screen items-center justify-center">
-    <div class="text-center">
-      <h1 class="text-2xl font-bold mb-4">Sign In</h1>
-      <div
-        v-if="authError"
-        class="mb-6 max-w-md mx-auto rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-left text-sm text-red-900"
-      >
-        <p class="font-semibold">Sign-in failed</p>
-        <p class="mt-1">{{ authError }}</p>
+  <div class="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-10">
+    <div class="w-full max-w-md overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-lg">
+      <div class="flex justify-center bg-gradient-to-r from-[rgba(13,94,130,1)] to-[rgba(10,69,92,1)] px-8 py-9">
+        <img :src="connectLogoWide" alt="Asbury Connect" class="h-10 w-auto sm:h-11" />
       </div>
-      <p class="mb-6" v-if="isRedirecting">Redirecting to Microsoft Entra...</p>
-      <p class="mb-6" v-else>Click the button below to sign in with Microsoft Entra</p>
-      <form 
-        ref="signInForm"
-        method="POST" 
-        action="/api/auth/signin/azure-ad"
-      >
-        <input type="hidden" name="callbackUrl" :value="callbackUrl" />
-        <input type="hidden" name="csrfToken" :value="csrfToken" />
-        <input type="hidden" name="redirect" value="true" />
-        <UButton 
-          type="submit"
-          color="primary"
-          size="lg"
-          :disabled="isRedirecting"
-          @click.prevent="handleSignIn"
+
+      <div class="px-8 py-8 text-center">
+        <p v-if="isRedirecting" class="text-sm text-gray-600">
+          Redirecting to Microsoft…
+        </p>
+        <p v-else class="text-base text-gray-700">
+          Sign in with your Asbury Seminary Single Sign-On (SSO) account to continue.
+        </p>
+
+        <div
+          v-if="authError"
+          class="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-left text-sm text-red-900"
         >
-          Sign in with Microsoft Entra
-        </UButton>
-      </form>
+          <p class="font-semibold">Sign-in failed</p>
+          <p class="mt-1">{{ authError }}</p>
+        </div>
+
+        <form
+          ref="signInForm"
+          class="mt-6"
+          method="POST"
+          action="/api/auth/signin/azure-ad"
+        >
+          <input type="hidden" name="callbackUrl" :value="callbackUrl" />
+          <input type="hidden" name="csrfToken" :value="csrfToken" />
+          <input type="hidden" name="redirect" value="true" />
+          <button
+            type="submit"
+            class="inline-flex w-full items-center justify-center gap-2.5 rounded-md bg-[rgba(13,94,130,1)] px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-[rgba(10,69,92,1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(13,94,130,0.45)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+            :disabled="isRedirecting"
+            @click.prevent="handleSignIn"
+          >
+            <img src="/shield.svg" alt="" aria-hidden="true" class="h-5 w-auto shrink-0" />
+            Sign in
+          </button>
+        </form>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-// Exclude this page from auth protection
+import connectLogoWide from '../../assets/connect-logo.svg'
+
 definePageMeta({
-  auth: false
+  auth: false,
+})
+
+useHead({
+  title: 'Sign In — Asbury Connect',
 })
 
 const { status, signIn: authSignIn, getCsrfToken } = useAuth()

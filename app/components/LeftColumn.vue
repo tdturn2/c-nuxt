@@ -184,7 +184,12 @@ const isAudienceHubActive = (slug: string) => {
   return route.path === base || route.path.startsWith(`${base}/`)
 }
 
-const { canAccessFacultyHub, facultyHubAccessReady } = useFacultyHubAccess()
+const {
+  canAccessFacultyHub,
+  canAccessStaffHub,
+  facultyHubAccessReady,
+  staffHubAccessReady,
+} = useAudienceHubAccess()
 
 const resourceNavItems = computed<NavigationMenuItem[]>(() => {
   const items: NavigationMenuItem[] = []
@@ -196,20 +201,20 @@ const resourceNavItems = computed<NavigationMenuItem[]>(() => {
       active: isAudienceHubActive('faculty'),
     })
   }
-  items.push(
-    {
+  if (staffHubAccessReady.value && canAccessStaffHub.value) {
+    items.push({
       label: 'Staff',
       icon: 'i-heroicons-briefcase',
       to: '/staff',
       active: isAudienceHubActive('staff'),
-    },
-    {
-      label: 'Students',
-      icon: 'i-lucide-graduation-cap',
-      to: '/students',
-      active: isAudienceHubActive('students'),
-    },
-  )
+    })
+  }
+  items.push({
+    label: 'Students',
+    icon: 'i-lucide-graduation-cap',
+    to: '/students',
+    active: isAudienceHubActive('students'),
+  })
   return items
 })
 

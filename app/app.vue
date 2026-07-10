@@ -4,14 +4,14 @@
       class="flex flex-col relative z-10"
       :class="isHome ? 'h-screen overflow-hidden' : 'min-h-screen'"
     >
-      <Header class="flex-shrink-0" />
+      <Header v-if="!isSignIn" class="flex-shrink-0" />
       <main
         class="flex-1 relative z-10"
         :class="isHome ? 'min-h-0 overflow-hidden' : ''"
       >
         <NuxtPage />
       </main>
-      <Footer class="flex-shrink-0" />
+      <Footer v-if="!isSignIn" class="flex-shrink-0" />
       <NuxtRouteAnnouncer />
     </div>
     <AppContentSearch />
@@ -28,6 +28,7 @@ import '../assets/css/main.css'
 
 const route = useRoute()
 const isHome = computed(() => route.path === '/')
+const isSignIn = computed(() => route.path === '/signin')
 
 // Force light mode for NuxtUI components
 const colorMode = useColorMode()

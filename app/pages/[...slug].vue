@@ -16,11 +16,20 @@
         <div v-else-if="isFacultyHubRoute && !facultyHubAccessReady" class="py-12 text-center text-gray-500">
           Checking access...
         </div>
+        <div v-else-if="isStaffHubRoute && !staffHubAccessReady" class="py-12 text-center text-gray-500">
+          Checking access...
+        </div>
         <div
           v-else-if="isFacultyHubRoute && !canAccessFacultyHub && authStatus === 'authenticated'"
           class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900 text-sm"
         >
           You do not have access to faculty resources. Access requires the faculty role or membership in the faculty-access or admin group.
+        </div>
+        <div
+          v-else-if="isStaffHubRoute && !canAccessStaffHub && authStatus === 'authenticated'"
+          class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900 text-sm"
+        >
+          You do not have access to staff resources. Access requires the staff role or membership in the admin group.
         </div>
         <div v-else-if="!page" class="py-12 text-center text-gray-500">
           Page not found.
@@ -193,7 +202,15 @@ import {
 
 const route = useRoute()
 const runtimeConfig = useRuntimeConfig()
-const { isFacultyHubRoute, facultyHubAccessReady, canAccessFacultyHub, authStatus } = useFacultyHubAccess()
+const {
+  isFacultyHubRoute,
+  isStaffHubRoute,
+  facultyHubAccessReady,
+  staffHubAccessReady,
+  canAccessFacultyHub,
+  canAccessStaffHub,
+  authStatus,
+} = useAudienceHubAccess()
 
 function normalizeConnectPageMediaUrl(url: string): string {
   const base =
