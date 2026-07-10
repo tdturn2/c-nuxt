@@ -10,6 +10,17 @@ export const CONNECT_PAGE_CATEGORIES = [
 
 export type ConnectPageCategory = typeof CONNECT_PAGE_CATEGORIES[number]['value']
 
+/** Canonical top-level paths for department category landing pages (breadcrumb roots). */
+export const CONNECT_PAGE_CATEGORY_PATHS: Record<ConnectPageCategory, string> = {
+  'academic-affairs': '/academic-affairs',
+  'advancement': '/advancement',
+  'beeson-center': '/beeson-center',
+  'enrollment-management': '/emt',
+  'finance-and-administration': '/finance-admin',
+  'presidents-office': '/president',
+  'student-life-and-formation': '/formation',
+}
+
 export const AUDIENCE_HUB_SLUGS = ['faculty', 'staff', 'students'] as const
 
 export type AudienceHubSlug = (typeof AUDIENCE_HUB_SLUGS)[number]
@@ -235,4 +246,137 @@ export function getConnectPageBreadcrumbLabel(rawPages: any[], pageId: string | 
     current = current.parentId ? (byId.get(current.parentId) || null) : null
   }
   return parts.join(' / ')
+}
+
+export type ConnectPageNavLink = {
+  id: string
+  title: string
+  path: string
+}
+
+export type ConnectPageBreadcrumbItem = {
+  label: string
+  to?: string
+}
+
+export function getConnectPageAncestors(
+  rawPages: any[],
+  pageId: string | number,
+): ConnectPageNavLink[] {
+  const pages = rawPages.map(normalizeConnectPage)
+  const byId = new Map(pages.map((p) => [String(p.id), p]))
+  const { pathById } = buildPagePathMap(pages)
+  const current = byId.get(String(pageId))
+  if (!current?.parentId) return []
+
+  const ancestors: ConnectPageNavLink[] = []
+  let parentId: string | null = current.parentId
+  const seen = new Set<string>()
+
+  while (parentId) {
+    if (seen.has(parentId)) break
+    seen.add(parentId)
+    const parent = byId.get(parentId)
+    if (!parent) break
+    const path = pathById.get(parentId)
+    if (path) {
+      ancestors.unshift({
+        id: parentId,
+        title: (parent.title || parent.slug || `#${parentId}`).toString(),
+        path,
+      })
+    }
+    parentId = parent.parentId
+  }
+
+  return ancestors
+}
+
+export function resolveEffectiveConnectPageCategory(
+  rawPages: any[],
+  pageId: string | number,
+): ConnectPageCategory | null {
+  const pages = rawPages.map(normalizeConnectPage)
+  const byId = new Map(pages.map((p) => [String(p.id), p]))
+  const allowed = new Set<string>(CONNECT_PAGE_CATEGORIES.map((c) => c.value))
+
+  let current: ConnectPageNode | undefined = byId.get(String(pageId))
+  const visited = new Set<string>()
+  while (current) {
+    const category = current.navCategory
+    if (category && allowed.has(category)) return category as ConnectPageCategory
+    const id = String(current.id)
+    if (visited.has(id)) break
+    visited.add(id)
+    current = current.parentId ? byId.get(current.parentId) : undefined
+  }
+  return null
+}
+
+export function resolveCategoryRootPage(
+  rawPages: any[],
+  pageId: string | number,
+): ConnectPageNavLink | null {
+  const category = resolveEffectiveConnectPageCategory(rawPages, pageId)
+  if (!category) return null
+
+  const path = CONNECT_PAGE_CATEGORY_PATHS[category]
+  const meta = CONNECT_PAGE_CATEGORIES.find((c) => c.value === category)
+  const pageAtPath = findConnectPageByPath(rawPages, path)
+
+  return {
+    id: pageAtPath ? String(pageAtPath.id) : `category:${category}`,
+    title: (pageAtPath?.title || meta?.label || category).toString(),
+    path,
+  }
+}
+
+export function getConnectPageSiblings(
+  rawPages: any[],
+  pageId: string | number,
+): ConnectPageNavLink[] {
+  const pages = rawPages.map(normalizeConnectPage)
+  const current = pages.find((p) => String(p.id) === String(pageId))
+  if (!current?.parentId) return []
+  return getDirectChildConnectPages(rawPages, current.parentId)
+}
+
+export function buildConnectPageBreadcrumbs(
+  rawPages: any[],
+  path: string,
+): ConnectPageBreadcrumbItem[] {
+  const page = findConnectPageByPath(rawPages, path)
+  if (!page || isAudienceHubRootPage(page)) return []
+
+  const pages = rawPages.map(normalizeConnectPage)
+  const byId = new Map(pages.map((p) => [String(p.id), p]))
+  const current = byId.get(String(page.id))
+  if (!current) return []
+
+  const crumbs: ConnectPageBreadcrumbItem[] = []
+  const ancestors = getConnectPageAncestors(rawPages, current.id)
+  const categoryRoot = resolveCategoryRootPage(rawPages, current.id)
+  const normalizedPath = normalizeConnectPageLookupPath(path)
+
+  if (categoryRoot) {
+    const categoryPath = normalizeConnectPageLookupPath(categoryRoot.path)
+    const onCategoryRoot = normalizedPath === categoryPath
+    if (!onCategoryRoot) {
+      crumbs.push({ label: categoryRoot.title, to: categoryRoot.path })
+    }
+  }
+
+  for (const ancestor of ancestors) {
+    if (categoryRoot) {
+      const categoryPath = normalizeConnectPageLookupPath(categoryRoot.path)
+      const ancestorPath = normalizeConnectPageLookupPath(ancestor.path)
+      if (ancestorPath === categoryPath || ancestor.id === categoryRoot.id) continue
+    }
+    crumbs.push({ label: ancestor.title, to: ancestor.path })
+  }
+
+  const currentLabel = (current.title || current.slug || '').toString().trim()
+  if (currentLabel) crumbs.push({ label: currentLabel })
+
+  return crumbs
 }

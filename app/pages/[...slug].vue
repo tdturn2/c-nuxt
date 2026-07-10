@@ -35,35 +35,98 @@
           Page not found.
         </div>
         <article v-else>
+          <nav
+            v-if="pageBreadcrumbs.length"
+            aria-label="Breadcrumb"
+            class="not-prose mb-4"
+          >
+            <ol class="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-gray-600">
+              <li
+                v-for="(crumb, index) in pageBreadcrumbs"
+                :key="`${crumb.label}-${index}`"
+                class="inline-flex min-w-0 max-w-full items-center gap-1.5"
+              >
+                <span v-if="index > 0" aria-hidden="true" class="shrink-0 text-gray-400">›</span>
+                <NuxtLink
+                  v-if="crumb.to"
+                  :to="crumb.to"
+                  class="truncate font-medium text-[rgba(13,94,130,1)] transition-colors hover:text-[rgba(10,69,92,1)] hover:underline"
+                >
+                  {{ crumb.label }}
+                </NuxtLink>
+                <span
+                  v-else
+                  class="truncate font-medium text-gray-900"
+                  aria-current="page"
+                >
+                  {{ crumb.label }}
+                </span>
+              </li>
+            </ol>
+          </nav>
+
           <h1 class="text-3xl font-bold text-gray-900 mb-6">
             {{ effectivePage?.title || page?.title }}
           </h1>
 
           <section
-            v-if="childPages.length"
+            v-if="sectionNavPages.length || nestedChildPages.length"
             class="not-prose mb-8 rounded-2xl border border-gray-200/80 bg-[rgba(13,94,130,0.03)] p-4 sm:p-5 shadow-sm"
-            aria-labelledby="child-pages-heading"
           >
-            <div class="mb-3 flex items-baseline justify-between gap-3">
-              <h2 id="child-pages-heading" class="text-base font-semibold text-gray-900 sm:text-lg">
-                {{ childPagesHeading }}
-              </h2>
-              <span v-if="childPages.length > 6" class="shrink-0 rounded-full bg-white px-2 py-0.5 text-xs font-medium text-gray-500 ring-1 ring-gray-200/80">
-                {{ childPages.length }} pages
-              </span>
+            <div
+              v-if="sectionNavPages.length"
+              aria-labelledby="section-nav-heading"
+              :class="nestedChildPages.length ? 'mb-5' : ''"
+            >
+              <div class="mb-3 flex items-baseline justify-between gap-3">
+                <h2 id="section-nav-heading" class="text-base font-semibold text-gray-900 sm:text-lg">
+                  {{ sectionNavHeading }}
+                </h2>
+                <span v-if="sectionNavPages.length > 6" class="shrink-0 rounded-full bg-white px-2 py-0.5 text-xs font-medium text-gray-500 ring-1 ring-gray-200/80">
+                  {{ sectionNavPages.length }} pages
+                </span>
+              </div>
+              <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
+                <NuxtLink
+                  v-for="item in sectionNavPages"
+                  :key="item.id"
+                  :to="item.path"
+                  class="rounded-xl border border-gray-200/90 bg-white px-3 py-2.5 text-sm font-medium leading-snug text-gray-700 transition-colors hover:border-[rgba(13,94,130,0.35)] hover:text-[rgba(13,94,130,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(13,94,130,0.35)] focus-visible:ring-offset-2"
+                  :class="isChildPageActive(item.path)
+                    ? 'border-l-2 border-l-[rgba(13,94,130,1)] bg-white text-[rgba(13,94,130,1)]'
+                    : 'border-l-2 border-l-transparent'"
+                >
+                  <span class="line-clamp-2">{{ item.title }}</span>
+                </NuxtLink>
+              </div>
             </div>
-            <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
-              <NuxtLink
-                v-for="child in childPages"
-                :key="child.id"
-                :to="child.path"
-                class="rounded-xl border border-gray-200/90 bg-white px-3 py-2.5 text-sm font-medium leading-snug text-gray-700 transition-colors hover:border-[rgba(13,94,130,0.35)] hover:text-[rgba(13,94,130,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(13,94,130,0.35)] focus-visible:ring-offset-2"
-                :class="isChildPageActive(child.path)
-                  ? 'border-l-2 border-l-[rgba(13,94,130,1)] bg-white text-[rgba(13,94,130,1)]'
-                  : 'border-l-2 border-l-transparent'"
-              >
-                <span class="line-clamp-2">{{ child.title }}</span>
-              </NuxtLink>
+
+            <div
+              v-if="nestedChildPages.length"
+              aria-labelledby="nested-child-pages-heading"
+              :class="sectionNavPages.length ? 'border-t border-gray-200/80 pt-5' : ''"
+            >
+              <div class="mb-3 flex items-baseline justify-between gap-3">
+                <h2 id="nested-child-pages-heading" class="text-base font-semibold text-gray-900 sm:text-lg">
+                  {{ nestedChildPagesHeading }}
+                </h2>
+                <span v-if="nestedChildPages.length > 6" class="shrink-0 rounded-full bg-white px-2 py-0.5 text-xs font-medium text-gray-500 ring-1 ring-gray-200/80">
+                  {{ nestedChildPages.length }} pages
+                </span>
+              </div>
+              <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
+                <NuxtLink
+                  v-for="child in nestedChildPages"
+                  :key="child.id"
+                  :to="child.path"
+                  class="rounded-xl border border-gray-200/90 bg-white px-3 py-2.5 text-sm font-medium leading-snug text-gray-700 transition-colors hover:border-[rgba(13,94,130,0.35)] hover:text-[rgba(13,94,130,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(13,94,130,0.35)] focus-visible:ring-offset-2"
+                  :class="isChildPageActive(child.path)
+                    ? 'border-l-2 border-l-[rgba(13,94,130,1)] bg-white text-[rgba(13,94,130,1)]'
+                    : 'border-l-2 border-l-transparent'"
+                >
+                  <span class="line-clamp-2">{{ child.title }}</span>
+                </NuxtLink>
+              </div>
             </div>
           </section>
 
@@ -158,7 +221,7 @@
           </div>
 
           <p
-            v-if="!childPages.length && !renderedContentSegments.length && !contacts.length && !isTreeLoading"
+            v-if="!sectionNavPages.length && !nestedChildPages.length && !renderedContentSegments.length && !contacts.length && !isTreeLoading"
             class="text-sm text-gray-500"
           >
             Browse sub-pages in this section using the menu on the left.
@@ -172,8 +235,10 @@
 
 <script setup lang="ts">
 import {
+  buildConnectPageBreadcrumbs,
   connectPageHasUsableDetail,
   findConnectPageByPath,
+  getConnectPageSiblings,
   getDirectChildConnectPages,
   useConnectPagesTreeData,
 } from '~/composables/useConnectPagesTree'
@@ -328,7 +393,44 @@ const childPages = computed(() => {
   return getDirectChildConnectPages(docs, current.id)
 })
 
-const childPagesHeading = computed(() => {
+const pageBreadcrumbs = computed(() => {
+  const docs = Array.isArray(fetchData.value?.docs) ? fetchData.value.docs : []
+  return buildConnectPageBreadcrumbs(docs, route.path)
+})
+
+const isChildConnectPage = computed(() => Boolean(page.value?.parentId))
+
+const sectionNavPages = computed(() => {
+  const docs = Array.isArray(fetchData.value?.docs) ? fetchData.value.docs : []
+  const current = page.value
+  if (!current) return [] as Array<{ id: string; title: string; path: string }>
+  if (current.parentId) return getConnectPageSiblings(docs, current.id)
+  return childPages.value
+})
+
+const nestedChildPages = computed(() => {
+  if (!isChildConnectPage.value) return []
+  return childPages.value
+})
+
+const parentPageTitle = computed(() => {
+  const docs = Array.isArray(fetchData.value?.docs) ? fetchData.value.docs : []
+  const parentId = page.value?.parentId
+  if (!parentId) return ''
+  const parent = docs.find((p: any) => String(p.id) === String(parentId))
+  return (parent?.title || parent?.slug || '').toString().trim()
+})
+
+const sectionNavHeading = computed(() => {
+  if (isChildConnectPage.value) {
+    const title = parentPageTitle.value
+    return title ? `Pages in ${title}` : 'Pages in this section'
+  }
+  const title = (effectivePage.value?.title || page.value?.title || '').toString().trim()
+  return title ? `Pages in ${title}` : 'Pages in this section'
+})
+
+const nestedChildPagesHeading = computed(() => {
   const title = (effectivePage.value?.title || page.value?.title || '').toString().trim()
   return title ? `Pages in ${title}` : 'Pages in this section'
 })
