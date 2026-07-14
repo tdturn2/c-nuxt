@@ -6,10 +6,12 @@
         <h3 class="text-sm font-semibold text-gray-900">{{ f.label || f.key }}</h3>
         <p v-if="f.description" class="mt-1 text-xs text-gray-600">{{ f.description }}</p>
       </div>
-      <label v-else class="block text-sm font-medium text-gray-900">
+      <template v-else>
+      <label class="block text-sm font-medium text-gray-900">
         {{ f.label || f.key }}
         <span v-if="f.required" class="text-red-600">*</span>
       </label>
+      <p v-if="f.description" class="text-xs text-gray-600">{{ f.description }}</p>
 
       <!-- Text-ish -->
       <input
@@ -73,6 +75,48 @@
         @change="onFileChange(f.key, $event)"
         :required="f.required && visibilityByField[f.key] !== false"
       >
+
+      <!-- Repeater: one or more rows of defined text columns -->
+      <div v-else-if="f.type === 'repeater'" class="space-y-3">
+        <div
+          v-for="(row, rowIdx) in repeaterRows(f.key, columnsForField(f))"
+          :key="`${f.key}-row-${rowIdx}`"
+          class="flex flex-wrap items-end gap-3"
+        >
+          <div
+            v-for="col in columnsForField(f)"
+            :key="`${f.key}-${rowIdx}-${col.id}`"
+            class="min-w-[9rem] flex-1"
+          >
+            <label class="mb-1 block text-xs font-medium text-gray-700">{{ col.label || col.id }}</label>
+            <input
+              type="text"
+              :value="String(row[col.id] ?? '')"
+              class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(13,94,130,0.25)] focus:border-[rgba(13,94,130,1)]"
+              @input="onRepeaterInput(f.key, columnsForField(f), rowIdx, col.id, $event)"
+            >
+          </div>
+          <button
+            v-if="repeaterRows(f.key, columnsForField(f)).length > 1"
+            type="button"
+            class="mb-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-300 text-gray-600 hover:bg-gray-50"
+            :aria-label="`Remove row ${rowIdx + 1}`"
+            @click="removeRepeaterRow(f.key, columnsForField(f), rowIdx)"
+          >
+            <span aria-hidden="true">−</span>
+          </button>
+          <button
+            v-if="rowIdx === repeaterRows(f.key, columnsForField(f)).length - 1"
+            type="button"
+            class="mb-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[rgba(13,94,130,0.35)] bg-[rgba(13,94,130,1)] text-white hover:bg-[rgba(10,69,92,1)]"
+            aria-label="Add row"
+            @click="addRepeaterRow(f.key, columnsForField(f))"
+          >
+            <span aria-hidden="true">+</span>
+          </button>
+        </div>
+      </div>
+
       <input
         v-else
         v-model="answersProxy[f.key]"
@@ -83,8 +127,7 @@
       <p v-if="f.type === 'file' && props.uploadProgress && props.uploadProgress[f.key] != null" class="text-xs text-gray-500">
         Upload progress: {{ props.uploadProgress[f.key] }}%
       </p>
-
-      <p v-if="f.description" class="text-xs text-gray-500">{{ f.description }}</p>
+      </template>
       </div>
     </template>
 
@@ -106,13 +149,15 @@
 
 <script setup lang="ts">
 type Choice = { label: string; value: string }
+type RepeaterColumn = { id: string; label: string }
 type Field = {
   key: string
   label?: string
   description?: string
-  type: 'text' | 'textarea' | 'email' | 'number' | 'select' | 'radio' | 'checkbox' | 'date' | 'time' | 'file' | 'section' | string
+  type: 'text' | 'textarea' | 'email' | 'number' | 'select' | 'radio' | 'checkbox' | 'date' | 'time' | 'file' | 'section' | 'repeater' | string
   required?: boolean
   choices?: Choice[]
+  columns?: RepeaterColumn[]
 }
 
 type ConditionalRule = {
@@ -147,6 +192,7 @@ function canonicalFieldType(raw: unknown): string {
     .trim()
     .toLowerCase()
   if (!t) return 'text'
+  if (t === 'repeater' || t === 'list') return 'repeater'
   if (t.includes('textarea') || t.includes('longtext') || t.includes('paragraph')) return 'textarea'
   if (t.includes('text')) return 'text'
   if (t === 'text' || t === 'shorttext' || t === 'short_text' || t === 'textfield' || t === 'textinput') return 'text'
@@ -160,6 +206,7 @@ function canonicalFieldType(raw: unknown): string {
   if (t === 'checkbox' || t === 'multi_select' || t === 'multiselect') return 'checkbox'
   if (t === 'file' || t === 'upload') return 'file'
   if (t === 'section') return 'section'
+  if (t === 'repeater' || t === 'list') return 'repeater'
   return t
 }
 
@@ -168,6 +215,14 @@ const normalizedFields = computed<Field[]>(() =>
     ...f,
     type: canonicalFieldType(f.type),
     choices: Array.isArray(f.choices) ? f.choices : undefined,
+    columns: Array.isArray(f.columns)
+      ? f.columns
+          .map((col) => ({
+            id: String(col?.id ?? '').trim(),
+            label: String(col?.label ?? col?.id ?? '').trim(),
+          }))
+          .filter((col) => col.id)
+      : undefined,
   })),
 )
 
@@ -246,6 +301,92 @@ function toggleCheckbox(key: string, value: string) {
   if (idx >= 0) arr.splice(idx, 1)
   else arr.push(value)
   answersProxy.value = { ...answersProxy.value, [key]: arr }
+}
+
+function emptyRepeaterRow(columns?: RepeaterColumn[]): Record<string, string> {
+  const row: Record<string, string> = {}
+  for (const col of columns || []) row[col.id] = ''
+  return row
+}
+
+function columnsForField(field: Field): RepeaterColumn[] {
+  const raw = field.columns as unknown
+  const list = Array.isArray(raw)
+    ? raw
+    : (raw && typeof raw === 'object'
+        ? Object.keys(raw as Record<string, unknown>)
+            .filter((k) => /^\d+$/.test(k))
+            .sort((a, b) => Number(a) - Number(b))
+            .map((k) => (raw as Record<string, unknown>)[k])
+        : [])
+  const cols = list
+    .map((col: any) => ({
+      id: String(col?.id ?? '').trim(),
+      label: String(col?.label ?? col?.id ?? '').trim(),
+    }))
+    .filter((col) => col.id)
+  if (cols.length) return cols
+  const label = String(field.label || 'Value').trim() || 'Value'
+  const id = label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '') || 'value'
+  return [{ id, label }]
+}
+
+function repeaterRows(key: string, columns?: RepeaterColumn[]): Record<string, string>[] {
+  const cur = answersProxy.value[key]
+  if (Array.isArray(cur) && cur.length) {
+    return cur.map((row) => {
+      const out = emptyRepeaterRow(columns)
+      if (row && typeof row === 'object' && !Array.isArray(row)) {
+        for (const col of columns || []) {
+          out[col.id] = String((row as Record<string, unknown>)[col.id] ?? '')
+        }
+      }
+      return out
+    })
+  }
+  return [emptyRepeaterRow(columns)]
+}
+
+function setRepeaterRows(key: string, rows: Record<string, string>[]) {
+  answersProxy.value = { ...answersProxy.value, [key]: rows }
+}
+
+function updateRepeaterCell(
+  key: string,
+  columns: RepeaterColumn[] | undefined,
+  rowIdx: number,
+  columnId: string,
+  value: string,
+) {
+  const rows = repeaterRows(key, columns).map((row) => ({ ...row }))
+  if (!rows[rowIdx]) rows[rowIdx] = emptyRepeaterRow(columns)
+  rows[rowIdx][columnId] = value
+  setRepeaterRows(key, rows)
+}
+
+function onRepeaterInput(
+  key: string,
+  columns: RepeaterColumn[] | undefined,
+  rowIdx: number,
+  columnId: string,
+  event: Event,
+) {
+  const value = (event.target as HTMLInputElement | null)?.value ?? ''
+  updateRepeaterCell(key, columns, rowIdx, columnId, value)
+}
+
+function addRepeaterRow(key: string, columns?: RepeaterColumn[]) {
+  const rows = [...repeaterRows(key, columns), emptyRepeaterRow(columns)]
+  setRepeaterRows(key, rows)
+}
+
+function removeRepeaterRow(key: string, columns: RepeaterColumn[] | undefined, rowIdx: number) {
+  const rows = repeaterRows(key, columns)
+  if (rows.length <= 1) return
+  setRepeaterRows(key, rows.filter((_, i) => i !== rowIdx))
 }
 
 function onFileChange(key: string, e: Event) {

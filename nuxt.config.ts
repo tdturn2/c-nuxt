@@ -171,6 +171,8 @@ export default defineNuxtConfig({
     )
       .replace(/^https?:\/\//i, '')
       .replace(/\/.*$/, ''),
+    /** SendGrid API key for form entry notification emails. */
+    sendgridApiKey: process.env.SENDGRID_API_KEY || process.env.NUXT_SENDGRID_API_KEY || '',
     // Public keys (exposed to client-side)
     public: {
       authAzureAdClientId: process.env.AUTH_AZURE_AD_CLIENT_ID,

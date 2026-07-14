@@ -12,6 +12,7 @@ export const FORM_FIELD_TYPES = new Set([
   'number',
   'file',
   'section',
+  'repeater',
 ] as const)
 
 export type FormFieldType = (typeof FORM_FIELD_TYPES extends Set<infer T> ? T : never) & string
@@ -24,6 +25,7 @@ export type DashboardFormField = {
   required?: boolean
   accept?: string[]
   options?: Array<{ label?: string; value?: string }>
+  columns?: Array<{ id: string; label: string }>
 }
 
 export type DashboardFormSchema = {
@@ -33,6 +35,12 @@ export type DashboardFormSchema = {
   layout?: Record<string, unknown>
   fields: DashboardFormField[]
   rules?: unknown[]
+  emailNotification?: {
+    enabled?: boolean
+    to?: string
+    from?: string
+    subject?: string
+  }
 }
 
 export type DashboardFormsAuth = {
@@ -395,13 +403,58 @@ export function normalizeDashboardFormSchema(schema: unknown): DashboardFormSche
       fieldOut.accept = fieldObj.accept.map((v: unknown) => String(v || '').trim()).filter(Boolean)
     }
 
-    if ((type === 'select' || type === 'radio' || type === 'checkbox') && Array.isArray(fieldObj.options)) {
-      fieldOut.options = fieldObj.options
+    if ((type === 'select' || type === 'radio' || type === 'checkbox') && fieldObj.options != null) {
+      const rawOptions = Array.isArray(fieldObj.options)
+        ? fieldObj.options
+        : (fieldObj.options && typeof fieldObj.options === 'object'
+            ? Object.keys(fieldObj.options)
+                .filter((k) => /^\d+$/.test(k))
+                .sort((a, b) => Number(a) - Number(b))
+                .map((k) => (fieldObj.options as Record<string, unknown>)[k])
+            : [])
+      fieldOut.options = rawOptions
         .map((opt: any) => ({
           label: typeof opt?.label === 'string' ? opt.label : '',
           value: typeof opt?.value === 'string' ? opt.value : '',
         }))
         .filter((opt: any) => opt.value)
+    }
+
+    if (type === 'repeater') {
+      const rawColumns = Array.isArray(fieldObj.columns)
+        ? fieldObj.columns
+        : (fieldObj.columns && typeof fieldObj.columns === 'object'
+            ? Object.keys(fieldObj.columns)
+                .filter((k) => /^\d+$/.test(k))
+                .sort((a, b) => Number(a) - Number(b))
+                .map((k) => (fieldObj.columns as Record<string, unknown>)[k])
+            : [])
+
+      fieldOut.columns = rawColumns
+        .map((col: any, colIdx: number) => {
+          const label = typeof col?.label === 'string' ? col.label.trim() : String(col?.name || col?.text || '').trim()
+          const rawId = typeof col?.id === 'string' ? col.id.trim() : String(col?.key || '').trim()
+          const id =
+            rawId ||
+            label
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, '_')
+              .replace(/^_+|_+$/g, '') ||
+            `column_${colIdx + 1}`
+          return { id, label: label || id }
+        })
+        .filter((col: { id: string }) => !!col.id)
+
+      if (!fieldOut.columns.length) {
+        const fallbackLabel = typeof fieldObj.label === 'string' && fieldObj.label.trim()
+          ? fieldObj.label.trim()
+          : 'Value'
+        const fallbackId = fallbackLabel
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '_')
+          .replace(/^_+|_+$/g, '') || 'value'
+        fieldOut.columns = [{ id: fallbackId, label: fallbackLabel }]
+      }
     }
 
     return fieldOut
@@ -414,6 +467,21 @@ export function normalizeDashboardFormSchema(schema: unknown): DashboardFormSche
     layout: parsed.layout && typeof parsed.layout === 'object' ? parsed.layout : undefined,
     fields,
     rules: Array.isArray(parsed.rules) ? parsed.rules : [],
+    emailNotification: normalizeEmailNotificationConfig(parsed.emailNotification),
+  }
+}
+
+function normalizeEmailNotificationConfig(raw: unknown) {
+  if (!raw || typeof raw !== 'object') return undefined
+  const src = raw as Record<string, unknown>
+  const to = typeof src.to === 'string' ? src.to.trim() : ''
+  const subject = typeof src.subject === 'string' ? src.subject.trim() : ''
+  const enabled = src.enabled === true || (src.enabled !== false && !!to)
+  return {
+    enabled,
+    to,
+    from: 'webdeveloper@asburyseminary.edu',
+    subject: subject || undefined,
   }
 }
 
@@ -446,6 +514,9 @@ export function normalizeFormMetadata(input: Record<string, any>) {
     : []
 
   const viewerGroups = Array.isArray(input.viewerGroups) ? input.viewerGroups : []
+  const emailNotification = normalizeEmailNotificationConfig(
+    input.emailNotification ?? input.schema?.emailNotification,
+  )
 
   return {
     slug,
@@ -455,5 +526,6 @@ export function normalizeFormMetadata(input: Record<string, any>) {
     editableMode,
     indexedFields,
     viewerGroups,
+    ...(emailNotification ? { emailNotification } : {}),
   }
 }

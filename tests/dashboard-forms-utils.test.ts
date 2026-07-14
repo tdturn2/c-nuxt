@@ -16,6 +16,27 @@ describe('dashboard form metadata', () => {
     expect(metadata.status).toBe('active')
     expect(metadata.editableMode).toBe('versioned')
   })
+
+  it('normalizes email notification settings', () => {
+    const metadata = normalizeFormMetadata({
+      slug: 'travel-request',
+      title: 'Travel Request',
+      status: 'active',
+      componentKey: 'travel',
+      editableMode: 'immutable',
+      emailNotification: {
+        enabled: true,
+        to: 'a@asburyseminary.edu, b@asburyseminary.edu',
+        subject: 'New Entry: Travel Request',
+      },
+    })
+    expect(metadata.emailNotification).toEqual({
+      enabled: true,
+      to: 'a@asburyseminary.edu, b@asburyseminary.edu',
+      from: 'webdeveloper@asburyseminary.edu',
+      subject: 'New Entry: Travel Request',
+    })
+  })
 })
 
 describe('dashboard form schema', () => {
@@ -29,5 +50,27 @@ describe('dashboard form schema', () => {
     })
     expect(schema.fields).toHaveLength(2)
     expect(schema.fields[1]?.accept).toEqual(['.pdf'])
+  })
+
+  it('preserves repeater columns', () => {
+    const schema = normalizeDashboardFormSchema({
+      version: 1,
+      fields: [
+        {
+          id: 'contacts',
+          type: 'repeater',
+          label: 'Contacts',
+          columns: [
+            { id: 'contact_name', label: 'Contact Name' },
+            { label: 'Phone number' },
+          ],
+        },
+      ],
+    })
+    expect(schema.fields[0]?.type).toBe('repeater')
+    expect(schema.fields[0]?.columns).toEqual([
+      { id: 'contact_name', label: 'Contact Name' },
+      { id: 'phone_number', label: 'Phone number' },
+    ])
   })
 })

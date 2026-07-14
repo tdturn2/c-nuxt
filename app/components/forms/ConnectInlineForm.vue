@@ -40,7 +40,11 @@ const props = defineProps<{
 const safeSlug = computed(() => String(props.slug || '').trim())
 const { data, pending, error } = await useFetch<{ doc: any | null }>(
   () => `/api/forms/${encodeURIComponent(safeSlug.value)}`,
-  { key: () => `inline-form-${safeSlug.value}`, watch: [safeSlug] }
+  {
+    key: () => `inline-form-${safeSlug.value}`,
+    watch: [safeSlug],
+    getCachedData: () => undefined,
+  }
 )
 
 const formDoc = computed(() => data.value?.doc ?? null)
@@ -68,6 +72,7 @@ function normalizeRendererFieldType(raw: unknown): string {
   if (t === 'radio' || t === 'radio-group' || t === 'radiogroup') return 'radio'
   if (t === 'checkbox' || t === 'multi_select' || t === 'multiselect') return 'checkbox'
   if (t === 'file' || t === 'upload') return 'file'
+  if (t === 'repeater' || t === 'list') return 'repeater'
   return t
 }
 
@@ -105,6 +110,12 @@ const fields = computed(() => {
     type: normalizeRendererFieldType(f.type),
     required: !!f.required,
     choices: Array.isArray(f.options) ? f.options : undefined,
+    columns: Array.isArray(f.columns) && f.columns.length
+      ? f.columns.map((c: any) => ({
+          id: String(c?.id ?? '').trim(),
+          label: String(c?.label ?? c?.id ?? '').trim(),
+        })).filter((c: any) => c.id)
+      : undefined,
   }))
 })
 

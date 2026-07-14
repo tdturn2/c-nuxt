@@ -17,6 +17,7 @@
           :model-value="form"
           :saving="saving"
           :error-message="saveError"
+          :success-message="saveSuccess"
           save-label="Save changes"
           @submit-form="save"
           @cancel="navigateTo('/dashboard/forms')"
@@ -39,10 +40,12 @@ const loading = ref(false)
 const loadError = ref<string | null>(null)
 const saving = ref(false)
 const saveError = ref<string | null>(null)
+const saveSuccess = ref<string | null>(null)
 
 async function load() {
   loading.value = true
   loadError.value = null
+  saveSuccess.value = null
   try {
     form.value = await getFormById(id.value)
   } catch (e: any) {
@@ -55,8 +58,12 @@ async function load() {
 async function save(payload: any) {
   saving.value = true
   saveError.value = null
+  saveSuccess.value = null
   try {
-    form.value = await updateForm(id.value, payload)
+    await updateForm(id.value, payload)
+    // Reload from server so the editor matches what the public form will render.
+    form.value = await getFormById(id.value)
+    saveSuccess.value = 'Form saved.'
   } catch (e: any) {
     saveError.value = e?.message || 'Failed to update form.'
   } finally {

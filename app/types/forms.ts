@@ -11,10 +11,30 @@ export type FormFieldType =
   | 'number'
   | 'file'
   | 'section'
+  | 'repeater'
+
+/** Fixed From address for form notification emails (SendGrid). */
+export const FORM_NOTIFICATION_FROM = 'webdeveloper@asburyseminary.edu'
+
+export type FormEmailNotification = {
+  /** When true and `to` is set, notify on new submission. */
+  enabled?: boolean
+  /** One email or comma-separated list. */
+  to?: string
+  /** Always `FORM_NOTIFICATION_FROM` when saved. */
+  from?: string
+  /** Defaults to `New Entry: {form title}`. */
+  subject?: string
+}
 
 export type FormFieldOptionV1 = {
   label: string
   value: string
+}
+
+export type FormRepeaterColumnV1 = {
+  id: string
+  label: string
 }
 
 export type FormFieldV1 = {
@@ -25,6 +45,8 @@ export type FormFieldV1 = {
   required?: boolean
   options?: FormFieldOptionV1[]
   accept?: string[]
+  /** Column definitions for `repeater` fields (text inputs per row). */
+  columns?: FormRepeaterColumnV1[]
 }
 
 export type FormSchemaV1 = {
@@ -34,6 +56,8 @@ export type FormSchemaV1 = {
   layout?: { columns?: number }
   fields: FormFieldV1[]
   rules?: unknown[]
+  /** Persisted with schema JSON so no Payload collection field is required. */
+  emailNotification?: FormEmailNotification
 }
 
 export type ConnectFormDefinition = {
@@ -46,6 +70,8 @@ export type ConnectFormDefinition = {
   schema: FormSchemaV1
   indexedFields?: string[]
   viewerGroups?: unknown[]
+  /** Optional top-level mirror if Payload adds the field later. */
+  emailNotification?: FormEmailNotification
   updatedAt?: string
   createdAt?: string
 }
@@ -61,4 +87,38 @@ export type FormUploadPayload = {
   submissionId: string | number
   fieldKey: string
   file: File
+}
+
+export function defaultFormNotificationSubject(formTitleOrSlug: string): string {
+  const name = String(formTitleOrSlug || '').trim() || 'Form'
+  return `New Entry: ${name}`
+}
+
+export function normalizeFormEmailNotification(
+  raw: unknown,
+  fallbackTitle = '',
+): FormEmailNotification {
+  const src = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+  const to = typeof src.to === 'string' ? src.to.trim() : ''
+  const subjectRaw = typeof src.subject === 'string' ? src.subject.trim() : ''
+  const enabled = src.enabled === true || (src.enabled !== false && to.length > 0)
+  return {
+    enabled,
+    to,
+    from: FORM_NOTIFICATION_FROM,
+    subject: subjectRaw || defaultFormNotificationSubject(fallbackTitle),
+  }
+}
+
+/** Split a to-field into unique, trimmed email addresses. */
+export function parseNotificationRecipients(to: string | undefined | null): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const part of String(to || '').split(/[,;]+/)) {
+    const email = part.trim().toLowerCase()
+    if (!email || !email.includes('@') || seen.has(email)) continue
+    seen.add(email)
+    out.push(email)
+  }
+  return out
 }

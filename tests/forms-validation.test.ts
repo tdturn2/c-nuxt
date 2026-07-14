@@ -15,6 +15,60 @@ describe('form schema validation', () => {
     expect(result.schema?.fields).toHaveLength(2)
   })
 
+  it('accepts repeater fields with columns', () => {
+    const result = validateFormSchemaV1({
+      version: 1,
+      fields: [
+        {
+          id: 'contacts',
+          type: 'repeater',
+          label: 'Contact Information for each destination',
+          required: true,
+          columns: [
+            { id: 'contact_name', label: 'Contact Name' },
+            { id: 'address', label: 'Address' },
+            { id: 'phone', label: 'Phone number' },
+          ],
+        },
+      ],
+    })
+    expect(result.valid).toBe(true)
+    expect(result.schema?.fields[0]?.columns).toHaveLength(3)
+  })
+
+  it('defaults a column when repeater has none defined', () => {
+    const result = validateFormSchemaV1({
+      version: 1,
+      fields: [{ id: 'contacts', type: 'repeater', label: 'Department Name' }],
+    })
+    expect(result.valid).toBe(true)
+    expect(result.schema?.fields[0]?.columns).toEqual([
+      { id: 'department_name', label: 'Department Name' },
+    ])
+  })
+
+  it('accepts array-like column objects from Payload JSON', () => {
+    const result = validateFormSchemaV1({
+      version: 1,
+      fields: [
+        {
+          id: 'contacts',
+          type: 'repeater',
+          label: 'Contacts',
+          columns: {
+            0: { id: 'name', label: 'Contact Name' },
+            1: { id: 'phone', label: 'Phone' },
+          },
+        },
+      ],
+    })
+    expect(result.valid).toBe(true)
+    expect(result.schema?.fields[0]?.columns).toEqual([
+      { id: 'name', label: 'Contact Name' },
+      { id: 'phone', label: 'Phone' },
+    ])
+  })
+
   it('rejects invalid schema', () => {
     const result = validateFormSchemaV1({
       fields: [{ id: '', type: 'unknown' }],
@@ -41,5 +95,34 @@ describe('answer validation', () => {
     })
     expect(checked.valid).toBe(false)
     expect(checked.errors).toHaveLength(2)
+  })
+
+  it('requires at least one complete repeater row', () => {
+    const schemaResult = validateFormSchemaV1({
+      version: 1,
+      fields: [
+        {
+          id: 'contacts',
+          type: 'repeater',
+          label: 'Contacts',
+          required: true,
+          columns: [
+            { id: 'name', label: 'Name' },
+            { id: 'phone', label: 'Phone' },
+          ],
+        },
+      ],
+    })
+    expect(schemaResult.valid).toBe(true)
+
+    const empty = validateAnswersAgainstSchema(schemaResult.schema!, {
+      contacts: [{ name: '', phone: '' }],
+    })
+    expect(empty.valid).toBe(false)
+
+    const ok = validateAnswersAgainstSchema(schemaResult.schema!, {
+      contacts: [{ name: 'Ada', phone: '555-0100' }],
+    })
+    expect(ok.valid).toBe(true)
   })
 })

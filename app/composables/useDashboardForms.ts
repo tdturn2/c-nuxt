@@ -24,6 +24,7 @@ type SavePayload = {
   schema: FormSchemaV1
   indexedFields?: string[]
   viewerGroups?: unknown[]
+  emailNotification?: FormSchemaV1['emailNotification']
 }
 
 type GravityImportResponse = {
@@ -64,10 +65,11 @@ export function useDashboardForms() {
 
   async function createForm(payload: SavePayload) {
     try {
-      return await $fetch<ConnectFormDefinition>('/api/dashboard/forms', {
+      const res = await $fetch<any>('/api/dashboard/forms', {
         method: 'POST',
         body: payload,
       })
+      return (res?.doc ?? res) as ConnectFormDefinition
     } catch (error: any) {
       throw normalizeApiError(error, 'Failed to create form.')
     }
@@ -75,10 +77,11 @@ export function useDashboardForms() {
 
   async function updateForm(id: string | number, payload: SavePayload) {
     try {
-      return await $fetch<ConnectFormDefinition>(`/api/dashboard/forms/${encodeURIComponent(String(id))}`, {
+      const res = await $fetch<any>(`/api/dashboard/forms/${encodeURIComponent(String(id))}`, {
         method: 'PATCH',
         body: payload,
       })
+      return (res?.doc ?? res) as ConnectFormDefinition
     } catch (error: any) {
       throw normalizeApiError(error, 'Failed to update form.')
     }

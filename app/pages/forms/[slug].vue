@@ -84,6 +84,7 @@ type Field = {
   type: string
   required?: boolean
   choices?: Array<{ label: string; value: string }>
+  columns?: Array<{ id: string; label: string }>
 }
 
 const route = useRoute()
@@ -94,6 +95,8 @@ const slug = computed(() => String(route.params.slug || '').trim())
 const { data, pending, error } = await useFetch<{ doc: ConnectFormDoc | null }>(() => `/api/forms/${encodeURIComponent(slug.value)}`, {
   key: () => `forms-${slug.value}`,
   watch: [slug],
+  // Form defs change in the dashboard; never reuse a stale SSR/payload snapshot.
+  getCachedData: () => undefined,
 })
 
 const formDoc = computed(() => data.value?.doc ?? null)
@@ -164,9 +167,33 @@ function toField(f: any): Field | null {
   else if (type === 'radio') type = 'radio'
   else if (type === 'checkbox') type = 'checkbox'
   else if (type === 'file' || type === 'upload') type = 'file'
+  else if (type === 'repeater' || type === 'list') type = 'repeater'
   else type = 'text'
 
-  return { key, label, description, type, required, choices: choices.length ? choices : undefined }
+  const columnsArr = Array.isArray(f?.columns)
+    ? f.columns
+    : (f?.columns && typeof f.columns === 'object'
+        ? Object.keys(f.columns)
+            .filter((k) => /^\d+$/.test(k))
+            .sort((a, b) => Number(a) - Number(b))
+            .map((k) => (f.columns as Record<string, unknown>)[k])
+        : [])
+  const columns = columnsArr
+    .map((c: any) => ({
+      id: String(c?.id ?? '').trim(),
+      label: String(c?.label ?? c?.id ?? '').trim(),
+    }))
+    .filter((c: any) => c.id)
+
+  return {
+    key,
+    label,
+    description,
+    type,
+    required,
+    choices: choices.length ? choices : undefined,
+    columns: columns.length ? columns : undefined,
+  }
 }
 
 function normalizeTimeString(value: unknown): string {
@@ -197,16 +224,26 @@ const fields = computed<Field[]>(() => {
   const schema = getFormSchema(doc)
   if (!schema) return []
   return (schema.fields || [])
-    .map((f: any) =>
-      toField({
+    .map((f: any) => {
+      const mapped = toField({
         id: f.id,
         label: f.label,
         description: f.description,
         type: f.type,
         required: f.required,
         choices: f.options,
+        columns: f.columns,
       })
-    )
+      if (!mapped) return null
+      // Prefer columns already normalized by validateFormSchemaV1.
+      if (f.type === 'repeater' && Array.isArray(f.columns) && f.columns.length) {
+        mapped.columns = f.columns.map((c: any) => ({
+          id: String(c.id || '').trim(),
+          label: String(c.label || c.id || '').trim(),
+        })).filter((c: any) => c.id)
+      }
+      return mapped
+    })
     .filter((x): x is Field => x != null)
 })
 

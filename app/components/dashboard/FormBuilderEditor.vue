@@ -1,11 +1,61 @@
 <template>
   <div class="space-y-6">
+    <div v-if="successMessage" class="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-900">
+      {{ successMessage }}
+    </div>
     <div v-if="localMessage" class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
       {{ localMessage }}
     </div>
     <div v-if="errorMessage" class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
       {{ errorMessage }}
     </div>
+
+    <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+      <h2 class="text-lg font-semibold text-gray-900">Email Notification</h2>
+      <p class="mt-1 text-sm text-gray-600">
+        Optionally notify one or more addresses when this form receives a new entry (SendGrid).
+      </p>
+      <div class="mt-4 space-y-4">
+        <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+          <input v-model="form.emailNotification.enabled" type="checkbox" class="rounded border-gray-300">
+          Send email on new entry
+        </label>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div class="sm:col-span-2">
+            <label class="block text-sm font-medium text-gray-700 mb-1">To</label>
+            <input
+              v-model="form.emailNotification.to"
+              type="text"
+              class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              placeholder="person@asburyseminary.edu, another@asburyseminary.edu"
+              :disabled="!form.emailNotification.enabled"
+            >
+            <p class="mt-1 text-xs text-gray-500">One email, or a comma-separated list.</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">From</label>
+            <input
+              type="text"
+              class="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700"
+              :value="FORM_NOTIFICATION_FROM"
+              readonly
+              tabindex="-1"
+            >
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+            <input
+              v-model="form.emailNotification.subject"
+              type="text"
+              class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              placeholder="New Entry: Form name"
+              :disabled="!form.emailNotification.enabled"
+              @input="subjectManuallyEdited = true"
+            >
+          </div>
+        </div>
+      </div>
+    </section>
 
     <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
       <h2 class="text-lg font-semibold text-gray-900">Form metadata</h2>
@@ -16,7 +66,7 @@
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Title</label>
-          <input v-model="form.title" type="text" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+          <input v-model="form.title" type="text" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" @input="onTitleInput">
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Component key</label>
@@ -69,7 +119,7 @@
             <button
               type="button"
               class="rounded px-2 py-1 text-xs font-medium"
-              :class="activeFieldTab[idx] === 'field' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'"
+              :class="fieldTab(idx) === 'field' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'"
               @click="setFieldTab(idx, 'field')"
             >
               Field
@@ -77,14 +127,22 @@
             <button
               type="button"
               class="rounded px-2 py-1 text-xs font-medium"
-              :class="activeFieldTab[idx] === 'settings' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'"
+              :class="fieldTab(idx) === 'description' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'"
+              @click="setFieldTab(idx, 'description')"
+            >
+              Description
+            </button>
+            <button
+              type="button"
+              class="rounded px-2 py-1 text-xs font-medium"
+              :class="fieldTab(idx) === 'settings' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'"
               @click="setFieldTab(idx, 'settings')"
             >
               Settings
             </button>
           </div>
 
-          <template v-if="activeFieldTab[idx] !== 'settings'">
+          <template v-if="fieldTab(idx) === 'field'">
             <div class="grid gap-3 sm:grid-cols-2">
               <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Field ID</label>
@@ -96,7 +154,11 @@
               </div>
               <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Type</label>
-                <select v-model="field.type" class="w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm">
+                <select
+                  v-model="field.type"
+                  class="w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm"
+                  @change="onFieldTypeChange(field)"
+                >
                   <option v-for="type in fieldTypes" :key="type" :value="type">{{ type }}</option>
                 </select>
               </div>
@@ -126,6 +188,71 @@
                 class="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
                 @input="onAcceptInput(field, $event)"
               >
+            </div>
+
+            <div v-if="field.type === 'repeater'" class="mt-3 space-y-2">
+              <div class="flex items-center justify-between gap-2">
+                <label class="block text-xs font-medium text-gray-700">Repeater columns (text fields per row)</label>
+                <button
+                  type="button"
+                  class="rounded border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-[rgba(13,94,130,1)] hover:bg-gray-50"
+                  @click="addRepeaterColumn(field)"
+                >
+                  Add column
+                </button>
+              </div>
+              <div
+                v-for="(col, colIdx) in (field.columns || [])"
+                :key="`${fieldBuilderKey(field, idx)}-col-${colIdx}`"
+                class="grid gap-2 sm:grid-cols-[1fr_1fr_auto]"
+              >
+                <div>
+                  <label class="block text-[11px] font-medium text-gray-500 mb-0.5">Label</label>
+                  <input
+                    v-model="col.label"
+                    type="text"
+                    class="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                    placeholder="Contact Name"
+                    @blur="syncRepeaterColumnId(col)"
+                  >
+                </div>
+                <div>
+                  <label class="block text-[11px] font-medium text-gray-500 mb-0.5">ID</label>
+                  <input
+                    v-model="col.id"
+                    type="text"
+                    class="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm font-mono"
+                    placeholder="contact_name"
+                  >
+                </div>
+                <div class="flex items-end">
+                  <button
+                    type="button"
+                    class="rounded border border-red-200 px-2 py-1.5 text-xs text-red-700 hover:bg-red-50 disabled:opacity-40"
+                    :disabled="(field.columns || []).length <= 1"
+                    @click="removeRepeaterColumn(field, colIdx)"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+              <p class="text-xs text-gray-500">
+                Respondents get one row of these text fields, plus a button to add more rows.
+              </p>
+            </div>
+          </template>
+
+          <template v-else-if="fieldTab(idx) === 'description'">
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">Description</label>
+              <textarea
+                :value="field.description || ''"
+                rows="3"
+                class="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                placeholder="Optional help text shown above this field when the form is rendered"
+                @input="setFieldDescription(field, $event)"
+              />
+              <p class="mt-1 text-xs text-gray-500">Leave blank to hide. Shown above the field for respondents.</p>
             </div>
           </template>
 
@@ -236,7 +363,18 @@
 </template>
 
 <script setup lang="ts">
-import type { ConnectFormDefinition, FormFieldType, FormSchemaV1, FormStatus } from '~/types/forms'
+import type {
+  ConnectFormDefinition,
+  FormEmailNotification,
+  FormFieldType,
+  FormSchemaV1,
+  FormStatus,
+} from '~/types/forms'
+import {
+  FORM_NOTIFICATION_FROM,
+  defaultFormNotificationSubject,
+  normalizeFormEmailNotification,
+} from '~/types/forms'
 import { validateFormSchemaV1 } from '~/utils/forms/validation'
 
 type BuilderField = FormSchemaV1['fields'][number] & { _builderKey?: string }
@@ -251,12 +389,14 @@ type BuilderState = {
   indexedFields: string[]
   viewerGroups: unknown[]
   schema: FormSchemaV1
+  emailNotification: FormEmailNotification
 }
 
 const props = defineProps<{
   modelValue?: ConnectFormDefinition | null
   saving?: boolean
   errorMessage?: string | null
+  successMessage?: string | null
   saveLabel?: string
 }>()
 
@@ -266,7 +406,7 @@ const emit = defineEmits<{
   (e: 'cancel'): void
 }>()
 
-const fieldTypes: FormFieldType[] = ['text', 'textarea', 'select', 'radio', 'checkbox', 'date', 'time', 'number', 'file', 'section']
+const fieldTypes: FormFieldType[] = ['text', 'textarea', 'select', 'radio', 'checkbox', 'date', 'time', 'number', 'file', 'section', 'repeater']
 const conditionOperators = [
   { label: 'is', value: 'is' },
   { label: 'is not', value: 'isnot' },
@@ -276,7 +416,8 @@ const conditionOperators = [
   { label: 'starts with', value: 'starts_with' },
   { label: 'ends with', value: 'ends_with' },
 ] as const
-const activeFieldTab = ref<Record<number, 'field' | 'settings'>>({})
+type FieldTab = 'field' | 'description' | 'settings'
+const activeFieldTab = ref<Record<number, FieldTab>>({})
 const showJson = ref(false)
 const schemaErrors = ref<string[]>([])
 const localMessage = ref<string | null>(null)
@@ -310,6 +451,7 @@ const form = ref<BuilderState>({
   editableMode: 'immutable',
   indexedFields: [],
   viewerGroups: [],
+  emailNotification: normalizeFormEmailNotification({ enabled: false, to: '', subject: '' }),
   schema: {
     version: 1,
     title: '',
@@ -327,6 +469,21 @@ const form = ref<BuilderState>({
   },
 })
 
+const subjectManuallyEdited = ref(false)
+let lastAutoSubject = defaultFormNotificationSubject('')
+
+function onTitleInput() {
+  if (subjectManuallyEdited.value) return
+  const next = defaultFormNotificationSubject(form.value.title || form.value.slug)
+  if (
+    !form.value.emailNotification.subject ||
+    form.value.emailNotification.subject === lastAutoSubject
+  ) {
+    form.value.emailNotification.subject = next
+  }
+  lastAutoSubject = next
+}
+
 const indexedFieldsInput = computed({
   get: () => form.value.indexedFields.join(', '),
   set: (value: string) => {
@@ -334,20 +491,52 @@ const indexedFieldsInput = computed({
   },
 })
 
+const hydratedFormId = ref<string | number | null>(null)
+const hydratedUpdatedAt = ref<string | null>(null)
+
 watch(
   () => props.modelValue,
   (val) => {
     if (!val) return
+    const nextId = val.id ?? null
+    const nextUpdatedAt = (val as any).updatedAt ?? null
+    // Keep the in-progress editor open after save for the same form UNLESS the
+    // parent replaced the document with a fresh server copy (new updatedAt).
+    if (
+      hydratedFormId.value != null &&
+      nextId != null &&
+      String(hydratedFormId.value) === String(nextId) &&
+      hydratedUpdatedAt.value != null &&
+      nextUpdatedAt != null &&
+      String(hydratedUpdatedAt.value) === String(nextUpdatedAt)
+    ) {
+      return
+    }
+    hydratedFormId.value = nextId
+    hydratedUpdatedAt.value = nextUpdatedAt
     const normalizedSchema = ensureSchemaFieldKeys(normalizeIncomingSchema(val.schema))
+    const title = val.title || ''
+    const notificationSource =
+      (val as ConnectFormDefinition).emailNotification ??
+      normalizedSchema.emailNotification ??
+      (val.schema as FormSchemaV1 | undefined)?.emailNotification
+    const emailNotificationValue = normalizeFormEmailNotification(notificationSource, title || val.slug || '')
+    lastAutoSubject = defaultFormNotificationSubject(title || val.slug || '')
+    subjectManuallyEdited.value =
+      Boolean(emailNotificationValue.subject) &&
+      emailNotificationValue.subject !== lastAutoSubject
     form.value = {
       id: val.id,
       slug: val.slug || '',
-      title: val.title || '',
+      title,
       status: val.status || 'inactive',
       componentKey: val.componentKey || 'default',
       editableMode: val.editableMode || 'immutable',
-      indexedFields: Array.isArray(val.indexedFields) ? val.indexedFields : [],
+      indexedFields: Array.isArray(val.indexedFields)
+        ? val.indexedFields.map((v: any) => (typeof v === 'string' ? v : String(v?.key || '')).trim()).filter(Boolean)
+        : [],
       viewerGroups: Array.isArray(val.viewerGroups) ? val.viewerGroups : [],
+      emailNotification: emailNotificationValue,
       schema: normalizedSchema,
     }
   },
@@ -365,7 +554,7 @@ function normalizeIncomingSchema(schema: any): FormSchemaV1 {
     if (t === 'multiselect' || t === 'multi_select') return 'checkbox'
     if (
       t === 'text' || t === 'textarea' || t === 'select' || t === 'radio' || t === 'checkbox' ||
-      t === 'date' || t === 'time' || t === 'number' || t === 'file' || t === 'section'
+      t === 'date' || t === 'time' || t === 'number' || t === 'file' || t === 'section' || t === 'repeater'
     ) {
       return t as FormFieldType
     }
@@ -386,6 +575,7 @@ function normalizeIncomingSchema(schema: any): FormSchemaV1 {
           id,
           type,
           label: String(field?.label ?? id),
+          description: typeof field?.description === 'string' ? field.description : '',
           required: !!field?.required,
         })
         if (Array.isArray(field?.options)) {
@@ -395,6 +585,28 @@ function normalizeIncomingSchema(schema: any): FormSchemaV1 {
               value: String(opt?.value ?? opt?.text ?? '').trim(),
             }))
             .filter((opt: any) => opt.value)
+        }
+        if (type === 'repeater') {
+          const rawColumns = Array.isArray(field?.columns)
+            ? field.columns
+            : (field?.columns && typeof field.columns === 'object'
+                ? Object.keys(field.columns)
+                    .filter((k) => /^\d+$/.test(k))
+                    .sort((a, b) => Number(a) - Number(b))
+                    .map((k) => field.columns[k])
+                : [])
+          coerced.columns = rawColumns
+            .map((col: any, colIdx: number) => {
+              const label = String(col?.label ?? col?.name ?? col?.text ?? '').trim()
+              const colId = String(col?.id ?? col?.key ?? '').trim() || slugifyRepeaterColumnId(label, colIdx)
+              if (!colId) return null
+              return { id: colId, label: label || colId }
+            })
+            .filter((col: any) => col != null)
+          if (!coerced.columns.length) {
+            const fallbackLabel = String(field?.label || 'Column 1').trim() || 'Column 1'
+            coerced.columns = [{ id: slugifyRepeaterColumnId(fallbackLabel, 0), label: fallbackLabel }]
+          }
         }
         return coerced
       })
@@ -421,12 +633,22 @@ function addField() {
     id: `field_${form.value.schema.fields.length + 1}`,
     type: 'text',
     label: 'New field',
+    description: '',
     required: false,
   }))
 }
 
-function setFieldTab(index: number, tab: 'field' | 'settings') {
+function fieldTab(index: number): FieldTab {
+  return activeFieldTab.value[index] || 'field'
+}
+
+function setFieldTab(index: number, tab: FieldTab) {
   activeFieldTab.value[index] = tab
+}
+
+function setFieldDescription(field: BuilderField, event: Event) {
+  const value = String((event.target as HTMLTextAreaElement | null)?.value ?? '')
+  field.description = value
 }
 
 function removeField(index: number) {
@@ -471,6 +693,53 @@ function onOptionsInput(field: FormSchemaV1['fields'][number], event: Event) {
 function onAcceptInput(field: FormSchemaV1['fields'][number], event: Event) {
   const value = (event.target as HTMLInputElement | null)?.value || ''
   field.accept = value.split(',').map((v) => v.trim()).filter(Boolean)
+}
+
+function slugifyRepeaterColumnId(label: string, fallbackIndex: number): string {
+  const slug = label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+  return slug || `column_${fallbackIndex + 1}`
+}
+
+function ensureRepeaterColumns(field: FormSchemaV1['fields'][number]) {
+  if (!Array.isArray(field.columns) || !field.columns.length) {
+    field.columns = [{ id: 'column_1', label: 'Column 1' }]
+  }
+  return field.columns
+}
+
+function onFieldTypeChange(field: FormSchemaV1['fields'][number]) {
+  if (field.type === 'repeater') {
+    ensureRepeaterColumns(field)
+    return
+  }
+  if (field.type !== 'select' && field.type !== 'radio' && field.type !== 'checkbox') {
+    delete field.options
+  }
+  if (field.type !== 'file') {
+    delete field.accept
+  }
+  if (field.type !== 'repeater') {
+    delete field.columns
+  }
+}
+
+function addRepeaterColumn(field: FormSchemaV1['fields'][number]) {
+  const columns = ensureRepeaterColumns(field)
+  const nextIndex = columns.length + 1
+  columns.push({ id: `column_${nextIndex}`, label: `Column ${nextIndex}` })
+}
+
+function removeRepeaterColumn(field: FormSchemaV1['fields'][number], index: number) {
+  if (!Array.isArray(field.columns) || field.columns.length <= 1) return
+  field.columns.splice(index, 1)
+}
+
+function syncRepeaterColumnId(col: { id: string; label: string }) {
+  if (String(col.id || '').trim()) return
+  col.id = slugifyRepeaterColumnId(col.label, 0)
 }
 
 function conditionSourceFields(field: FormSchemaV1['fields'][number]) {
@@ -585,7 +854,7 @@ function setRuleValue(field: FormSchemaV1['fields'][number], event: Event) {
 }
 
 function onSave() {
-  localMessage.value = `Save clicked at ${new Date().toLocaleTimeString()}`
+  localMessage.value = null
   const checked = validateFormSchemaV1(form.value.schema)
   schemaErrors.value = checked.errors
   if (!form.value.slug.trim()) {
@@ -600,13 +869,20 @@ function onSave() {
     localMessage.value = 'Save blocked: fix the schema issues listed below.'
     return
   }
-  emit('save', {
+  const notification = normalizeFormEmailNotification(
+    form.value.emailNotification,
+    form.value.title || form.value.slug,
+  )
+  const schema: FormSchemaV1 = {
+    ...checked.schema,
+    emailNotification: notification,
+  }
+  const payload = {
     ...form.value,
-    schema: checked.schema,
-  })
-  emit('submit-form', {
-    ...form.value,
-    schema: checked.schema,
-  })
+    emailNotification: notification,
+    schema,
+  }
+  emit('save', payload)
+  emit('submit-form', payload)
 }
 </script>
