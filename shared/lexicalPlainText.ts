@@ -25,6 +25,15 @@ export function extractLexicalPlainText(content: unknown, maxLength = 600): stri
     const node = nodes as { type?: string; text?: string; children?: unknown }
     if (node.type === 'text' && typeof node.text === 'string') return node.text
     if (node.type === 'linebreak' || node.type === 'lineBreak') return ' '
+    if (
+      node.type === 'accordion' ||
+      node.type === 'accordion-item' ||
+      node.type === 'accordion-title' ||
+      node.type === 'accordion-body'
+    ) {
+      if (Array.isArray(node.children)) return collect(node.children)
+      return ''
+    }
     if (Array.isArray(node.children)) return collect(node.children)
     return ''
   }

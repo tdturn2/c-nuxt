@@ -234,6 +234,12 @@ import {
   parseConnectMagicJsonArray,
 } from '~/utils/connectMagicBlocks'
 import {
+  CONNECT_ACCORDION_BODY_LEXICAL_TYPE,
+  CONNECT_ACCORDION_ITEM_LEXICAL_TYPE,
+  CONNECT_ACCORDION_LEXICAL_TYPE,
+  CONNECT_ACCORDION_TITLE_LEXICAL_TYPE,
+} from '~/utils/tiptap/connectAccordionExtension'
+import {
   buildConnectVideosCollectionHtml,
   buildConnectVimeoCollectionListHtml,
   parseConnectVideoRows,
@@ -1054,6 +1060,43 @@ function lexicalToHtml(node: any): string {
     const safeSrc = escapeHtml(src)
     const safeAlt = escapeHtml(alt || '')
     return `<figure class="connect-page-media-figure not-prose my-6"><img src="${safeSrc}" alt="${safeAlt}" class="max-w-full h-auto rounded-lg border border-gray-200 shadow-sm" loading="lazy" decoding="async" /></figure>`
+  }
+  if (node.type === CONNECT_ACCORDION_LEXICAL_TYPE) {
+    const items = (Array.isArray(node.children) ? node.children : [])
+      .map((item: any) => {
+        if (!item || item.type !== CONNECT_ACCORDION_ITEM_LEXICAL_TYPE) return ''
+        const kids = Array.isArray(item.children) ? item.children : []
+        const titleNode = kids.find((c: any) => c?.type === CONNECT_ACCORDION_TITLE_LEXICAL_TYPE)
+        const bodyNode = kids.find((c: any) => c?.type === CONNECT_ACCORDION_BODY_LEXICAL_TYPE)
+        const titleHtml = titleNode
+          ? (titleNode.children || []).map(lexicalToHtml).join('')
+          : escapeHtml(String(item.title || item.question || 'Details'))
+        const bodyHtml = bodyNode
+          ? (bodyNode.children || []).map(lexicalToHtml).join('')
+          : kids
+              .filter(
+                (c: any) =>
+                  c?.type !== CONNECT_ACCORDION_TITLE_LEXICAL_TYPE &&
+                  c?.type !== CONNECT_ACCORDION_BODY_LEXICAL_TYPE,
+              )
+              .map(lexicalToHtml)
+              .join('')
+        const itemId = String(item.itemId || item.id || '').replace(/[^a-zA-Z0-9_-]/g, '')
+        const idAttr = itemId ? ` id="${escapeHtml(itemId)}"` : ''
+        return `<details${idAttr} class="group rounded-lg border border-gray-200 bg-white shadow-sm [&_summary::-webkit-details-marker]:hidden open:shadow-md"><summary class="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-50/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(13,94,130,0.35)] focus-visible:ring-offset-1">${titleHtml || 'Details'}</summary><div class="connect-accordion-body border-t border-gray-100 px-4 py-3 text-sm leading-relaxed text-gray-700 prose prose-sm prose-gray max-w-none">${bodyHtml}</div></details>`
+      })
+      .filter(Boolean)
+      .join('')
+    if (!items) return ''
+    return `<section class="connect-accordion-block not-prose my-6 space-y-2" aria-label="Accordion">${items}</section>`
+  }
+  if (
+    node.type === CONNECT_ACCORDION_ITEM_LEXICAL_TYPE ||
+    node.type === CONNECT_ACCORDION_TITLE_LEXICAL_TYPE ||
+    node.type === CONNECT_ACCORDION_BODY_LEXICAL_TYPE
+  ) {
+    // Only rendered as children of accordion; flat-map defensively if orphaned.
+    return (node.children || []).map(lexicalToHtml).join('')
   }
   if (Array.isArray(node.children)) return node.children.map(lexicalToHtml).join('')
   return ''

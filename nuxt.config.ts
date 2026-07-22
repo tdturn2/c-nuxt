@@ -64,7 +64,11 @@ export default defineNuxtConfig({
   },
   // Rollup warns when any chunk > 500 kB; Vercel logs often show `[warn]` with the message on the next lines (looks "empty").
   vite: {
-    /** One physical copy of TipTap / PM — avoids "Adding different instances of a keyed plugin" when Nuxt UI and the app resolve different node_modules trees. */
+    /**
+     * Prefer one TipTap / ProseMirror copy when both Nuxt UI and app code import them.
+     * Do not absolute-alias package roots — that bypasses package `exports` and breaks
+     * subpaths like `@tiptap/vue-3/menus`.
+     */
     resolve: {
       dedupe: [
         '@tiptap/core',

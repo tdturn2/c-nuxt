@@ -46,6 +46,22 @@
         </select>
       </div>
 
+      <div class="rounded-md border border-gray-200 bg-gray-50 p-3">
+        <label class="flex items-start gap-2">
+          <input
+            v-model="addToNotifications"
+            type="checkbox"
+            class="mt-0.5 h-4 w-4 rounded border-gray-300 text-[rgba(13,94,130,1)] focus:ring-[rgba(13,94,130,1)]"
+          >
+          <span>
+            <span class="block text-sm font-medium text-gray-700">Show in notifications bar</span>
+            <span class="block text-xs text-gray-500">
+              Surfaces this post under “Updates” in the notification bell. Automatically drops off after {{ notificationTtlDays }} days.
+            </span>
+          </span>
+        </label>
+      </div>
+
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">Images (optional)</label>
         <div class="flex items-center gap-3">
@@ -218,6 +234,18 @@ const form = ref({
   content: '',
 })
 const selectedAudience = ref<'general' | 'students' | 'employees' | 'staff' | 'faculty'>(props.defaultAudience ?? 'general')
+
+const addToNotifications = ref(false)
+const notificationTtlDays = NOTIFICATION_UPDATE_TTL_DAYS
+
+/**
+ * Post `categories` is a fixed-option select in Payload (`priority`, `pinned`), so only
+ * known values may be sent. Expiry is enforced client-side from the post's createdAt
+ * (see NOTIFICATION_UPDATE_TTL_DAYS in useNotifications).
+ */
+function buildNotificationCategories(): string[] {
+  return addToNotifications.value ? ['priority'] : []
+}
 const imageInputRef = ref<HTMLInputElement | null>(null)
 type SelectedImage = {
   key: string
@@ -512,6 +540,10 @@ const handleSubmit = async () => {
       content,
       audience
     }
+    const categories = buildNotificationCategories()
+    if (categories.length > 0) {
+      payload.categories = categories
+    }
     if (imagesConnectUserMedia.length > 0) {
       payload.imagesConnectUserMedia = imagesConnectUserMedia
       payload.images = imagesConnectUserMedia
@@ -546,6 +578,7 @@ const resetForm = () => {
     content: ''
   }
   selectedAudience.value = props.defaultAudience ?? 'general'
+  addToNotifications.value = false
   selectedImages.value = []
   draftLinkPreview.value = null
   draftYoutubeEmbed.value = null

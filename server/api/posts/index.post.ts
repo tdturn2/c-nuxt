@@ -12,6 +12,7 @@ export default defineEventHandler(async (event) => {
       content: any
       mentions?: Array<string | number>
       audience?: string[]
+      categories?: string[]
       images?: any
       imagesConnectUserMedia?: any
     }
@@ -72,6 +73,11 @@ export default defineEventHandler(async (event) => {
     // Include audience if provided
     if (Array.isArray(body.audience) && body.audience.length > 0) {
       postData.audience = body.audience
+    }
+
+    // Categories carry notification flags (e.g. `priority`, `notify-until:<iso>`).
+    if (Array.isArray(body.categories) && body.categories.length > 0) {
+      postData.categories = body.categories
     }
 
     if (body.imagesConnectUserMedia !== undefined) {

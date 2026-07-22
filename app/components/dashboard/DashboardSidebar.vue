@@ -62,6 +62,7 @@ watch(canManageDashboard, (allowed) => {
 
 const allItems = [
   { label: 'Dashboard Home', to: '/dashboard', icon: 'i-lucide-layout-dashboard' },
+  { label: 'Posts', to: '/dashboard/posts', icon: 'i-lucide-newspaper' },
   { label: 'Users & Groups', to: '/dashboard/users', icon: 'i-lucide-users-round' },
   { label: 'Docs / Pages', to: '/dashboard/docs', icon: 'i-lucide-file-text' },
   { label: 'Degree Builder', to: '/dashboard/degrees', icon: 'i-lucide-graduation-cap' },

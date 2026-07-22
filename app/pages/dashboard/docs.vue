@@ -601,7 +601,7 @@
               v-model="docsBodyEditorModel"
               content-type="json"
               placeholder="Write page content…"
-              class="w-full min-h-[220px]"
+              class="w-full min-h-[220px] connect-docs-editor"
             >
               <UEditorToolbar
                 :editor="editor"
@@ -614,11 +614,10 @@
               <details class="rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
                 <summary class="cursor-pointer text-xs font-semibold text-gray-700">Special blocks in content (videos, Vimeo, FAQ, forms)</summary>
                 <p class="mt-2 text-xs text-gray-600 leading-relaxed">
-                  FAQ and video lists are edited as <strong class="font-semibold text-gray-800">normal paragraph text</strong> (the <code class="text-[11px]">@connect-…</code> JSON) in this editor so they stay visible and editable after save.
-                  The live site turns that line into accordions or video links — the dashboard is not WYSIWYG for that piece.
+                  Use <code class="text-[11px]">@connect-faq</code> JSON (below) for FAQ-style accordions with plain-text answers.
+                  Video lists and other embeds remain <strong class="font-semibold text-gray-800">paragraph text</strong> (<code class="text-[11px]">@connect-…</code>).
                   Pasting multi-line JSON may split across lines; on <strong class="font-semibold text-gray-800">Save</strong> it is merged so Payload stores valid JSON.
-                  The array must be valid JSON (including the final <code class="text-[11px]">]</code>).
-                  Optional <code class="text-[11px]">id</code> on FAQ items enables deep links (<code class="text-[11px]">/your/page#billing</code>).
+                  Optional FAQ <code class="text-[11px]">id</code> enables deep links (<code class="text-[11px]">/your/page#billing</code>).
                 </p>
                 <p class="mt-2 text-[11px] font-semibold text-gray-700">Video list</p>
                 <pre class="mt-1 text-[11px] leading-snug overflow-auto max-h-32 whitespace-pre-wrap rounded border border-gray-200 bg-white p-2">@connect-videos [{"title":"Welcome","vimeoId":"123456789"}]</pre>
@@ -626,7 +625,7 @@
                 <pre class="mt-1 text-[11px] leading-snug overflow-auto max-h-24 whitespace-pre-wrap rounded border border-gray-200 bg-white p-2">@connect-vimeo-video {"title":"Welcome","vimeoId":"123456789"}</pre>
                 <p class="mt-3 text-[11px] font-semibold text-gray-700">Vimeo collection (bottom-right resizable iframe)</p>
                 <pre class="mt-1 text-[11px] leading-snug overflow-auto max-h-24 whitespace-pre-wrap rounded border border-gray-200 bg-white p-2">@connect-vimeo-collection {"title":"MDiv Video Library","url":"https://vimeo.com/showcase/1234567"}</pre>
-                <p class="mt-3 text-[11px] font-semibold text-gray-700">FAQ accordion</p>
+                <p class="mt-3 text-[11px] font-semibold text-gray-700">FAQ accordion (plain text JSON — legacy)</p>
                 <pre class="mt-1 text-[11px] leading-snug overflow-auto max-h-40 whitespace-pre-wrap rounded border border-gray-200 bg-white p-2">@connect-faq [
   {
     "question": "Who can use this?",
@@ -697,6 +696,10 @@ import {
   connectMagicMergeSeparator,
   isConnectJsonMagic,
 } from '~/utils/connectMagicBlocks'
+import {
+  lexicalAccordionToTipTap,
+  tipTapAccordionToLexical,
+} from '~/utils/tiptap/connectAccordionExtension'
 
 const route = useRoute()
 const runtimeConfig = useRuntimeConfig()
@@ -1201,8 +1204,17 @@ function plainTipTapJsonClone(doc: unknown): any {
   return JSON.parse(JSON.stringify(doc))
 }
 
-/** ProseMirror throws on `{ type: 'text', text: '' }` (RangeError: Empty text nodes are not allowed). Recursively remove those nodes. */
+/**
+ * ProseMirror throws on `{ type: 'text', text: '' }` (RangeError: Empty text nodes are not allowed).
+ * Also drop custom accordion nodes until TipTap schema registers them (unknown types blank the editor).
+ */
 function sanitizeTipTapJsonForProseMirror(input: unknown): any {
+  const unknownBlockTypes = new Set([
+    'connectAccordion',
+    'connectAccordionItem',
+    'connectAccordionItemTitle',
+    'connectAccordionItemBody',
+  ])
   const walk = (n: any): any => {
     if (n == null || typeof n !== 'object') return n
     if (n.type === 'text') {
@@ -1211,6 +1223,7 @@ function sanitizeTipTapJsonForProseMirror(input: unknown): any {
       return { ...n, text: t }
     }
     if (Array.isArray(n)) return n.map(walk).filter((x) => x != null)
+    if (typeof n.type === 'string' && unknownBlockTypes.has(n.type)) return null
     const out: any = { ...n }
     if (Array.isArray(n.content)) out.content = n.content.map(walk).filter((x: any) => x != null)
     return out
@@ -1237,6 +1250,7 @@ function tipTapDocHasMeaningfulText(doc: any): boolean {
     if (!Array.isArray(nodes)) return false
     for (const n of nodes) {
       if (n?.type === 'image') return true
+      if (n?.type === 'connectAccordion') return true
       if (n?.type === 'text' && String(n.text || '').trim()) return true
       if (n?.content && walk(n.content)) return true
       if (n?.type === 'codeBlock' && Array.isArray(n.content) && walk(n.content)) return true
@@ -1349,6 +1363,10 @@ function lexicalToTipTap(lexical: any): any {
 
     if (node.type === 'upload') {
       return lexicalUploadNodeToTipTapImage(node, getPayloadBaseUrl())
+    }
+
+    if (node.type === 'accordion') {
+      return lexicalAccordionToTipTap(node, convert)
     }
 
     if (node.type === 'text') {
@@ -1627,6 +1645,10 @@ function tipTapToLexical(tipTap: any): any {
 
   const convert = (node: any): any[] => {
     if (!node) return []
+
+    if (node.type === 'connectAccordion') {
+      return tipTapAccordionToLexical(node, convert)
+    }
 
     if (node.type === 'text') {
       const base = {
@@ -2093,4 +2115,47 @@ watch(
   { flush: 'post' },
 )
 </script>
+
+<style>
+.connect-docs-editor .connect-accordion {
+  margin: 0.75rem 0;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  background: rgba(249, 250, 251, 0.9);
+}
+.connect-docs-editor .connect-accordion-item {
+  margin-top: 0.375rem;
+  overflow: hidden;
+  border-radius: 0.375rem;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.connect-docs-editor .connect-accordion-item:first-child {
+  margin-top: 0;
+}
+.connect-docs-editor .connect-accordion-item-title {
+  border-bottom: 1px solid #f3f4f6;
+  background: #f9fafb;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111827;
+  min-height: 2rem;
+}
+.connect-docs-editor .connect-accordion-item-title.is-empty::before {
+  color: #9ca3af;
+  content: 'Question / title…';
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+.connect-docs-editor .connect-accordion-item-body {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: #1f2937;
+  min-height: 2.5rem;
+}
+</style>
 

@@ -98,6 +98,12 @@ watch(canManageDashboard, (allowed) => {
 
 const sections = [
   {
+    title: 'Posts',
+    description: 'Create and manage homepage timeline posts.',
+    to: '/dashboard/posts',
+    icon: 'i-lucide-newspaper',
+  },
+  {
     title: 'Users & Groups',
     description: 'Manage user accounts, roles, and permission groups.',
     to: '/dashboard/users',

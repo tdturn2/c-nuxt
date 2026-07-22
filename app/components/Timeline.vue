@@ -1,7 +1,6 @@
 <template>
   <div class="max-w-2xl mx-auto px-4 py-6">
-    <!-- Category Tabs + Create Post icon -->
-    <div class="flex items-center justify-between gap-4 mb-6">
+    <div class="mb-6">
       <UTabs
         v-model="activeCategoryTab"
         :items="categoryTabs"
@@ -10,33 +9,9 @@
           indicator: 'bg-transparent border-none shadow-none',
           trigger: 'rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100/80 aria-selected:bg-gray-100 aria-selected:text-gray-700 data-[state=active]:bg-gray-100 data-[state=active]:text-gray-700'
         }"
-        class="flex-1 min-w-0"
+        class="min-w-0"
       />
-      <button
-        type="button"
-        aria-label="Create a post"
-        class="shrink-0 p-2 rounded-full text-gray-500 hover:text-[rgba(13,94,130,1)] hover:bg-gray-100 transition-colors"
-        @click="createPostModalOpen = true"
-      >
-        <UIcon name="i-heroicons-plus-circle" class="w-6 h-6" />
-      </button>
     </div>
-
-    <UModal
-      v-model:open="createPostModalOpen"
-      :ui="{ content: 'max-w-2xl', body: 'p-6' }"
-    >
-      <template #header>
-        <h2 class="text-lg font-semibold text-gray-900">Create a Post</h2>
-      </template>
-      <template #body>
-        <AddPost
-          :default-audience="activeCategoryTab as any"
-          @post-created="onCreatePostSuccess"
-          @cancel="createPostModalOpen = false"
-        />
-      </template>
-    </UModal>
 
     <PostModal
       :post="selectedPost"
@@ -242,17 +217,11 @@ const slides = computed<HomeSlide[]>(() => {
   return Array.isArray(sliderData.value?.docs) ? sliderData.value.docs : []
 })
 
-const createPostModalOpen = ref(false)
 const isPostModalOpen = ref(false)
 const selectedPost = ref<PostWithUser | null>(null)
 const selectedPostUser = ref<User | null>(null)
 const postModalStartInEditMode = ref(false)
 const postModalStartWithCommentsOpen = ref(false)
-
-const onCreatePostSuccess = async () => {
-  await handlePostCreated()
-  createPostModalOpen.value = false
-}
 
 function getImageUrl(image: any) {
   if (!image) return '/estes-icon.png'
@@ -316,38 +285,6 @@ const handlePostModalOpenUpdate = (open: boolean) => {
   if (!open) {
     postModalStartInEditMode.value = false
     postModalStartWithCommentsOpen.value = false
-  }
-}
-
-const handlePostCreated = async () => {
-  olderPostsVisibleCount.value = 0
-  // Refresh the timeline data after a new post is created
-  await refresh()
-  
-  // Refresh user data from connect-users for the new posts
-  if (data.value?.docs && data.value.docs.length > 0) {
-    loadingUsers.value = true
-    try {
-      const docs = data.value.docs
-      // Extract unique author IDs from posts
-      const authorIds = [...new Set(docs.map(post => post.author.id))]
-      
-      // Fetch users from connect-users collection
-      const usersMap = await fetchUsers(authorIds)
-      
-      // Update with user data from connect-users
-      allPostsWithUsers.value = docs.map(post => ({
-        ...post,
-        user: usersMap.get(post.author.id) || null
-      })) as PostWithUser[]
-      
-      // Apply filtering after updating posts
-      filterPosts()
-    } catch (err) {
-      console.error('Error loading users from connect-users:', err)
-    } finally {
-      loadingUsers.value = false
-    }
   }
 }
 
@@ -455,7 +392,13 @@ watch(activeCategoryTab, () => {
 // Fetch user data after component mounts (client-side only)
 // This ensures we're pulling from connect-users collection, not just populated author data
 onMounted(async () => {
+  // useFetch caches by URL; in this SPA, client-side navigation back to the feed would
+  // otherwise reuse a stale list and hide posts created elsewhere (e.g. the dashboard).
+  await refresh()
+
   if (!data.value?.docs || data.value.docs.length === 0) {
+    allPostsWithUsers.value = []
+    filterPosts()
     return
   }
   

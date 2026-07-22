@@ -34,6 +34,18 @@ interface Notification {
   createdAt: string
 }
 
+/** Priority "Updates" auto-expire this many days after the post was created. */
+export const NOTIFICATION_UPDATE_TTL_DAYS = 7
+
+/** Returns false once a priority update is older than the TTL window. */
+function isNotificationActive(createdAt: unknown): boolean {
+  if (!createdAt) return true
+  const created = new Date(String(createdAt))
+  if (Number.isNaN(created.getTime())) return true
+  const expiresAt = created.getTime() + NOTIFICATION_UPDATE_TTL_DAYS * 24 * 60 * 60 * 1000
+  return expiresAt > Date.now()
+}
+
 export const useNotifications = () => {
   const notifications = useState<Notification[]>('notifications', () => [])
   const activeTab = useState<NotificationTab>('notifications-active-tab', () => 'updates')
@@ -59,7 +71,10 @@ export const useNotifications = () => {
       notifications.value = (listResponse?.docs || [])
         .filter((doc) => {
           const pid = typeof doc.post === 'number' ? doc.post : doc.post?.id
-          return Boolean(pid) && (doc?.type === 'update' || doc?.type === 'mention')
+          if (!pid || (doc?.type !== 'update' && doc?.type !== 'mention')) return false
+          // Drop expired notification-bar updates (mentions never expire).
+          const createdAt = doc.createdAt || (typeof doc.post === 'object' ? doc.post?.createdAt : undefined)
+          return doc.type === 'mention' || isNotificationActive(createdAt)
         })
         .map((doc) => {
           const rawPost = doc.post as NotificationPost | number
@@ -107,7 +122,9 @@ export const useNotifications = () => {
         credentials: 'include',
       })
 
-      const priorityPosts = fallback?.docs?.filter((post) => post.categories?.includes('priority')) || []
+      const priorityPosts = fallback?.docs?.filter(
+        (post) => post.categories?.includes('priority') && isNotificationActive(post.createdAt),
+      ) || []
       notifications.value = priorityPosts.map((post) => ({
         id: `legacy-update:${post.id}`,
         type: 'update',
