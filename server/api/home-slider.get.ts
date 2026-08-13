@@ -32,14 +32,14 @@ function isWithinDateRange(item: SliderItem, now = new Date()): boolean {
 
 export default defineEventHandler(async () => {
   const config = useRuntimeConfig()
-  const configuredBaseUrl = config.public.payloadBaseUrl || ''
+  const configuredBaseUrl = config.public.connectApi || ''
   const params = new URLSearchParams()
   params.set('sort', 'sortOrder,-updatedAt')
   params.set('limit', '50')
   params.set('depth', '1')
 
   try {
-    const candidateBaseUrls = [configuredBaseUrl, 'http://localhost:3002'].filter(Boolean)
+    const candidateBaseUrls = [configuredBaseUrl, 'http://localhost:3003'].filter(Boolean)
     for (const baseUrl of candidateBaseUrls) {
       const res: any = await $fetch(`${baseUrl}/api/connect-home-slider-items?${params.toString()}`, {
         headers: { 'Content-Type': 'application/json' },

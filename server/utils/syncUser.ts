@@ -20,8 +20,7 @@ function deriveRolesFromGroups(groups: string[]): ('faculty' | 'staff' | 'studen
   return Array.from(roles)
 }
 
-// Sync authenticated user to PayloadCMS connect-users collection
-// Uses PayloadCMS /sync endpoint which handles create/update automatically
+// Sync authenticated user to connect-api connect-users (POST /api/connect-users/sync)
 export async function syncUserToPayload(user: {
   id: string
   name: string | null | undefined
@@ -35,14 +34,14 @@ export async function syncUserToPayload(user: {
   }
   
   const config = useRuntimeConfig()
-  // Server-side sync should use server runtime config / env, not public runtime config.
+  // Server-side sync should use server runtime config / env, not only public runtime config.
   // On Vercel, `config.public.*` may be unset unless using `NUXT_PUBLIC_*` env vars.
   const payloadBaseUrl =
-    (config.payloadBaseUrl || config.public.payloadBaseUrl || '').trim() ||
-    (import.meta.dev ? 'http://localhost:3002' : '')
+    (config.connectApi || config.public.connectApi || '').trim() ||
+    (import.meta.dev ? 'http://localhost:3003' : '')
 
   if (!payloadBaseUrl) {
-    console.error('[User Sync] Missing PAYLOAD_BASE_URL; cannot sync user in production.')
+    console.error('[User Sync] Missing CONNECT_API; cannot sync user in production.')
     return null
   }
   const syncUrl = `${payloadBaseUrl}/api/connect-users/sync`

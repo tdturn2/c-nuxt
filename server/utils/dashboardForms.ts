@@ -81,8 +81,8 @@ const isAdminGroupTag = (value: string): boolean => {
 function getPayloadBaseUrl() {
   const config = useRuntimeConfig()
   return (
-    (config.payloadBaseUrl || config.public.payloadBaseUrl || '').trim() ||
-    (import.meta.dev ? 'http://localhost:3002' : '')
+    (config.connectApi || config.public.connectApi || '').trim() ||
+    (import.meta.dev ? 'http://localhost:3003' : '')
   )
 }
 
@@ -97,7 +97,7 @@ export async function requireDashboardStaff(
 
   const payloadBaseUrl = getPayloadBaseUrl()
   if (!payloadBaseUrl) {
-    throw createError({ statusCode: 500, statusMessage: 'Missing PAYLOAD_BASE_URL' })
+    throw createError({ statusCode: 500, statusMessage: 'Missing CONNECT_API' })
   }
 
   // Canonical dashboard auth path: mint a fresh connect-users auth on every
@@ -327,7 +327,7 @@ export async function dashboardPayloadFetch<T = any>(
       }
       throw createError({
         statusCode: 403,
-        statusMessage: 'Dashboard upstream forbidden (no PAYLOAD_SERVER_BEARER fallback configured)',
+        statusMessage: 'Dashboard upstream forbidden (no CONNECT_API_SERVER_BEARER / PAYLOAD_SERVER_BEARER fallback configured)',
         data: {
           url,
           method: init.method || 'GET',

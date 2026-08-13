@@ -1,0 +1,41 @@
+---
+description: Patterns for Nitro server/api routes that proxy to connect-api (Hono)
+globs: server/api/**/*.ts
+alwaysApply: false
+---
+
+# Connect API proxy route patterns
+
+Upstream is **Hono connect-api** (`CONNECT_API`, local `:3003`), not Payload CMS.
+
+## Request basics
+- Use `defineEventHandler`.
+- Read params with `getRouterParam(event, 'id')` etc.
+- Read body with `readBody(event)` and default to `{}` on parse errors.
+
+## Authentication
+- Use `authenticateWithConnectApi(event)` (exported from `server/utils/payloadAuth.ts`; legacy name `authenticateWithPayloadCMS` still works) to get `{ token, email, payloadSessionCookie }`.
+- Decide early whether this is a JWT/Bearer request or SSO/email request.
+- Only add `Authorization` when intentionally calling a JWT-protected connect-api route.
+- Forward cookies/session with `getConnectApiProxyHeaders(event, auth)` (alias: `getPayloadProxyHeaders`).
+
+## Base URL + depth
+- Use `resolveConnectApiUrl()` from `server/utils/connectApi.ts`.
+- In local dev only, that helper may fall back to `http://localhost:3003`.
+- Always `encodeURIComponent` for IDs and query values.
+- Pass **`depth=1`** when the response must include populated relations (avatars, media, groups). connect-api lists default to depth `0`.
+
+## Media URLs
+- For browser-consumed `avatar.url` / media paths, use `toBrowserMediaUrl()` or `normalizeUserAvatar()` so the client hits Connect’s `/api/connect-user-media/file/...` proxy.
+- Absolute `CONNECT_API` URLs are fine for server-to-server fetches.
+
+## Safe forwarding
+- Set `Content-Type: application/json` when sending JSON.
+- Prefer JSON `$fetch` to connect-api; use native `fetch` for multipart uploads.
+
+## Error surfacing
+- When `$fetch` throws, capture:
+  - `err?.response?.status` → `statusCode`
+  - `err?.data` (upstream body) → `data`
+  - `err?.message` → fallback message
+- Re-throw with `createError({ statusCode, statusMessage, data })`.

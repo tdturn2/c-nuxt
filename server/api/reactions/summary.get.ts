@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const config = useRuntimeConfig()
-  const payloadBaseUrl = config.public.payloadBaseUrl || 'http://localhost:3002'
+  const payloadBaseUrl = config.public.connectApi || 'http://localhost:3003'
 
   const auth = await authenticateWithPayloadCMS(event)
   if (!auth.email) {

@@ -1,10 +1,11 @@
 import { defineEventHandler, getQuery, createError } from 'h3'
 import { sanitizeAlumniContact } from '../../utils/alumniProfile'
+import { normalizeUserAvatar, resolveConnectApiUrl } from '../../utils/connectApi'
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const username = query.username as string
-  
+
   if (!username) {
     throw createError({
       statusCode: 400,
@@ -12,24 +13,25 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const config = useRuntimeConfig()
-  const payloadBaseUrl = config.public.payloadBaseUrl || 'http://localhost:3002'
-  
+  const connectApiUrl = resolveConnectApiUrl()
+
   try {
-    // Convert username back to email (add @asburyseminary.edu)
     const email = `${username}@asburyseminary.edu`
-    
-    // Query PayloadCMS for user by email
-    const response = await $fetch(`${payloadBaseUrl}/api/connect-users?where[email][equals]=${encodeURIComponent(email)}`, {
-      headers: {
-        'Content-Type': 'application/json',
+
+    const response = await $fetch(
+      `${connectApiUrl}/api/connect-users?where[email][equals]=${encodeURIComponent(email)}&limit=1&depth=1`,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
       },
-    }) as { docs: Array<{ 
+    ) as { docs: Array<{
       id: number
       name: string
       email: string
       bio: string | null
       avatar?: { url: string } | null
+      avatarConnectUserMedia?: { url: string } | null
       alumniOptIn?: boolean
       alumniDegrees?: Array<{ degree?: string; graduationYear?: number | string }>
       alumniContact?: {
@@ -40,9 +42,9 @@ export default defineEventHandler(async (event) => {
         instagram?: string | null
       } | null
     }> }
-    
+
     const user = response?.docs?.[0]
-    
+
     if (!user) {
       throw createError({
         statusCode: 404,
@@ -50,17 +52,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Prefer new avatar relation, fallback to legacy avatar to keep UI contract stable.
-    user.avatar = (user as any).avatarConnectUserMedia || user.avatar || null
-    
-    // Normalize avatar URL if it's relative
-    if (user.avatar?.url && !user.avatar.url.startsWith('http')) {
-      if (user.avatar.url.startsWith('/')) {
-        user.avatar.url = `${payloadBaseUrl}${user.avatar.url}`
-      } else {
-        user.avatar.url = `${payloadBaseUrl}/${user.avatar.url}`
-      }
-    }
+    user.avatar = normalizeUserAvatar(user)
 
     const normalizedContact = sanitizeAlumniContact(user.alumniContact)
     user.alumniContact = user.alumniOptIn ? normalizedContact : {
@@ -70,7 +62,7 @@ export default defineEventHandler(async (event) => {
       x: null,
       instagram: null,
     }
-    
+
     return user
   } catch (error: any) {
     if (error.statusCode) {

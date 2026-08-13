@@ -8,9 +8,10 @@ import {
 export default defineEventHandler(async (event) => {
   const auth = await requireDashboardStaff(event)
   const params = new URLSearchParams()
-  params.set('sort', '-updatedAt')
-  params.set('limit', '200')
-  params.set('depth', '1')
+  params.set('sort', 'name,email')
+  params.set('pagination', 'false')
+  params.set('limit', '2000')
+  params.set('depth', '0')
 
   return await dashboardPayloadFetch(`${auth.payloadBaseUrl}/api/connect-users?${params.toString()}`, {
     event,

@@ -997,8 +997,8 @@ function formatDate(value?: string) {
 
 function getPayloadBaseUrl(): string {
   return (
-    (runtimeConfig.payloadBaseUrl || runtimeConfig.public.payloadBaseUrl || '') as string
-  ).trim() || (import.meta.dev ? 'http://localhost:3002' : '')
+    (runtimeConfig.connectApi || runtimeConfig.public.connectApi || '') as string
+  ).trim() || (import.meta.dev ? 'http://localhost:3003' : '')
 }
 
 const docsImageFileInputId = useId()

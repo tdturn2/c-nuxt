@@ -1,4 +1,5 @@
 import { defineEventHandler, getQuery, createError } from 'h3'
+import { normalizeUserAvatar, resolveConnectApiUrl } from '../../utils/connectApi'
 
 function normalizeRoles(raw: unknown): string[] {
   if (!Array.isArray(raw)) return []
@@ -13,14 +14,14 @@ export default defineEventHandler(async (event) => {
     return { docs: [] }
   }
 
-  const config = useRuntimeConfig()
-  const payloadBaseUrl = config.public.payloadBaseUrl || 'http://localhost:3002'
+  const connectApiUrl = resolveConnectApiUrl()
 
   try {
-    const response = await $fetch(`${payloadBaseUrl}/api/connect-users`, {
+    const response = await $fetch(`${connectApiUrl}/api/connect-users`, {
       headers: { 'Content-Type': 'application/json' },
       query: {
         limit: 15,
+        depth: 1,
         sort: 'name',
         'where[or][0][name][contains]': searchQuery,
         'where[or][1][email][contains]': searchQuery,
@@ -28,21 +29,13 @@ export default defineEventHandler(async (event) => {
     }) as { docs: Array<{ id: number; name: string; email: string; roles?: string[]; avatar?: { url: string } | null }> }
 
     const users = response.docs.map((user) => {
-      const avatar = (user as any).avatarConnectUserMedia || user.avatar || null
-      let avatarUrl = avatar?.url || null
-
-      if (avatarUrl && !avatarUrl.startsWith('http://') && !avatarUrl.startsWith('https://')) {
-        avatarUrl = avatarUrl.startsWith('/')
-          ? `${payloadBaseUrl}${avatarUrl}`
-          : `${payloadBaseUrl}/${avatarUrl}`
-      }
-
+      const avatar = normalizeUserAvatar(user)
       return {
         id: user.id,
         name: user.name,
         email: user.email,
         roles: normalizeRoles(user.roles),
-        avatar: avatarUrl,
+        avatar: avatar?.url ?? null,
       }
     })
 

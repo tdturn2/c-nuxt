@@ -127,7 +127,7 @@ type DailyEucharistResponse = {
 }
 
 const config = useRuntimeConfig()
-const payloadBaseUrl = String(config.public.payloadBaseUrl || '').replace(/\/$/, '')
+const payloadBaseUrl = String(config.public.connectApi || '').replace(/\/$/, '')
 const { data, pending, error } = useFetch<{ entries?: WeekEntry[] }>('/api/chapel/current-week', {
   key: 'chapel-current-week',
   lazy: true,

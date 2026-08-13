@@ -294,7 +294,7 @@ const selectedAvatarUrl = computed(() => {
 function normalizeMediaUrl(url?: string): string {
   if (!url) return ''
   if (url.startsWith('http')) return url
-  const baseUrl = String(config.public.payloadBaseUrl || '').replace(/\/$/, '')
+  const baseUrl = String(config.public.connectApi || '').replace(/\/$/, '')
   if (!baseUrl) return url
   return url.startsWith('/') ? `${baseUrl}${url}` : `${baseUrl}/${url}`
 }

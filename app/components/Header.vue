@@ -236,9 +236,19 @@ const handleSignOut = async () => {
   }
 }
 
-// Avatar: prefer Connect profile avatar (Payload), fallback to session (OAuth) image
+function toLocalAvatarSrc(urlRaw: unknown): string | null {
+  const input = typeof urlRaw === 'string' ? urlRaw.trim() : ''
+  if (!input) return null
+  const hit = input.match(/\/api\/connect-user-media\/file\/([^/?#]+)/i)
+  if (hit?.[1]) return `/api/connect-user-media/file/${hit[1]}`
+  const hitLegacy = input.match(/\/api\/media\/file\/([^/?#]+)/i)
+  if (hitLegacy?.[1]) return `/api/connect-user-media/file/${hitLegacy[1]}`
+  return input
+}
+
+// Avatar: prefer Connect profile avatar, fallback to session (OAuth) image
 const userAvatarUrl = computed(() => {
-  const fromMe = meUser.value?.avatar?.url
+  const fromMe = toLocalAvatarSrc(meUser.value?.avatar?.url)
   if (fromMe) return fromMe
   return session.value?.user?.image ?? null
 })
@@ -345,11 +355,7 @@ const accountDropdownItems = computed<DropdownMenuItem[][]>(() => {
   ],
   [
     { label: 'Update Profile', icon: 'i-heroicons-user-circle', to: '/profile/avatar' },
-    { label: 'Alumni Profile', icon: 'i-heroicons-academic-cap', to: '/profile/alumni' },
-    { label: 'Employee Profile', icon: 'i-heroicons-identification', to: '/profile/employee' },
-    { label: 'Faculty Profile', icon: 'i-heroicons-academic-cap', to: '/profile/faculty' },
-    { label: 'Faculty Publications', icon: 'i-heroicons-book-open', to: '/profile/faculty-pub' },
-    { label: 'Student Profile', icon: 'i-heroicons-user', to: '/profile/student' }
+    { label: 'Faculty Publications', icon: 'i-heroicons-book-open', to: '/profile/faculty-pub' }
   ],
   [
     {

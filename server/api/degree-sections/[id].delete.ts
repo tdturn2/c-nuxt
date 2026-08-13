@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
   if (!email) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
 
   const config = useRuntimeConfig()
-  const payloadBaseUrl = config.public.payloadBaseUrl || 'http://localhost:3002'
+  const payloadBaseUrl = config.public.connectApi || 'http://localhost:3003'
   const headers: Record<string, string> = {}
   if (token) headers['Authorization'] = `Bearer ${token}`
 

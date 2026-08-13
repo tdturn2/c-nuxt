@@ -7,14 +7,14 @@ alwaysApply: false
 # Dashboard docs + editor conventions
 
 ## Rich text
-- Payload stores **Lexical JSON**; Nuxt UI `UEditor` uses **TipTap JSON**.
+- Page content is stored as **Lexical JSON** in connect-api / Neon; Nuxt UI `UEditor` uses **TipTap JSON**.
 - Keep conversions **pure** and **type-safe**:
   - `lexicalToTipTap(lexical)` for loading
   - `tipTapToLexical(tiptap)` for saving
 - Prefer defensive checks (null/undefined/shape mismatch) and return an empty doc/root.
 
 ## Update endpoint selection (important)
-- When editing existing pages, call `PATCH` or `POST` `/api/connect-pages-update/:id`. That Nitro route proxies to Payload `POST /api/connect-pages/update/:id` with session `email` in the body (SSO-style).
+- When editing existing pages, call `PATCH` or `POST` `/api/connect-pages-update/:id`. That Nitro route proxies to connect-api `POST /api/connect-pages/update/:id` with session `email` in the body (SSO-style).
 - When creating pages, use the create endpoint already used by the dashboard.
 - Do not call the generic `/api/connect-pages/:id` patch route from the dashboard UI unless explicitly doing admin-only updates.
 
@@ -22,4 +22,3 @@ alwaysApply: false
 - Use `UEditor` with the toolbar + drag handle slot pattern:
   - `UEditorToolbar` should be sticky at the top of the editor container
   - `UEditorDragHandle` enabled for block movement
-

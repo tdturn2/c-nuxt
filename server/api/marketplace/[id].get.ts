@@ -3,7 +3,7 @@ import { getSSOSession } from '../../utils/ssoAuth'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
-  const payloadBaseUrl = config.public.payloadBaseUrl || 'http://localhost:3002'
+  const payloadBaseUrl = config.public.connectApi || 'http://localhost:3003'
   const id = getRouterParam(event, 'id')
   const { email } = await getSSOSession(event)
 

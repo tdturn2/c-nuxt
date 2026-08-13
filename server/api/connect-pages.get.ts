@@ -10,8 +10,8 @@ import {
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   const payloadBaseUrl =
-    (config.payloadBaseUrl || config.public.payloadBaseUrl || '').trim() ||
-    (import.meta.dev ? 'http://localhost:3002' : '')
+    (config.connectApi || config.public.connectApi || '').trim() ||
+    (import.meta.dev ? 'http://localhost:3003' : '')
   const query = getQuery(event)
   const searchParams = new URLSearchParams(query as Record<string, string>)
   const url = `${payloadBaseUrl}/api/connect-pages?${searchParams.toString()}`

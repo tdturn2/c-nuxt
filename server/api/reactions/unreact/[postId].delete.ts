@@ -4,7 +4,7 @@ import { authenticateWithPayloadCMS, getPayloadProxyHeaders } from '../../../uti
 export default defineEventHandler(async (event) => {
   const postId = getRouterParam(event, 'postId')
   const config = useRuntimeConfig()
-  const payloadApiUrl = `${config.public.payloadBaseUrl}/api/connect-post-reactions/unreact/${postId}`
+  const payloadApiUrl = `${config.public.connectApi}/api/connect-post-reactions/unreact/${postId}`
   
   try {
     // Authenticate with PayloadCMS using SSO email

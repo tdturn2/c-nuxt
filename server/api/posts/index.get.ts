@@ -44,8 +44,8 @@ async function resolveMobilePayloadAuth(authHeader: string, payloadBaseUrl: stri
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
-  const payloadApiUrl = config.public.payloadApiUrl || 'http://localhost:3002/api/connect-posts'
-  const payloadBaseUrl = config.public.payloadBaseUrl || 'http://localhost:3002'
+  const payloadApiUrl = config.public.payloadApiUrl || 'http://localhost:3003/api/connect-posts'
+  const payloadBaseUrl = config.public.connectApi || 'http://localhost:3003'
   const query = getQuery(event)
   const debug = query.debug === '1'
   

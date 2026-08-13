@@ -260,8 +260,8 @@ const {
 
 function normalizeConnectPageMediaUrl(url: string): string {
   const base =
-    (runtimeConfig.payloadBaseUrl || runtimeConfig.public.payloadBaseUrl || '').trim() ||
-    (import.meta.dev ? 'http://localhost:3002' : '')
+    (runtimeConfig.connectApi || runtimeConfig.public.connectApi || '').trim() ||
+    (import.meta.dev ? 'http://localhost:3003' : '')
   return normalizePayloadMediaUrl(url, base)
 }
 const { playVideo, playVimeoCollection } = useVideoPlayer()

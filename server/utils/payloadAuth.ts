@@ -1,4 +1,8 @@
-// Shared utility for authenticating with PayloadCMS using SSO email
+/**
+ * Session → connect-api auth (Hono).
+ * Syncs the Entra/mobile identity via POST /api/connect-users/sync and returns JWT + optional session cookie.
+ * Filename is historical; prefer authenticateWithConnectApi / getConnectApiProxyHeaders in new code.
+ */
 import { getHeader } from 'h3'
 import { verifyMobileAccessToken } from './mobileAuth'
 
@@ -7,11 +11,13 @@ const syncInFlightByEmail = new Map<string, Promise<PayloadAuthResult>>()
 export type PayloadAuthResult = {
   token: string | null
   email: string | null
-  /** First-party Payload session from sync `Set-Cookie` (use on follow-up Payload API calls when JWT is absent). */
+  /** Session cookie from connect-users sync `Set-Cookie` (use on follow-up API calls when JWT is absent). */
   payloadSessionCookie: string | null
 }
 
-/** Build headers for server-side Payload $fetch: Bearer when sync returned JWT, plus Payload session cookie and optional browser cookies. */
+export type ConnectApiAuthResult = PayloadAuthResult
+
+/** Build headers for server-side connect-api $fetch: Bearer when sync returned JWT, plus session cookie and optional browser cookies. */
 export function getPayloadProxyHeaders(
   event: any,
   auth: Pick<PayloadAuthResult, 'token' | 'payloadSessionCookie'>,
@@ -56,8 +62,8 @@ export async function authenticateWithPayloadCMS(event: any): Promise<PayloadAut
   try {
     const config = useRuntimeConfig()
     const payloadBaseUrl =
-      (config.payloadBaseUrl || config.public.payloadBaseUrl || '').trim() ||
-      (import.meta.dev ? 'http://localhost:3002' : '')
+      (config.connectApi || config.public.connectApi || '').trim() ||
+      (import.meta.dev ? 'http://localhost:3003' : '')
 
     const syncIntoPayload = async (identity: { email: string; name?: string | null; avatar?: string | null }) => {
       if (!payloadBaseUrl) {
@@ -211,7 +217,13 @@ export async function authenticateWithPayloadCMS(event: any): Promise<PayloadAut
       avatar: session.user.image ?? undefined,
     })
   } catch (error) {
-    console.error('Error getting session for PayloadCMS:', error)
+    console.error('Error getting session for connect-api auth:', error)
     return none()
   }
 }
+
+/** Preferred name — same as authenticateWithPayloadCMS. */
+export const authenticateWithConnectApi = authenticateWithPayloadCMS
+
+/** Preferred name — same as getPayloadProxyHeaders. */
+export const getConnectApiProxyHeaders = getPayloadProxyHeaders

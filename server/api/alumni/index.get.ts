@@ -1,6 +1,7 @@
 // GET alumni directory users: connect-users with alumni permissions/groups.
 import { createError, defineEventHandler } from 'h3'
 import { normalizeAlumniDegrees } from '../../utils/alumniProfile'
+import { normalizeUserAvatar, resolveConnectApiUrl } from '../../utils/connectApi'
 
 type ConnectGroupLike = {
   slug?: string | null
@@ -20,33 +21,24 @@ function hasAlumniPermission(user: any): boolean {
 }
 
 export default defineEventHandler(async () => {
-  const config = useRuntimeConfig()
-  const payloadBaseUrl = config.public.payloadBaseUrl || 'http://localhost:3002'
+  const connectApiUrl = resolveConnectApiUrl()
 
   try {
-    const response = await $fetch(`${payloadBaseUrl}/api/connect-users`, {
+    const response = await $fetch(`${connectApiUrl}/api/connect-users`, {
       headers: { 'Content-Type': 'application/json' },
       query: { limit: 500, depth: 1 },
     }) as { docs?: any[] }
 
     const allDocs = response?.docs ?? []
     const docs = allDocs.filter(hasAlumniPermission)
-    const payloadBase = payloadBaseUrl
 
-    const alumni = docs.map((user: any) => {
-      const avatar = user.avatarConnectUserMedia || user.avatar || null
-      let avatarUrl = avatar?.url ?? null
-      if (avatarUrl && !avatarUrl.startsWith('http')) {
-        avatarUrl = avatarUrl.startsWith('/') ? `${payloadBase}${avatarUrl}` : `${payloadBase}/${avatarUrl}`
-      }
-      return {
-        id: user.id,
-        name: user.name,
-        email: user.email ?? null,
-        degrees: normalizeAlumniDegrees(user.alumniDegrees),
-        avatar: avatarUrl ? { url: avatarUrl } : null,
-      }
-    })
+    const alumni = docs.map((user: any) => ({
+      id: user.id,
+      name: user.name,
+      email: user.email ?? null,
+      degrees: normalizeAlumniDegrees(user.alumniDegrees),
+      avatar: normalizeUserAvatar(user),
+    }))
 
     return { alumni }
   } catch (err: any) {

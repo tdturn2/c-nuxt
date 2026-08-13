@@ -282,7 +282,7 @@ interface ChapelResponse {
 const { playVideo } = useVideoPlayer()
 const { playTrack } = useAudioPlayer()
 const config = useRuntimeConfig()
-const payloadBaseUrl = String(config.public.payloadBaseUrl || '').replace(/\/$/, '')
+const payloadBaseUrl = String(config.public.connectApi || '').replace(/\/$/, '')
 
 const page = ref(1)
 const limit = 20

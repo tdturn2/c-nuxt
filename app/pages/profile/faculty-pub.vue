@@ -226,7 +226,7 @@ const PUBLICATION_TYPE_OPTIONS = [
 
 const { user: meUser, loading: authLoading, refresh } = useMe()
 const config = useRuntimeConfig()
-const payloadBaseUrl = config.public.payloadBaseUrl || 'http://localhost:3002'
+const payloadBaseUrl = config.public.connectApi || 'http://localhost:3003'
 
 const savingEdit = ref(false)
 const error = ref<string | null>(null)

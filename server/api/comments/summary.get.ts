@@ -25,7 +25,7 @@ export default defineEventHandler(async (event) => {
   if (!postIds.length) return { byPostId: {} }
 
   const config = useRuntimeConfig()
-  const payloadBaseUrl = config.public.payloadBaseUrl || 'http://localhost:3002'
+  const payloadBaseUrl = config.public.connectApi || 'http://localhost:3003'
   const cookieHeader = getHeader(event, 'cookie')
   const authHeader = getHeader(event, 'authorization')
 

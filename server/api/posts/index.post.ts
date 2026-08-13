@@ -4,7 +4,7 @@ import { getUserIdFromEmail } from '../../utils/getUserIdFromEmail'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
-  const payloadBaseUrl = config.public.payloadBaseUrl || 'http://localhost:3002'
+  const payloadBaseUrl = config.public.connectApi || 'http://localhost:3003'
   const payloadApiUrl = `${payloadBaseUrl}/api/connect-posts/create`
 
   try {
@@ -15,6 +15,8 @@ export default defineEventHandler(async (event) => {
       categories?: string[]
       images?: any
       imagesConnectUserMedia?: any
+      author?: string | number
+      connectUserId?: string | number
     }
 
     if (!body?.content) {
@@ -34,8 +36,19 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Get PayloadCMS user ID from email (shared utility)
-    const authorId = await getUserIdFromEmail(email, payloadBaseUrl)
+    // Default author is the signed-in user. Admins may pass author/connectUserId (enforced by API).
+    const sessionAuthorId = await getUserIdFromEmail(email, payloadBaseUrl)
+    const requestedAuthorRaw = body.author ?? body.connectUserId
+    const requestedAuthorId =
+      typeof requestedAuthorRaw === 'number'
+        ? requestedAuthorRaw
+        : typeof requestedAuthorRaw === 'string' && requestedAuthorRaw.trim()
+          ? Number.parseInt(requestedAuthorRaw, 10)
+          : null
+    const authorId =
+      requestedAuthorId != null && Number.isFinite(requestedAuthorId) && requestedAuthorId > 0
+        ? requestedAuthorId
+        : sessionAuthorId
 
     // Get cookies and authorization headers from the incoming request
     const cookieHeader = getHeader(event, 'cookie')

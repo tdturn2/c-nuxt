@@ -6,7 +6,7 @@ const MAX_LIST_DEPTH = 2
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
-  const payloadBaseUrl = String(config.public.payloadBaseUrl || 'http://localhost:3002').replace(/\/+$/, '')
+  const payloadBaseUrl = String(config.public.connectApi || 'http://localhost:3003').replace(/\/+$/, '')
   const payloadServerBearer = String(config.payloadServerBearer || '').trim()
   const url = `${payloadBaseUrl}/api/chapel-podcasts`
 

@@ -48,7 +48,7 @@ function toYmdUtc(date: Date): string {
 
 export default defineEventHandler(async () => {
   const config = useRuntimeConfig()
-  const payloadBaseUrl = (config.public.payloadBaseUrl || 'http://localhost:3002').replace(/\/+$/, '')
+  const payloadBaseUrl = (config.public.connectApi || 'http://localhost:3003').replace(/\/+$/, '')
   const payloadServerBearer = String(config.payloadServerBearer || '').trim()
 
   const today = new Date()

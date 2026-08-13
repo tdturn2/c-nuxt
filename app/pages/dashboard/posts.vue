@@ -91,7 +91,7 @@
       :ui="{ content: 'max-w-2xl', body: 'p-6' }"
     >
       <template #body>
-        <AddPost @post-created="handlePostCreated" @cancel="createOpen = false" />
+        <AddPost allow-post-as @post-created="handlePostCreated" @cancel="createOpen = false" />
       </template>
     </UModal>
 

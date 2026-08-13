@@ -3,7 +3,7 @@ import { defineEventHandler, getRouterParam, createError, getHeader } from 'h3'
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   const config = useRuntimeConfig()
-  const payloadApiUrl = `${config.public.payloadBaseUrl}/api/connect-post-reactions/${id}`
+  const payloadApiUrl = `${config.public.connectApi}/api/connect-post-reactions/${id}`
   
   try {
     // Get all cookies and authorization headers from the incoming request

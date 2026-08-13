@@ -287,7 +287,7 @@ const loadEmployee = async () => {
     // Normalize image URLs in publications (use runtime config so client gets correct base URL)
     if (employee.publications && Array.isArray(employee.publications)) {
       const config = useRuntimeConfig()
-      const payloadBaseUrl = config.public.payloadBaseUrl || ''
+      const payloadBaseUrl = config.public.connectApi || ''
       employee.publications = employee.publications.map((pub: any) => {
         if (pub.image?.url && !pub.image.url.startsWith('http') && payloadBaseUrl) {
           if (pub.image.url.startsWith('/')) {

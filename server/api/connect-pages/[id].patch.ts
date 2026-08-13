@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const config = useRuntimeConfig()
-  const payloadBaseUrl = (config.payloadBaseUrl || config.public.payloadBaseUrl || '').trim() || 'http://localhost:3002'
+  const payloadBaseUrl = (config.connectApi || config.public.connectApi || '').trim() || 'http://localhost:3003'
 
   const id = event.context.params?.id
   if (!id) {

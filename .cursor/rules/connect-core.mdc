@@ -1,25 +1,38 @@
 ---
-description: Core conventions for Connect (Nuxt + Payload)
+description: Core conventions for Connect (Nuxt + Hono connect-api)
 alwaysApply: true
 ---
 
 # Connect repo conventions
 
-## Runtime config + Payload base URL
-- Prefer `useRuntimeConfig()` for server code. Resolve Payload base URL like:
-  - `const payloadBaseUrl = (config.payloadBaseUrl || config.public.payloadBaseUrl || '').trim() || (import.meta.dev ? 'http://localhost:3002' : '')`
-- Avoid building URLs like `"undefined/api/..."`. Guard env usage.
+## Architecture
+- **This repo (`connect`)**: Nuxt 4 SPA + Nitro BFF. Browser talks to `/api/*` on Connect.
+- **Upstream API (`Sites/connect-api`)**: Hono + Drizzle + Neon. Local default `http://localhost:3003`.
+- Payload CMS is **not** used for Connect anymore. Do not add Payload Admin/Local API calls here.
+
+## Runtime config + Connect API base URL
+- Env var: `CONNECT_API` (also accepts `NUXT_CONNECT_API` / `NUXT_PUBLIC_CONNECT_API`).
+- Prefer `useRuntimeConfig()` + `resolveConnectApiUrl()` from `server/utils/connectApi.ts`:
+  - `const connectApiUrl = resolveConnectApiUrl()`
+- Avoid building URLs like `"undefined/api/..."`. Guard empty env in production.
+- Local ports: Connect Nuxt **3000**, connect-api **3003**. Do not assume Payload on **3002**.
+
+## Depth + media URLs (connect-api specifics)
+- connect-api list routes default to **`depth=0`** (relation fields are IDs only). Pass **`depth=1`** (or use `query: { depth: 1 }`) whenever you need `avatar.url`, nested media, groups, etc.
+- For browser-facing avatars/media, prefer same-origin proxies via `toBrowserMediaUrl()` / `normalizeUserAvatar()` (e.g. `/api/connect-user-media/file/...`), not raw `http://localhost:3003/...`.
 
 ## SSO vs token auth (critical)
 - There are **two auth styles** used across endpoints:
-  - **Admin/token**: use `Authorization: Bearer <token>` and can call Payload admin endpoints (e.g. `/api/users/me`).
-  - **SSO/email**: call Payload “custom” endpoints that accept `{ email }` in the body.
-- **Do not forward a non-admin Bearer token to an SSO/email endpoint**. If you must detect admin, verify with a safe call like `GET /api/users/me`.
+  - **JWT / Bearer**: `Authorization: Bearer <connect-users token>` from `/api/connect-users/sync`. Use `authenticateWithConnectApi(event)` (alias: `authenticateWithPayloadCMS`) and `getConnectApiProxyHeaders`.
+  - **SSO/email**: custom endpoints that accept `{ email }` in the body (session-bound).
+- **Do not forward a non-admin Bearer token to an SSO/email endpoint**.
 - When adding a new “SSO-style” endpoint, enforce:
   - session email present (401 otherwise)
   - body `email` cannot spoof a different user (403 on mismatch)
 
 ## Error handling
-- Payload may return error shapes like `{ "0": { "message": "..." } }`. Preserve `err.data` when rethrowing via `createError`.
+- Upstream may return `{ error }` or `{ errors: [...] }` or legacy `{ "0": { "message": "..." } }`. Preserve `err.data` when rethrowing via `createError`.
 - For proxy handlers, include `statusCode`, `statusMessage`, and `data` from upstream when available.
 
+## Where to change backend behavior
+- Handlers and schema live in **`Sites/connect-api`**. This Nuxt repo should mostly proxy, normalize URLs, and enforce session rules.

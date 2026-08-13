@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
   if (!email) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
 
   const config = useRuntimeConfig()
-  const payloadBaseUrl = config.public.payloadBaseUrl || 'http://localhost:3002'
+  const payloadBaseUrl = config.public.connectApi || 'http://localhost:3003'
   const body = await readBody(event).catch(() => ({})) as Record<string, unknown>
   const payloadBody = { ...body, email }
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }

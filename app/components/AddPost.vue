@@ -1,6 +1,26 @@
 <template>
   <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
     <form @submit.prevent="handleSubmit" class="space-y-4">
+      <div v-if="allowPostAs">
+        <label class="mb-2 block text-sm font-medium text-gray-700">
+          Post as
+        </label>
+        <USelectMenu
+          v-model="selectedAuthorOption"
+          :items="authorSelectItems"
+          value-attribute="id"
+          label-attribute="label"
+          searchable
+          search-input-placeholder="Search by name or email..."
+          placeholder="Yourself (signed-in user)"
+          :loading="authorOptionsLoading"
+          class="w-full"
+        />
+        <p class="mt-1 text-xs text-gray-500">
+          Staff/admins can publish under another Connect user’s name.
+        </p>
+      </div>
+
       <div>
         <!-- <label for="content" class="block text-sm font-medium text-gray-700 mb-2">
           What's on your mind?
@@ -215,7 +235,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, watch } from 'vue'
+import { computed, onMounted, ref, nextTick, watch } from 'vue'
 
 const { status } = useAuth()
 const { searchUsers, createLexicalContentWithMentions } = useMentions()
@@ -228,12 +248,77 @@ const emit = defineEmits<{
 
 const props = defineProps<{
   defaultAudience?: 'general' | 'students' | 'employees' | 'staff' | 'faculty'
+  /** Show searchable “post as” author picker (dashboard staff/admin). */
+  allowPostAs?: boolean
 }>()
+
+type AuthorOption = { id: string; label: string }
 
 const form = ref({
   content: '',
 })
 const selectedAudience = ref<'general' | 'students' | 'employees' | 'staff' | 'faculty'>(props.defaultAudience ?? 'general')
+const selectedAuthorOption = ref<AuthorOption | undefined>(undefined)
+const authorOptions = ref<AuthorOption[]>([])
+const authorOptionsLoading = ref(false)
+
+const authorSelectItems = computed(() => [
+  { id: '', label: 'Yourself (signed-in user)' },
+  ...authorOptions.value,
+])
+
+async function loadAuthorOptions() {
+  if (!props.allowPostAs) return
+  authorOptionsLoading.value = true
+  try {
+    const res: any = await $fetch('/api/dashboard/users')
+    const docs = Array.isArray(res?.docs) ? res.docs : []
+    authorOptions.value = docs
+      .map((user: any) => {
+        const id = String(user?.id ?? '').trim()
+        if (!id) return null
+        const name = String(user?.name || '').trim()
+        const email = String(user?.email || '').trim()
+        return {
+          id,
+          label: name && email ? `${name} (${email})` : name || email || `User #${id}`,
+        } satisfies AuthorOption
+      })
+      .filter((row: AuthorOption | null): row is AuthorOption => Boolean(row))
+      .sort((a: AuthorOption, b: AuthorOption) => a.label.localeCompare(b.label))
+  } catch (err) {
+    console.error('Failed to load users for post-as picker', err)
+    authorOptions.value = []
+  } finally {
+    authorOptionsLoading.value = false
+  }
+}
+
+onMounted(() => {
+  void loadAuthorOptions()
+})
+
+watch(
+  () => props.allowPostAs,
+  (enabled) => {
+    if (enabled && !authorOptions.value.length) void loadAuthorOptions()
+  },
+)
+
+function resolveSelectedAuthorId(): number | null {
+  const raw = selectedAuthorOption.value as AuthorOption | string | number | null | undefined
+  if (raw == null || raw === '') return null
+  if (typeof raw === 'number') return Number.isFinite(raw) && raw > 0 ? raw : null
+  if (typeof raw === 'string') {
+    const n = Number.parseInt(raw, 10)
+    return Number.isFinite(n) && n > 0 ? n : null
+  }
+  if (typeof raw === 'object' && 'id' in raw) {
+    const n = Number.parseInt(String(raw.id), 10)
+    return Number.isFinite(n) && n > 0 ? n : null
+  }
+  return null
+}
 
 const addToNotifications = ref(false)
 const notificationTtlDays = NOTIFICATION_UPDATE_TTL_DAYS
@@ -540,6 +625,11 @@ const handleSubmit = async () => {
       content,
       audience
     }
+    const authorId = resolveSelectedAuthorId()
+    if (props.allowPostAs && authorId != null) {
+      payload.author = authorId
+      payload.connectUserId = authorId
+    }
     const categories = buildNotificationCategories()
     if (categories.length > 0) {
       payload.categories = categories
@@ -578,6 +668,7 @@ const resetForm = () => {
     content: ''
   }
   selectedAudience.value = props.defaultAudience ?? 'general'
+  selectedAuthorOption.value = undefined
   addToNotifications.value = false
   selectedImages.value = []
   draftLinkPreview.value = null

@@ -59,7 +59,7 @@ function connectUserRoles(connectUser: any): string[] {
     .filter(Boolean)
 }
 
-/** e.g. http://localhost:3002/api → http://localhost:3002 */
+/** e.g. http://localhost:3003/api → http://localhost:3003 */
 function payloadOrigin(raw: string): string {
   let b = raw.trim().replace(/\/+$/, '')
   if (b.endsWith('/api')) b = b.slice(0, -4).replace(/\/+$/, '')
@@ -108,11 +108,11 @@ function readPersistedFormSlug(doc: any): string | null {
 export async function handleConnectPagesPayloadUpdate(event: H3Event) {
   const config = useRuntimeConfig()
   const payloadBaseUrl =
-    (config.payloadBaseUrl || config.public.payloadBaseUrl || '').trim() ||
-    (import.meta.dev ? 'http://localhost:3002' : '')
+    (config.connectApi || config.public.connectApi || '').trim() ||
+    (import.meta.dev ? 'http://localhost:3003' : '')
 
   if (!payloadBaseUrl) {
-    throw createError({ statusCode: 500, statusMessage: 'Missing PAYLOAD_BASE_URL' })
+    throw createError({ statusCode: 500, statusMessage: 'Missing CONNECT_API' })
   }
 
   const origin = payloadOrigin(payloadBaseUrl)

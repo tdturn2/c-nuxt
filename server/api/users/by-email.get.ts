@@ -8,7 +8,10 @@ export default defineEventHandler(async (event) => {
     })
   }
   
-  const payloadBaseUrl = process.env.PAYLOAD_BASE_URL || 'http://localhost:3002'
+  const config = useRuntimeConfig()
+  const payloadBaseUrl =
+    (config.connectApi || config.public.connectApi || '').trim() ||
+    (import.meta.dev ? 'http://localhost:3003' : '')
   
   try {
     // Query PayloadCMS for user by email

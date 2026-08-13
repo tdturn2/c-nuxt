@@ -34,8 +34,8 @@ export default defineEventHandler(async (event) => {
 
   const config = useRuntimeConfig()
   const payloadBaseUrl =
-    (config.payloadBaseUrl || config.public.payloadBaseUrl || '').trim() ||
-    (import.meta.dev ? 'http://localhost:3002' : '')
+    (config.connectApi || config.public.connectApi || '').trim() ||
+    (import.meta.dev ? 'http://localhost:3003' : '')
   if (!payloadBaseUrl) {
     throw createError({ statusCode: 500, statusMessage: 'Missing Payload base URL' })
   }

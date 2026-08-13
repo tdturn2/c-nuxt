@@ -248,7 +248,7 @@ const PUBLICATION_TYPE_OPTIONS = [
 const PUBLICATIONS_PER_PAGE = 50
 
 const config = useRuntimeConfig()
-const payloadBaseUrl = String(config.public.payloadBaseUrl || '').replace(/\/$/, '')
+const payloadBaseUrl = String(config.public.connectApi || '').replace(/\/$/, '')
 
 const { data: me, pending: mePending } = await useFetch<any>('/api/users/me', { key: 'dashboard-faculty-pubs-me' })
 const { data: connectUserData, execute: loadConnectUser } = await useFetch<any>('/api/connect-users/me', {

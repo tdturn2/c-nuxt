@@ -4,7 +4,7 @@ import { getUserIdFromEmail } from '../../utils/getUserIdFromEmail'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
-  const payloadBaseUrl = config.public.payloadBaseUrl || 'http://localhost:3002'
+  const payloadBaseUrl = config.public.connectApi || 'http://localhost:3003'
 
   try {
     const { token, email } = await authenticateWithPayloadCMS(event)

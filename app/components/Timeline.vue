@@ -198,7 +198,7 @@ const { data: sliderData } = await useFetch<{ docs?: HomeSlide[] }>('/api/home-s
 
 const { fetchUsers } = useUsers()
 const config = useRuntimeConfig()
-const payloadBaseUrl = String(config.public.payloadBaseUrl || '').replace(/\/$/, '')
+const payloadBaseUrl = String(config.public.connectApi || '').replace(/\/$/, '')
 
 // Get current authenticated user's PayloadCMS ID
 const { currentUserId } = useMe()

@@ -8,7 +8,7 @@ function absoluteUrl(baseUrl: string, raw?: string | null): string | null {
 
 export default defineEventHandler(async () => {
   const config = useRuntimeConfig()
-  const payloadBaseUrl = String(config.public.payloadBaseUrl || 'http://localhost:3002').replace(/\/+$/, '')
+  const payloadBaseUrl = String(config.public.connectApi || 'http://localhost:3003').replace(/\/+$/, '')
   const payloadServerBearer = String(config.payloadServerBearer || '').trim()
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }

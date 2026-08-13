@@ -26,12 +26,20 @@ function hostnameFromEnvUrl(raw: string | undefined): string | undefined {
   }
 }
 
+const connectApiUrl = (
+  process.env.CONNECT_API ||
+  process.env.NUXT_CONNECT_API ||
+  process.env.NUXT_PUBLIC_CONNECT_API ||
+  ''
+).trim()
+
 /** Hostnames allowed for @nuxt/image / IPX (Payload media, S3, etc.). */
 const nuxtImageDomains = [
   ...new Set(
     [
-      hostnameFromEnvUrl(process.env.NUXT_PUBLIC_PAYLOAD_BASE_URL),
-      hostnameFromEnvUrl(process.env.PAYLOAD_BASE_URL),
+      hostnameFromEnvUrl(connectApiUrl),
+      hostnameFromEnvUrl(process.env.NUXT_PUBLIC_CONNECT_API),
+      hostnameFromEnvUrl(process.env.CONNECT_API),
       ...((process.env.NUXT_PUBLIC_IMAGE_DOMAINS || '')
         .split(',')
         .map((s) => s.trim())
@@ -181,9 +189,10 @@ export default defineNuxtConfig({
     public: {
       authAzureAdClientId: process.env.AUTH_AZURE_AD_CLIENT_ID,
       authAzureAdTenantId: process.env.AUTH_AZURE_AD_TENANT_ID,
-      payloadBaseUrl: process.env.PAYLOAD_BASE_URL,
+      connectApi: connectApiUrl,
       googleCalendarEmbedUrl: process.env.GOOGLE_CALENDAR_EMBED_URL,
-      payloadApiUrl: process.env.PAYLOAD_API_URL || `${process.env.PAYLOAD_BASE_URL}/api/connect-posts`,
+      // Legacy key used by posts feed; derived from CONNECT_API
+      payloadApiUrl: process.env.PAYLOAD_API_URL || (connectApiUrl ? `${connectApiUrl}/api/connect-posts` : undefined),
       // Podcast feed configuration
       podcasts: [
         {
@@ -206,19 +215,19 @@ export default defineNuxtConfig({
         },
       ]
     },
-    // Legacy PayloadCMS config
+    // Optional server-only keys (names are historical; values target connect-api)
     payloadApiUrl: process.env.PAYLOAD_API_URL
       ? `${process.env.PAYLOAD_API_URL}/api/connect-posts`
       : undefined,
-    payloadBaseUrl: process.env.PAYLOAD_BASE_URL,
-    /** Optional. Payload JWT (e.g. admin or API user) for server-side REST when student session returns 403. */
-    payloadServerBearer: process.env.PAYLOAD_SERVER_BEARER,
+    connectApi: connectApiUrl,
+    /** Optional connect-users JWT for server-side REST when the session token is insufficient. */
+    payloadServerBearer: process.env.PAYLOAD_SERVER_BEARER || process.env.CONNECT_API_SERVER_BEARER,
     /**
-     * Optional. Payload custom POST path (no leading slash), e.g. student-degree-plans/create-from-connect
-     * Body: { email, degree, specialization?, status, startDate, expectedGraduation } — implement in Payload with email verified against session.
+     * Optional custom POST path (no leading slash) for student degree plan create.
+     * Body includes session-verified email.
      */
     payloadStudentDegreePlanSsoPath: process.env.PAYLOAD_STUDENT_DEGREE_PLAN_SSO_PATH,
-    // Path segments before :id for dashboard SSO update (default matches POST /api/connect-pages/update/:id)
+    // Path segments before :id for dashboard SSO update (default: connect-pages/update)
     payloadConnectPagesUpdatePath:
       process.env.PAYLOAD_CONNECT_PAGES_UPDATE_PATH || 'connect-pages/update',
   }
