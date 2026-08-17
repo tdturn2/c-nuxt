@@ -40,10 +40,13 @@ export default defineEventHandler(async (event) => {
       { type: file.type || 'image/jpeg' }
     )
     formDataToSend.append('file', uploadFile)
-    // Payload upload endpoint expects doc data in `_payload` for multipart creates.
+    // SSO fallback: connect-api accepts a session email when no JWT is present.
+    formDataToSend.append('email', email)
+    // connect-api reads doc fields from `_payload` on multipart creates.
     const payloadData: Record<string, unknown> = {
       owner: ownerId,
       kind: 'avatars',
+      email,
     }
     if (alt) payloadData.alt = alt
     formDataToSend.append('_payload', JSON.stringify(payloadData))

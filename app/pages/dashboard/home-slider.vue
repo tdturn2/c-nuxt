@@ -20,8 +20,8 @@
           <form class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm" @submit.prevent="saveItem">
             <h2 class="text-base font-semibold text-gray-900">{{ editingId ? 'Edit slide' : 'Add slide' }}</h2>
             <div class="mt-3 grid gap-3 sm:grid-cols-2">
-              <input v-model="form.title" type="text" placeholder="Title" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
-              <input v-model="form.href" type="text" placeholder="/path-or-url" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
+              <input v-model="form.title" type="text" placeholder="Title (defaults to filename)" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
+              <input v-model="form.href" type="text" placeholder="Link (optional)" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
               <input :value="selectedImageLabel" type="text" readonly placeholder="No image selected" class="rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm">
               <input v-model.number="form.sortOrder" type="number" placeholder="Sort order" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
               <input v-model="form.startAt" type="date" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
@@ -109,10 +109,16 @@
 
           <div v-if="error" class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{{ error }}</div>
 
+          <p class="mb-2 text-xs text-gray-500">
+            Drag the handle to reorder slides.
+            <span v-if="savingOrder" class="text-[rgba(13,94,130,1)]">Saving order...</span>
+          </p>
+
           <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
             <table class="min-w-full text-sm">
               <thead class="bg-gray-100 text-gray-700">
                 <tr>
+                  <th class="w-10 px-2 py-2"><span class="sr-only">Reorder</span></th>
                   <th class="px-4 py-2 text-left font-semibold">Title</th>
                   <th class="px-4 py-2 text-left font-semibold">Link</th>
                   <th class="px-4 py-2 text-left font-semibold">Image ID</th>
@@ -123,12 +129,34 @@
               </thead>
               <tbody>
                 <tr v-if="loading" class="border-t border-gray-200">
-                  <td colspan="6" class="px-4 py-4 text-gray-500">Loading slider items...</td>
+                  <td colspan="7" class="px-4 py-4 text-gray-500">Loading slider items...</td>
                 </tr>
                 <tr v-else-if="!items.length" class="border-t border-gray-200">
-                  <td colspan="6" class="px-4 py-4 text-gray-500">No slider items found.</td>
+                  <td colspan="7" class="px-4 py-4 text-gray-500">No slider items found.</td>
                 </tr>
-                <tr v-for="item in items" :key="item.id" class="border-t border-gray-200">
+                <tr
+                  v-for="(item, itemIndex) in items"
+                  :key="item.id"
+                  class="border-t border-gray-200 transition-colors"
+                  :class="{
+                    'opacity-60': draggedId === item.id,
+                    'bg-[rgba(13,94,130,0.06)]': dropTargetId === item.id,
+                  }"
+                  @dragover="onRowDragOver($event, item)"
+                  @dragleave="dropTargetId = null"
+                  @drop="onRowDrop($event, itemIndex)"
+                >
+                  <td class="px-2 py-3 align-middle">
+                    <span
+                      class="inline-flex cursor-grab text-gray-400 hover:text-gray-600 active:cursor-grabbing touch-none"
+                      aria-label="Drag to reorder"
+                      draggable="true"
+                      @dragstart="onRowDragStart($event, item, itemIndex)"
+                      @dragend="onRowDragEnd"
+                    >
+                      <UIcon name="i-heroicons-bars-3-bottom-right" class="h-5 w-5" />
+                    </span>
+                  </td>
                   <td class="px-4 py-3 font-medium text-gray-900">{{ item.title }}</td>
                   <td class="px-4 py-3 text-gray-700 truncate max-w-[260px]">{{ item.href }}</td>
                   <td class="px-4 py-3 text-gray-700">{{ item.image?.id ?? '—' }}</td>
@@ -241,6 +269,18 @@ function mediaLabel(asset: any) {
   return alt || filename || `Asset #${asset?.id}`
 }
 
+function mediaFilename(asset: any): string {
+  return String(asset?.file?.filename || asset?.filename || asset?.file?.name || '').trim()
+}
+
+function selectedImageTitle(): string {
+  if (selectedImageId.value == null) return ''
+  const asset = mediaAssets.value.find(
+    (item: any) => String(resolveAssetId(item)) === String(selectedImageId.value),
+  )
+  return mediaFilename(asset)
+}
+
 const filteredMediaAssets = computed(() => {
   const q = assetLibrarySearch.value.trim().toLowerCase()
   if (!q) return mediaAssets.value
@@ -265,6 +305,7 @@ function selectImage(asset: any) {
   }
   error.value = null
   form.value.image = id
+  if (!form.value.title.trim()) form.value.title = mediaFilename(asset)
 }
 
 function isSelectedAsset(asset: any): boolean {
@@ -302,6 +343,9 @@ async function uploadImageAsset() {
     })
     await loadMediaAssets()
     if (res?.id != null) form.value.image = res.id
+    if (!form.value.title.trim()) {
+      form.value.title = mediaFilename(res) || file.name
+    }
     if (uploadInputRef.value) uploadInputRef.value.value = ''
     uploadAlt.value = ''
   } catch (e: any) {
@@ -313,13 +357,19 @@ async function uploadImageAsset() {
 
 async function saveItem() {
   error.value = null
-  if (!form.value.title.trim() || !form.value.href.trim() || selectedImageId.value == null) {
-    error.value = 'Title, link, and image media ID are required.'
+  if (selectedImageId.value == null) {
+    error.value = 'An image is required.'
+    return
+  }
+
+  const title = form.value.title.trim() || selectedImageTitle()
+  if (!title) {
+    error.value = 'Title could not be derived from the selected image filename.'
     return
   }
 
   const payload = {
-    title: form.value.title.trim(),
+    title,
     href: form.value.href.trim(),
     image: selectedImageId.value,
     active: form.value.active,
@@ -339,6 +389,65 @@ async function saveItem() {
     await loadItems()
   } catch (e: any) {
     error.value = e?.message || 'Failed to save slider item.'
+  }
+}
+
+const draggedId = ref<string | number | null>(null)
+const dropTargetId = ref<string | number | null>(null)
+const draggedIndex = ref(0)
+const savingOrder = ref(false)
+
+function onRowDragStart(e: DragEvent, item: DashboardSliderItem, index: number) {
+  draggedId.value = item.id
+  draggedIndex.value = index
+  e.dataTransfer?.setData('text/plain', String(item.id))
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
+}
+
+function onRowDragEnd() {
+  draggedId.value = null
+  dropTargetId.value = null
+}
+
+function onRowDragOver(e: DragEvent, item: DashboardSliderItem) {
+  if (draggedId.value == null) return
+  e.preventDefault()
+  if (draggedId.value !== item.id) dropTargetId.value = item.id
+}
+
+async function onRowDrop(e: DragEvent, targetIndex: number) {
+  if (draggedId.value == null) return
+  e.preventDefault()
+
+  const fromIndex = draggedIndex.value
+  dropTargetId.value = null
+  draggedId.value = null
+  if (fromIndex === targetIndex) return
+
+  const previous = items.value
+  const next = [...previous]
+  const [moved] = next.splice(fromIndex, 1)
+  if (!moved) return
+  next.splice(targetIndex, 0, moved)
+
+  const reordered = next.map((item, index) => ({ ...item, sortOrder: index }))
+  items.value = reordered
+
+  const changed = reordered.filter((item) => {
+    const before = previous.find((candidate) => candidate.id === item.id)
+    return Number(before?.sortOrder ?? 0) !== item.sortOrder
+  })
+  if (!changed.length) return
+
+  savingOrder.value = true
+  error.value = null
+  try {
+    await Promise.all(changed.map((item) => updateSliderItem(item.id, { sortOrder: item.sortOrder })))
+  } catch (err: any) {
+    items.value = previous
+    error.value = err?.message || 'Failed to save slide order.'
+  } finally {
+    savingOrder.value = false
   }
 }
 

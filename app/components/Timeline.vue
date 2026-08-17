@@ -26,7 +26,7 @@
     />
 
     <section
-      v-if="activeCategoryTab === 'official' && slides.length"
+      v-if="activeCategoryTab === 'home' && slides.length"
       class="mb-12 w-full"
     >
       <UCarousel
@@ -46,6 +46,7 @@
         }"
       >
         <NuxtLink
+          v-if="item.href"
           :to="item.href || '/'"
           :target="item.openInNewTab ? '_blank' : undefined"
           :rel="item.openInNewTab ? 'noopener noreferrer' : undefined"
@@ -57,30 +58,93 @@
             class="w-full h-auto"
           >
         </NuxtLink>
+        <div v-else class="block bg-gray-50">
+          <img
+            :src="getImageUrl(item.image)"
+            :alt="item.title || 'Connect highlight'"
+            class="w-full h-auto"
+          >
+        </div>
       </UCarousel>
     </section>
 
-    <div v-if="pending || loadingUsers" class="text-center py-8">
-      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-    </div>
-    <div v-else-if="error" class="text-center py-8 text-red-600">
-      Error loading timeline: {{ error }}
-    </div>
-    <div v-else-if="displayedPosts && displayedPosts.length > 0" class="space-y-0">
-      <Post
-        v-for="post in displayedPosts"
-        :key="`${post.id}-${post.reactionRefreshAt ?? 0}`"
-        :post="post"
-        :user="post.user"
-        :current-user-id="currentUserId"
-        :allow-inline-edit="false"
-        :allow-inline-comments="false"
-        @post-updated="handlePostUpdated"
-        @post-deleted="handlePostDeleted"
-        @post-edit-request="openPostEditor"
-        @post-comment-request="openPostComments"
-      />
-      <div v-if="hasMoreOlderPosts" class="border-t border-gray-200 py-6 text-center">
+    <section
+      v-if="activeCategoryTab === 'home'"
+      class="mb-16 w-full"
+    >
+      <ChapelHomeCard />
+    </section>
+
+    <section
+      v-if="activeCategoryTab === 'home' && featuredBooks.length"
+      class="mb-4 w-full"
+    >
+      <div class="mb-3 flex items-baseline justify-between gap-3">
+        <h2 class="text-sm font-semibold text-gray-900">Featured Faculty Publications</h2>
+        <NuxtLink
+          to="/latest-books"
+          class="text-xs font-medium text-[rgba(13,94,130,1)] hover:underline"
+        >
+          View all
+        </NuxtLink>
+      </div>
+      <UMarquee
+        pause-on-hover
+        overlay
+        class="rounded-xl bg-white py-4 [--duration:40s] [--gap:--spacing(6)]"
+      >
+        <NuxtLink
+          v-for="book in featuredBooks"
+          :key="String(book.id)"
+          :to="book.link || '/latest-books'"
+          :target="isExternalLink(book.link) ? '_blank' : undefined"
+          :rel="isExternalLink(book.link) ? 'noopener noreferrer' : undefined"
+          class="block shrink-0"
+        >
+          <div class="h-52 w-36 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 shadow-sm">
+            <img
+              :src="book.image"
+              :alt="book.title || 'Featured faculty publication'"
+              class="h-full w-full object-contain p-1.5"
+            >
+          </div>
+        </NuxtLink>
+      </UMarquee>
+    </section>
+
+    <template v-if="showFeed">
+      <div v-if="initialLoading" class="text-center py-8">
+        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+      <div v-else-if="error" class="text-center py-8 text-red-600">
+        Error loading timeline: {{ error }}
+      </div>
+      <div v-else-if="displayedPosts && displayedPosts.length > 0" class="space-y-0">
+        <Post
+          v-for="post in displayedPosts"
+          :key="`${post.id}-${post.reactionRefreshAt ?? 0}`"
+          :post="post"
+          :user="post.user"
+          :current-user-id="currentUserId"
+          :allow-inline-edit="false"
+          :allow-inline-comments="false"
+          @post-updated="handlePostUpdated"
+          @post-deleted="handlePostDeleted"
+          @post-edit-request="openPostEditor"
+          @post-comment-request="openPostComments"
+        />
+        <div v-if="hasMoreOlderPosts" class="border-t border-gray-200 py-6 text-center">
+          <button
+            type="button"
+            class="rounded-full border border-gray-300 bg-white px-5 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+            @click="showOlderPosts"
+          >
+            {{ showOlderPostsLabel }}
+          </button>
+        </div>
+      </div>
+      <div v-else-if="hasMoreOlderPosts" class="py-8 text-center">
+        <p class="mb-4 text-sm text-gray-500">No recent posts in this feed.</p>
         <button
           type="button"
           class="rounded-full border border-gray-300 bg-white px-5 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
@@ -89,20 +153,10 @@
           {{ showOlderPostsLabel }}
         </button>
       </div>
-    </div>
-    <div v-else-if="hasMoreOlderPosts" class="py-8 text-center">
-      <p class="mb-4 text-sm text-gray-500">No recent posts in this feed.</p>
-      <button
-        type="button"
-        class="rounded-full border border-gray-300 bg-white px-5 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
-        @click="showOlderPosts"
-      >
-        {{ showOlderPostsLabel }}
-      </button>
-    </div>
-    <div v-else class="text-center py-8 text-gray-500">
-      No posts yet
-    </div>
+      <div v-else class="text-center py-8 text-gray-500">
+        No posts yet
+      </div>
+    </template>
   </div>
 </template>
 
@@ -181,6 +235,13 @@ interface HomeSlide {
   image?: any
 }
 
+interface FeaturedBook {
+  id: string | number
+  image: string
+  title?: string
+  link?: string | null
+}
+
 const props = defineProps<{
   apiUrl?: string
 }>()
@@ -195,6 +256,10 @@ const { data, pending, error, refresh } = await useFetch<TimelineResponse>(apiUr
 const { data: sliderData } = await useFetch<{ docs?: HomeSlide[] }>('/api/home-slider', {
   key: 'connect-home-slider',
 })
+const { data: featuredBooksData } = useFetch<{ books?: FeaturedBook[] }>('/api/books/featured', {
+  key: 'connect-featured-books',
+  lazy: true,
+})
 
 const { fetchUsers } = useUsers()
 const config = useRuntimeConfig()
@@ -205,17 +270,21 @@ const { currentUserId } = useMe()
 
 // Category tabs for filtering
 const categoryTabs = [
-  { value: 'official', label: 'Official' },
+  { value: 'home', label: 'Home' },
   { value: 'students', label: 'Students' },
   { value: 'faculty', label: 'Faculty' },
   { value: 'staff', label: 'Staff' }
 ]
 
 // Active category tab state
-const activeCategoryTab = ref('official')
+const activeCategoryTab = ref('home')
+const showFeed = computed(() => activeCategoryTab.value !== 'home')
 const slides = computed<HomeSlide[]>(() => {
   return Array.isArray(sliderData.value?.docs) ? sliderData.value.docs : []
 })
+const featuredBooks = computed<FeaturedBook[]>(() =>
+  Array.isArray(featuredBooksData.value?.books) ? featuredBooksData.value.books : []
+)
 
 const isPostModalOpen = ref(false)
 const selectedPost = ref<PostWithUser | null>(null)
@@ -234,12 +303,16 @@ function getImageUrl(image: any) {
   return `${payloadBaseUrl}${raw}`
 }
 
+function isExternalLink(link?: string | null) {
+  return typeof link === 'string' && /^https?:\/\//i.test(link)
+}
+
 const handlePostUpdated = (updatedPost: PostWithUser | Post) => {
   const idx = allPostsWithUsers.value.findIndex(p => p.id === updatedPost.id)
   if (idx >= 0) {
     const existing = allPostsWithUsers.value[idx]
     const next = [...allPostsWithUsers.value]
-    next[idx] = { ...existing, ...updatedPost, user: existing.user } as PostWithUser
+    next[idx] = { ...existing, ...updatedPost, user: existing!.user } as PostWithUser
     allPostsWithUsers.value = next
   }
   filterPosts()
@@ -297,6 +370,8 @@ const allPostsWithUsers = ref<PostWithUser[]>(
 )
 
 const loadingUsers = ref(false)
+/** Full-page spinner only on first hydrate; polls refresh in place. */
+const initialLoading = computed(() => (pending.value && !allPostsWithUsers.value.length) || loadingUsers.value)
 
 // Use a ref for displayed posts to prevent hydration mismatch
 const displayedPosts = ref<PostWithUser[]>([])
@@ -343,7 +418,7 @@ const filterPosts = () => {
   const category = activeCategoryTab.value
   let categoryFiltered: PostWithUser[]
 
-  if (category === 'official') {
+  if (category === 'home') {
     categoryFiltered = allPostsWithUsers.value.filter(post =>
       !post.audience ||
       post.audience.length === 0 ||
@@ -389,41 +464,91 @@ watch(activeCategoryTab, () => {
   filterPosts()
 }, { immediate: false })
 
-// Fetch user data after component mounts (client-side only)
-// This ensures we're pulling from connect-users collection, not just populated author data
-onMounted(async () => {
-  // useFetch caches by URL; in this SPA, client-side navigation back to the feed would
-  // otherwise reuse a stale list and hide posts created elsewhere (e.g. the dashboard).
-  await refresh()
+const POSTS_POLL_MS = 30_000
+let postsPollInterval: ReturnType<typeof setInterval> | null = null
+let reloadInFlight: Promise<void> | null = null
 
+async function hydratePostsFromData(opts?: { showLoading?: boolean }) {
+  const showLoading = opts?.showLoading === true
   if (!data.value?.docs || data.value.docs.length === 0) {
     allPostsWithUsers.value = []
     filterPosts()
     return
   }
-  
-  loadingUsers.value = true
+
+  if (showLoading) loadingUsers.value = true
   try {
     const docs = data.value.docs
-    // Extract unique author IDs from posts
     const authorIds = [...new Set(docs.map(post => post.author.id))]
-    
-    // Fetch users from connect-users collection via useUsers composable
     const usersMap = await fetchUsers(authorIds)
-    
-    // Update posts with user data from connect-users
-    allPostsWithUsers.value = docs.map(post => ({
-      ...post,
-      // Use user data from connect-users, fallback to author data if user not found
-      user: usersMap.get(post.author.id) || null
-    })) as PostWithUser[]
-    
-    // Apply filtering after user data is loaded
+
+    // Preserve in-memory reaction refresh stamps when the same post is re-fetched.
+    const previousById = new Map(allPostsWithUsers.value.map(post => [post.id, post]))
+    allPostsWithUsers.value = docs.map((post) => {
+      const previous = previousById.get(post.id)
+      return {
+        ...post,
+        reactionRefreshAt: previous?.reactionRefreshAt,
+        user: usersMap.get(post.author.id) || previous?.user || null,
+      }
+    }) as PostWithUser[]
+
     filterPosts()
   } catch (err) {
     console.error('Error loading users from connect-users:', err)
   } finally {
-    loadingUsers.value = false
+    if (showLoading) loadingUsers.value = false
+  }
+}
+
+async function reloadTimeline(opts?: { showLoading?: boolean }) {
+  if (reloadInFlight) return reloadInFlight
+  reloadInFlight = (async () => {
+    await refresh()
+    await hydratePostsFromData(opts)
+  })().finally(() => {
+    reloadInFlight = null
+  })
+  return reloadInFlight
+}
+
+function onTimelineVisibilityChange() {
+  if (document.visibilityState === 'visible') {
+    void reloadTimeline()
+  }
+}
+
+function onTimelineWindowFocus() {
+  void reloadTimeline()
+}
+
+// Fetch user data after component mounts (client-side only)
+// This ensures we're pulling from connect-users collection, not just populated author data
+onMounted(async () => {
+  // useFetch caches by URL; in this SPA, client-side navigation back to the feed would
+  // otherwise reuse a stale list and hide posts created elsewhere (e.g. the dashboard).
+  await reloadTimeline({ showLoading: true })
+
+  if (!import.meta.client) return
+
+  postsPollInterval = setInterval(() => {
+    if (document.visibilityState === 'visible') {
+      void reloadTimeline()
+    }
+  }, POSTS_POLL_MS)
+
+  document.addEventListener('visibilitychange', onTimelineVisibilityChange)
+  window.addEventListener('focus', onTimelineWindowFocus)
+})
+
+onUnmounted(() => {
+  if (postsPollInterval) {
+    clearInterval(postsPollInterval)
+    postsPollInterval = null
+  }
+  if (import.meta.client) {
+    document.removeEventListener('visibilitychange', onTimelineVisibilityChange)
+    window.removeEventListener('focus', onTimelineWindowFocus)
   }
 })
 </script>

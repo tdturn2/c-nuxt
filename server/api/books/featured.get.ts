@@ -28,6 +28,7 @@ export default defineEventHandler(async () => {
       books: books
         .map((book: any) => ({
           id: book?.id,
+          title: book?.title || 'Untitled',
           image: absoluteUrl(payloadBaseUrl, book?.image?.url),
           link: typeof book?.link === 'string' && book.link.trim() ? book.link.trim() : null,
         }))

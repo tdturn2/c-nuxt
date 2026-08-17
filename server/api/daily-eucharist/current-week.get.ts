@@ -1,4 +1,5 @@
 import { createError, defineEventHandler } from 'h3'
+import { resolveConnectApiUrl } from '../../utils/connectApi'
 
 type DailyEucharistEntry = {
   id: string | number
@@ -37,11 +38,18 @@ function absoluteUrl(baseUrl: string, raw?: string | null): string | null {
 
 export default defineEventHandler(async () => {
   const config = useRuntimeConfig()
-  const payloadBaseUrl = String(config.public.connectApi || 'http://localhost:3003').replace(/\/+$/, '')
+  const payloadBaseUrl = resolveConnectApiUrl(config).replace(/\/+$/, '')
+  const payloadServerBearer = String(config.payloadServerBearer || '').trim()
+  if (!payloadBaseUrl) {
+    throw createError({ statusCode: 500, statusMessage: 'CONNECT_API is not configured' })
+  }
 
   const weekStart = startOfWeekMondayUtc(new Date())
-  const weekEndExclusive = new Date(weekStart)
-  weekEndExclusive.setUTCDate(weekStart.getUTCDate() + 7)
+  const weekEndInclusive = new Date(weekStart)
+  weekEndInclusive.setUTCDate(weekStart.getUTCDate() + 6)
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (payloadServerBearer) headers.Authorization = `Bearer ${payloadServerBearer}`
 
   const settingsParams = new URLSearchParams()
   settingsParams.set('limit', '1')
@@ -54,14 +62,15 @@ export default defineEventHandler(async () => {
   entriesParams.set('depth', '2')
   entriesParams.set('where[active][equals]', 'true')
   entriesParams.set('where[date][greater_than_equal]', toYmdUtc(weekStart))
-  entriesParams.set('where[date][less_than]', toYmdUtc(weekEndExclusive))
+  // connect-api list filter supports less_than_equal, not less_than.
+  entriesParams.set('where[date][less_than_equal]', toYmdUtc(weekEndInclusive))
 
   try {
     const entriesRes = await $fetch<any>(`${payloadBaseUrl}/api/connect-daily-eucharist-entries?${entriesParams.toString()}`, {
-      headers: { 'Content-Type': 'application/json' },
+      headers,
     })
     const settingsRes = await $fetch<any>(`${payloadBaseUrl}/api/connect-settings?${settingsParams.toString()}`, {
-      headers: { 'Content-Type': 'application/json' },
+      headers,
     }).catch(() => null)
 
     const settingsDoc = Array.isArray(settingsRes?.docs) ? settingsRes.docs[0] || null : null

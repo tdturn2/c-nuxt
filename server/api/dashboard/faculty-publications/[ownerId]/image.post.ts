@@ -46,9 +46,12 @@ export default defineEventHandler(async (event) => {
   const uploadBody = new FormData()
   const blob = new Blob([file.data], { type: file.type || 'application/octet-stream' })
   uploadBody.append('file', blob, file.filename || 'publication-cover')
+  // SSO fallback: connect-api accepts a session email when no JWT is present.
+  uploadBody.append('email', auth.email)
   const payloadData: Record<string, unknown> = {
     owner: ownerId,
     kind: 'pubs-images',
+    email: auth.email,
   }
   if (alt) payloadData.alt = alt
   uploadBody.append('_payload', JSON.stringify(payloadData))

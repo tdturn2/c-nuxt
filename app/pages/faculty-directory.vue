@@ -37,10 +37,11 @@
             </div>
 
             <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              <div
+              <NuxtLink
                 v-for="person in filteredFaculty"
                 :key="person.id"
-                class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col items-center text-center"
+                :to="userProfilePath(person)"
+                class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col items-center text-center hover:border-gray-300 transition-colors"
               >
                 <div class="w-30 h-30 rounded-full bg-gray-200 flex-shrink-0 overflow-hidden flex items-center justify-center mb-3">
                   <img
@@ -54,7 +55,7 @@
                   </span>
                 </div>
                 <div class="min-w-0 w-full">
-                  <h2 class="font-semibold text-gray-900 truncate">{{ person.name }}</h2>
+                  <h2 class="font-semibold text-gray-900 truncate hover:text-[rgba(13,94,130,1)]">{{ person.name }}</h2>
                   <p v-if="person.employeeTitle" class="text-sm text-gray-600 truncate">{{ person.employeeTitle }}</p>
                   <p v-if="person.department" class="text-xs text-gray-500 mt-0.5">{{ departmentLabel(person.department) }}</p>
                   <p v-if="person.section" class="text-xs text-gray-500">{{ sectionLabel(person.section) }}</p>
@@ -62,14 +63,14 @@
                 <dl class="mt-3 pt-3 border-t border-gray-100 space-y-1 w-full text-left">
                   <div v-if="person.email" class="flex items-center gap-2 min-w-0">
                     <UIcon name="i-heroicons-envelope" class="w-4 h-4 text-gray-400 flex-shrink-0" />
-                    <a :href="`mailto:${person.email}`" class="text-sm text-[rgba(13,94,130,1)] hover:underline truncate">{{ person.email }}</a>
+                    <a :href="`mailto:${person.email}`" class="text-sm text-[rgba(13,94,130,1)] hover:underline truncate" @click.stop>{{ person.email }}</a>
                   </div>
                   <div v-if="person.phone" class="flex items-center gap-2">
                     <UIcon name="i-heroicons-phone" class="w-4 h-4 text-gray-400 flex-shrink-0" />
-                    <a :href="`tel:${person.phone}`" class="text-sm text-gray-700">{{ person.phone }}</a>
+                    <a :href="`tel:${person.phone}`" class="text-sm text-gray-700" @click.stop>{{ person.phone }}</a>
                   </div>
                 </dl>
-              </div>
+              </NuxtLink>
             </div>
           </template>
         </div>
@@ -122,6 +123,15 @@ function sectionLabel(slug: string | null): string {
   if (!slug) return ''
   if (slug === 'lits') return 'LITS'
   return slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+}
+
+/** Username from email (e.g. terry.turner@asburyseminary.edu → terry.turner); fallback to id */
+function userProfilePath(person: { id: number; email: string | null }): string {
+  if (person.email?.includes('@')) {
+    const username = person.email.split('@')[0]?.trim()
+    if (username) return `/user/${encodeURIComponent(username)}`
+  }
+  return `/user/${person.id}`
 }
 
 const filteredFaculty = computed(() => {

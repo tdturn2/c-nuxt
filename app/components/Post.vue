@@ -123,12 +123,29 @@
 
     <!-- Post Content (display mode) -->
     <div v-if="!isEditing && (postContent || youtubeEmbeds.length > 0)" class="px-4 pb-2">
-      <div 
-        class="text-gray-900 whitespace-pre-wrap"
-        :style="!isExpanded && shouldTruncate ? 'display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;' : ''"
+      <div
+        class="overflow-hidden transition-[max-height] duration-[400ms] ease-in-out"
+        :style="truncatedContentStyle"
       >
-        <div v-html="formattedContent"></div>
+        <div
+          ref="postContentEl"
+          class="text-gray-900 whitespace-pre-wrap"
+        >
+          <div v-html="formattedContent"></div>
+        </div>
       </div>
+      <button
+        v-if="shouldTruncate"
+        type="button"
+        class="mt-1 inline-flex items-center gap-0.5 text-sm font-medium text-asbury-blue hover:underline"
+        @click="toggleExpanded"
+      >
+        {{ isExpanded ? 'Show less' : 'Show more' }}
+        <UIcon
+          :name="isExpanded ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+          class="size-3.5"
+        />
+      </button>
       <div v-if="youtubeEmbeds.length > 0" class="mt-4 space-y-4">
         <div
           v-for="(embed, index) in youtubeEmbeds"
@@ -166,13 +183,6 @@
           </div>
         </div>
       </a>
-      <button
-        v-if="shouldTruncate"
-        @click="isExpanded = !isExpanded"
-        class="mt-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-      >
-        {{ isExpanded ? 'Show less' : 'Show more' }}
-      </button>
     </div>
 
     <!-- Post Content (edit mode) -->
@@ -582,15 +592,30 @@
 
     <UModal
       v-model:open="isImageModalOpen"
-      :ui="{ content: 'max-w-5xl max-h-[90vh] overflow-hidden', body: 'p-0 overflow-hidden' }"
+      :close="false"
+      :ui="{
+        overlay: 'bg-black/70',
+        content: 'max-w-5xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-hidden bg-black ring-0 shadow-2xl divide-y-0',
+        header: 'hidden p-0 min-h-0',
+        body: 'p-0 sm:p-0 overflow-hidden'
+      }"
     >
-      <template #body>
-        <div v-if="currentModalImage" class="bg-black rounded-lg overflow-hidden h-[90vh] max-h-[90vh] flex flex-col">
-          <div class="relative flex-1 min-h-0">
+      <template #body="{ close }">
+        <div v-if="currentModalImage" class="relative bg-black overflow-hidden flex flex-col max-h-[90vh]">
+          <button
+            type="button"
+            class="absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
+            aria-label="Close"
+            @click="close"
+          >
+            <UIcon name="i-lucide-x" class="h-4 w-4" />
+          </button>
+          <div class="relative min-h-0">
             <NuxtImg
               :src="currentModalImage.image.url"
               :alt="currentModalImage.image.alt || `Post image ${activeImageIndex + 1}`"
-              class="w-full h-full object-contain"
+              :class="modalImages.length > 1 ? 'max-h-[calc(90vh-5rem)]' : 'max-h-[90vh]'"
+              class="block w-full h-auto object-contain"
               sizes="100vw"
               width="1920"
               height="1080"
@@ -1608,12 +1633,43 @@ const avatarUrl = computed(() => {
 })
 
 const isExpanded = ref(false)
+const postContentEl = ref<HTMLElement | null>(null)
+const collapsedHeightPx = ref(0)
+const expandedHeightPx = ref(0)
+const POST_COLLAPSE_LINES = 3
 
 const shouldTruncate = computed(() => {
   if (!postContent.value) return false
   // Check if content has multiple lines or is long enough to need truncation
   const lines = postContent.value.split('\n')
   return lines.length > 3 || postContent.value.length > 200
+})
+
+function measurePostContent() {
+  const el = postContentEl.value
+  if (!el) return
+  const styles = getComputedStyle(el)
+  const fontSize = Number.parseFloat(styles.fontSize) || 16
+  const lineHeightValue = Number.parseFloat(styles.lineHeight)
+  const lineHeight = Number.isFinite(lineHeightValue) ? lineHeightValue : fontSize * 1.5
+  expandedHeightPx.value = el.scrollHeight
+  collapsedHeightPx.value = Math.round(lineHeight * POST_COLLAPSE_LINES)
+}
+
+const truncatedContentStyle = computed(() => {
+  if (!shouldTruncate.value) return undefined
+  const height = isExpanded.value ? expandedHeightPx.value : collapsedHeightPx.value
+  if (!height) return { maxHeight: `${POST_COLLAPSE_LINES * 1.5}em` }
+  return { maxHeight: `${height}px` }
+})
+
+function toggleExpanded() {
+  measurePostContent()
+  isExpanded.value = !isExpanded.value
+}
+
+onMounted(() => {
+  nextTick(measurePostContent)
 })
 
 const modalImages = computed(() => (props.post.images || []).filter((img) => Boolean(img?.image?.url)))
@@ -1763,7 +1819,7 @@ const formattedContent = computed(() => {
       const end = start + url.length
       result += escapeHtml(value.slice(lastIndex, start))
       const safeUrl = escapeHtml(url)
-      result += `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 hover:underline break-all">${safeUrl}</a>`
+      result += `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="text-asbury-blue hover:underline break-all">${safeUrl}</a>`
       lastIndex = end
     }
 
@@ -1773,6 +1829,10 @@ const formattedContent = computed(() => {
 
   // Linkify URLs, then preserve line breaks.
   return linkify(postContent.value).replace(/\n/g, '<br>')
+})
+
+watch(formattedContent, () => {
+  nextTick(measurePostContent)
 })
 
 watch(

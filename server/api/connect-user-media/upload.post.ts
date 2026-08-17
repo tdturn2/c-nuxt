@@ -1,13 +1,17 @@
 import { defineEventHandler, readMultipartFormData, createError } from 'h3'
-import { authenticateWithPayloadCMS } from '../../utils/payloadAuth'
+import { authenticateWithConnectApi, getConnectApiProxyHeaders } from '../../utils/payloadAuth'
 import { getUserIdFromEmail } from '../../utils/getUserIdFromEmail'
+import { resolveConnectApiUrl, toBrowserMediaUrl } from '../../utils/connectApi'
 
 export default defineEventHandler(async (event) => {
-  const config = useRuntimeConfig()
-  const payloadBaseUrl = config.public.connectApi || 'http://localhost:3003'
+  const connectApiUrl = resolveConnectApiUrl()
+  if (!connectApiUrl) {
+    throw createError({ statusCode: 500, statusMessage: 'Missing CONNECT_API' })
+  }
 
   try {
-    const { token, email } = await authenticateWithPayloadCMS(event)
+    const auth = await authenticateWithConnectApi(event)
+    const { email } = auth
 
     if (!email) {
       throw createError({
@@ -26,7 +30,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const ownerId = await getUserIdFromEmail(email, payloadBaseUrl)
+    const ownerId = await getUserIdFromEmail(email, connectApiUrl)
     const alt = formData?.find((field) => field.name === 'alt')?.data?.toString('utf-8')?.trim()
     const requestedKind = formData?.find((field) => field.name === 'kind')?.data?.toString('utf-8')?.trim()
     const kind = requestedKind || 'post-images'
@@ -34,20 +38,23 @@ export default defineEventHandler(async (event) => {
     const formDataToSend = new FormData()
     const blob = new Blob([file.data], { type: file.type || 'application/octet-stream' })
     formDataToSend.append('file', blob, file.filename || 'upload')
-    // Payload multipart create expects doc fields in `_payload`.
+    formDataToSend.append('kind', kind)
+    // SSO fallback: connect-api accepts a session email when no JWT is present.
+    formDataToSend.append('email', email)
+    // connect-api reads doc fields from `_payload` on multipart creates.
     const payloadData: Record<string, unknown> = {
       owner: ownerId,
-      kind
+      kind,
+      email
     }
     if (alt) payloadData.alt = alt
     formDataToSend.append('_payload', JSON.stringify(payloadData))
 
-    const headers: Record<string, string> = {}
-    if (token) {
-      headers.Authorization = `Bearer ${token}`
-    }
+    // Multipart must set its own boundary, so drop the JSON content type.
+    const headers = getConnectApiProxyHeaders(event, auth)
+    delete headers['Content-Type']
 
-    const mediaUploadResponse = await fetch(`${payloadBaseUrl}/api/connect-user-media`, {
+    const mediaUploadResponse = await fetch(`${connectApiUrl}/api/connect-user-media`, {
       method: 'POST',
       headers,
       body: formDataToSend
@@ -56,7 +63,11 @@ export default defineEventHandler(async (event) => {
     if (!mediaUploadResponse.ok) {
       throw createError({
         statusCode: mediaUploadResponse.status,
-        statusMessage: mediaUploadResponse.statusText || 'Failed to upload media',
+        statusMessage:
+          mediaUploadJson?.error ||
+          mediaUploadJson?.errors?.[0]?.message ||
+          mediaUploadResponse.statusText ||
+          'Failed to upload media',
         data: mediaUploadJson
       })
     }
@@ -74,15 +85,12 @@ export default defineEventHandler(async (event) => {
     }
     mediaResponse.id = uploadedId
 
-    if (mediaResponse?.url && !mediaResponse.url.startsWith('http')) {
-      mediaResponse.url = mediaResponse.url.startsWith('/')
-        ? `${payloadBaseUrl}${mediaResponse.url}`
-        : `${payloadBaseUrl}/${mediaResponse.url}`
-    }
+    const browserUrl = toBrowserMediaUrl(mediaResponse.url)
+    if (browserUrl) mediaResponse.url = browserUrl
 
     return mediaResponse
   } catch (error: any) {
-    console.error('PayloadCMS API Error:', {
+    console.error('Connect API upload error:', {
       message: error?.message,
       statusCode: error?.statusCode || error?.status,
       statusMessage: error?.statusMessage,

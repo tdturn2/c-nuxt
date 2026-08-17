@@ -1,17 +1,9 @@
 import { defineEventHandler, readMultipartFormData, createError } from 'h3'
 import { humanizeFilename } from '@shared/humanizeFilename'
 import { requireDashboardStaff, toProxyError } from '../../utils/dashboardForms'
+import { toBrowserMediaUrl } from '../../utils/connectApi'
 
-function absoluteUrl(payloadBaseUrl: string, value: string | null | undefined): string | null {
-  if (!value || typeof value !== 'string') return null
-  const v = value.trim()
-  if (!v) return null
-  if (v.startsWith('http')) return v
-  const base = payloadBaseUrl.replace(/\/+$/, '')
-  return v.startsWith('/') ? `${base}${v}` : `${base}/${v}`
-}
-
-function pickUrlFromPayload(payloadBaseUrl: string, json: any): { id: unknown; filename: string; url: string | null } {
+function pickUrlFromPayload(json: any): { id: unknown; filename: string; url: string | null } {
   const doc = json?.doc ?? json
   const id = doc?.id ?? json?.id
   const file = doc?.file
@@ -23,11 +15,11 @@ function pickUrlFromPayload(payloadBaseUrl: string, json: any): { id: unknown; f
   const rawUrl =
     (typeof file?.url === 'string' && file.url) ||
     (typeof doc?.url === 'string' && doc.url) ||
-    null
+    (filename ? `/api/connect-pages-media/file/${encodeURIComponent(filename)}` : null)
   return {
     id,
     filename,
-    url: absoluteUrl(payloadBaseUrl, rawUrl),
+    url: toBrowserMediaUrl(rawUrl),
   }
 }
 
@@ -65,7 +57,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const { id, filename, url } = pickUrlFromPayload(auth.payloadBaseUrl, json)
+    const { id, filename, url } = pickUrlFromPayload(json)
     if (!url) {
       throw createError({
         statusCode: 500,

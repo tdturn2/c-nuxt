@@ -1,6 +1,7 @@
 // Proxy list for Payload connect-pages-media (page assets library).
 import { defineEventHandler, getQuery, createError, getHeader } from 'h3'
 import { authenticateWithPayloadCMS } from '../utils/payloadAuth'
+import { toBrowserMediaUrl } from '../utils/connectApi'
 
 function payloadOrigin(raw: string): string {
   let b = raw.trim().replace(/\/+$/, '')
@@ -8,31 +9,31 @@ function payloadOrigin(raw: string): string {
   return b
 }
 
-function toAbsoluteUrl(payloadBaseUrl: string, value: unknown): unknown {
-  if (!payloadBaseUrl) return value
+function toSameOriginPagesMediaUrl(value: unknown): unknown {
   if (typeof value !== 'string') return value
-  const v = value.trim()
-  if (!v || v.startsWith('http')) return v
-  return v.startsWith('/') ? `${payloadBaseUrl}${v}` : `${payloadBaseUrl}/${v}`
+  const browser = toBrowserMediaUrl(value)
+  return browser ?? value
 }
 
-function normalizeFileField(payloadBaseUrl: string, file: any): any {
+function normalizeFileField(file: any): any {
   if (!file || typeof file !== 'object') return file
   const out = { ...file }
-  if (typeof out.url === 'string') out.url = toAbsoluteUrl(payloadBaseUrl, out.url) as string
+  if (typeof out.url === 'string') out.url = toSameOriginPagesMediaUrl(out.url) as string
   return out
 }
 
-function normalizeMediaDoc(payloadBaseUrl: string, doc: any) {
+function normalizeMediaDoc(doc: any) {
   if (!doc || typeof doc !== 'object') return doc
   const next = { ...doc }
-  if (next.file != null) next.file = normalizeFileField(payloadBaseUrl, next.file)
-  const url =
+  if (next.file != null) next.file = normalizeFileField(next.file)
+  const rawUrl =
     typeof next.file?.url === 'string'
       ? next.file.url
       : typeof next.url === 'string'
-        ? (toAbsoluteUrl(payloadBaseUrl, next.url) as string)
+        ? next.url
         : null
+  const url = typeof rawUrl === 'string' ? (toSameOriginPagesMediaUrl(rawUrl) as string) : null
+  if (typeof next.url === 'string') next.url = toSameOriginPagesMediaUrl(next.url) as string
   return { ...next, _normalizedUrl: url }
 }
 
@@ -66,10 +67,10 @@ export default defineEventHandler(async (event) => {
     if (Array.isArray(data?.docs)) {
       return {
         ...data,
-        docs: data.docs.map((doc: any) => normalizeMediaDoc(origin, doc)),
+        docs: data.docs.map((doc: any) => normalizeMediaDoc(doc)),
       }
     }
-    return normalizeMediaDoc(origin, data)
+    return normalizeMediaDoc(data)
   } catch (err: any) {
     const statusCode = err?.response?.status || err?.statusCode || 502
     const errData = err?.data
