@@ -9,6 +9,7 @@
         <aside class="hidden w-72 flex-shrink-0 border-l border-gray-200/80 xl:block">
           <div class="flex flex-col items-center space-y-8 px-6 pt-[5.25rem]">
             <KeenersComicsCard />
+            <DiningServicesCard />
             <NuxtLink to="/media/elementary" class="w-full max-w-[180px]">
               <img
                 src="https://ats-edu.storage.googleapis.com/uploads/Elementary_Podcast_Square_Cover.jpg"

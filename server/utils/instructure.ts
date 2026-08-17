@@ -109,7 +109,7 @@ type CanvasSubmission = {
 export type StudentDashboardData = {
   student: {
     email: string
-    canvasUserId: number
+    canvasUserId: number | null
     name: string | null
   }
   summary: {
@@ -172,6 +172,7 @@ export type StudentDashboardData = {
   }>
   meta: {
     generatedAt: string
+    canvasAvailable: boolean
     links: {
       courses: string
       assignments: string
@@ -275,13 +276,14 @@ async function hydrateMissingCourses(
   })
 }
 
-async function findCanvasUserByEmail(email: string): Promise<CanvasUser> {
+async function findCanvasUserByEmail(email: string): Promise<CanvasUser | null> {
+  const wanted = email.toLowerCase()
+
   try {
     const users = await canvasFetch<CanvasUser[]>('/api/v1/accounts/self/users', {
       search_term: email
     })
 
-    const wanted = email.toLowerCase()
     const exactMatches = (users || []).filter((u) => {
       const login = (u.login_id || '').toLowerCase()
       const primaryEmail = (u.primary_email || '').toLowerCase()
@@ -295,36 +297,62 @@ async function findCanvasUserByEmail(email: string): Promise<CanvasUser> {
         statusMessage: 'Multiple Canvas users found for this email'
       })
     }
-    if (!users?.length) {
-      throw createError({
-        statusCode: 404,
-        statusMessage: 'No Canvas user found for this email'
-      })
-    }
-    if (users.length === 1) return users[0]
+    if (users?.length === 1) return users[0]
+    return null
   } catch (error: any) {
-    if (![401, 403].includes(error?.statusCode)) throw error
+    if (error?.statusCode === 409) throw error
+    if (![401, 403, 404].includes(error?.statusCode)) throw error
   }
 
-  const self = await canvasFetch<CanvasUser>('/api/v1/users/self/profile')
-  const wanted = email.toLowerCase()
-  const selfEmail = (self.primary_email || self.login_id || '').toLowerCase()
-
-  if (!selfEmail) {
-    throw createError({
-      statusCode: 403,
-      statusMessage: 'Canvas self profile did not include an email for verification'
-    })
+  try {
+    const self = await canvasFetch<CanvasUser>('/api/v1/users/self/profile')
+    const selfEmail = (self.primary_email || self.login_id || '').toLowerCase()
+    if (selfEmail && selfEmail === wanted) return self
+  } catch {
+    // Site API token is not this student — treat as no Canvas account.
   }
 
-  if (selfEmail !== wanted) {
-    throw createError({
-      statusCode: 403,
-      statusMessage: 'Canvas token user does not match authenticated SSO email'
-    })
-  }
+  return null
+}
 
-  return self
+function canvasSectionLinks(canvasBaseUrl: string): StudentDashboardData['meta']['links'] {
+  return {
+    courses: `${canvasBaseUrl}/courses`,
+    assignments: `${canvasBaseUrl}/calendar`,
+    todo: `${canvasBaseUrl}/`,
+    messages: `${canvasBaseUrl}/conversations`,
+    announcements: `${canvasBaseUrl}/`,
+    feedback: `${canvasBaseUrl}/grades`,
+    calendar: `${canvasBaseUrl}/calendar`
+  }
+}
+
+function emptyStudentDashboard(email: string, canvasBaseUrl: string): StudentDashboardData {
+  return {
+    student: {
+      email,
+      canvasUserId: null,
+      name: null
+    },
+    summary: {
+      currentGpa: null,
+      averageGrade: null
+    },
+    courses: [],
+    assignmentsDueThisWeek: [],
+    todoMissing: [],
+    messagesAnnouncements: {
+      messages: [],
+      announcements: []
+    },
+    recentFeedback: [],
+    calendar: [],
+    meta: {
+      generatedAt: new Date().toISOString(),
+      canvasAvailable: false,
+      links: canvasSectionLinks(canvasBaseUrl)
+    }
+  }
 }
 
 function parseNumber(value: unknown): number | null {
@@ -374,6 +402,7 @@ function estimateCurrentGpa(courses: StudentDashboardData['courses']): number | 
 export async function getStudentDashboardData(email: string): Promise<StudentDashboardData> {
   const canvasBaseUrl = getCanvasConfig().baseUrl
   const user = await findCanvasUserByEmail(email)
+  if (!user) return emptyStudentDashboard(email, canvasBaseUrl)
 
   let enrollments: CanvasEnrollmentWithCourse[] = []
   try {
@@ -554,15 +583,8 @@ export async function getStudentDashboardData(email: string): Promise<StudentDas
     calendar,
     meta: {
       generatedAt: new Date().toISOString(),
-      links: {
-        courses: `${canvasBaseUrl}/courses`,
-        assignments: `${canvasBaseUrl}/calendar`,
-        todo: `${canvasBaseUrl}/`,
-        messages: `${canvasBaseUrl}/conversations`,
-        announcements: `${canvasBaseUrl}/`,
-        feedback: `${canvasBaseUrl}/grades`,
-        calendar: `${canvasBaseUrl}/calendar`
-      }
+      canvasAvailable: true,
+      links: canvasSectionLinks(canvasBaseUrl)
     }
   }
 }

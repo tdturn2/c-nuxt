@@ -6,7 +6,7 @@
         <header class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 class="text-2xl font-bold text-gray-900">Student Dashboard</h1>
-            <p class="text-sm text-gray-600">Your Canvas snapshot for courses, deadlines, and updates.</p>
+            <p class="text-sm text-gray-600">Courses, planner, and degree tools — Canvas data appears when an account is found for your email.</p>
           </div>
           <p class="text-xs text-gray-500">
             Updated: {{ generatedAtLabel }}
@@ -28,6 +28,13 @@
         </div>
 
         <template v-else>
+          <div
+            v-if="canvasUnavailable"
+            class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+          >
+            No Canvas account was found for your email. Class planner, class search, and degree map still work. Canvas courses and deadlines will show here if you have a Canvas account.
+          </div>
+
           <section class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
             <div class="flex items-center justify-between gap-3">
               <div>
@@ -112,6 +119,12 @@
                 </div>
               </div>
             </a>
+            <p
+              v-if="!showInitialSkeleton && !courses.length"
+              class="sm:col-span-2 xl:col-span-3 text-sm text-gray-600"
+            >
+              No Canvas courses to show.
+            </p>
           </section>
 
           <section class="rounded-lg border border-blue-200 bg-blue-50 p-5">
@@ -367,6 +380,7 @@ type StudentDashboardResponse = {
   }>
   meta?: {
     generatedAt?: string
+    canvasAvailable?: boolean
     links?: {
       courses?: string
       assignments?: string
@@ -383,12 +397,14 @@ const { data, pending, error } = useFetch<StudentDashboardResponse>('/api/studen
   key: 'student-dashboard',
   server: false,
   lazy: true,
+  fatal: false,
   default: () => ({})
 })
 const plannerOpen = ref(false)
 const { plannerItems, plannerPending, plannerError, plannerLoaded, refreshPlanner, removeItem, updateNote } = useClassPlanner()
 
 const dashboard = computed<StudentDashboardResponse>(() => data.value || {})
+const canvasUnavailable = computed(() => dashboard.value.meta?.canvasAvailable === false)
 const courses = computed(() => dashboard.value.courses || [])
 const assignmentsDueThisWeek = computed(() => dashboard.value.assignmentsDueThisWeek || [])
 const todoMissing = computed(() => dashboard.value.todoMissing || [])

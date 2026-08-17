@@ -112,30 +112,66 @@
                 :key="c.id"
                 class="flex items-center gap-3 sm:gap-4 px-4 py-3.5 sm:px-5 sm:py-4 min-w-0 transition-colors hover:bg-gray-50/90"
               >
-                <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 ring-1 ring-gray-200/60 shrink-0">
-                  <img
-                    v-if="c.avatar?.url"
-                    :src="c.avatar.url"
-                    :alt="c.name || 'Contact avatar'"
-                    class="w-full h-full object-cover"
-                    loading="lazy"
-                    decoding="async"
-                  >
-                  <div
-                    v-else
-                    class="w-full h-full flex items-center justify-center text-sm font-semibold text-gray-500 tabular-nums"
-                    aria-hidden="true"
-                  >
-                    {{ initialsForContact(c.name) }}
+                <NuxtLink
+                  v-if="c.profilePath"
+                  :to="c.profilePath"
+                  class="flex min-w-0 flex-1 items-center gap-3 sm:gap-4"
+                >
+                  <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 ring-1 ring-gray-200/60 shrink-0">
+                    <img
+                      v-if="c.avatar?.url"
+                      :src="c.avatar.url"
+                      :alt="c.name || 'Contact avatar'"
+                      class="w-full h-full object-cover"
+                      loading="lazy"
+                      decoding="async"
+                    >
+                    <div
+                      v-else
+                      class="w-full h-full flex items-center justify-center text-sm font-semibold text-gray-500 tabular-nums"
+                      aria-hidden="true"
+                    >
+                      {{ initialsForContact(c.name) }}
+                    </div>
                   </div>
-                </div>
-                <div class="min-w-0 flex-1">
-                  <div class="font-semibold text-gray-900 leading-snug">
-                    {{ c.name || '—' }}
+                  <div class="min-w-0 flex-1">
+                    <div class="font-semibold text-gray-900 leading-snug hover:text-[rgba(13,94,130,1)] hover:underline">
+                      {{ c.name || '—' }}
+                    </div>
+                    <p v-if="c.employeeTitle" class="mt-0.5 text-sm text-gray-600 leading-snug">
+                      {{ c.employeeTitle }}
+                    </p>
                   </div>
-                  <p v-if="c.employeeTitle" class="mt-0.5 text-sm text-gray-600 leading-snug">
-                    {{ c.employeeTitle }}
-                  </p>
+                </NuxtLink>
+                <div
+                  v-else
+                  class="flex min-w-0 flex-1 items-center gap-3 sm:gap-4"
+                >
+                  <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 ring-1 ring-gray-200/60 shrink-0">
+                    <img
+                      v-if="c.avatar?.url"
+                      :src="c.avatar.url"
+                      :alt="c.name || 'Contact avatar'"
+                      class="w-full h-full object-cover"
+                      loading="lazy"
+                      decoding="async"
+                    >
+                    <div
+                      v-else
+                      class="w-full h-full flex items-center justify-center text-sm font-semibold text-gray-500 tabular-nums"
+                      aria-hidden="true"
+                    >
+                      {{ initialsForContact(c.name) }}
+                    </div>
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <div class="font-semibold text-gray-900 leading-snug">
+                      {{ c.name || '—' }}
+                    </div>
+                    <p v-if="c.employeeTitle" class="mt-0.5 text-sm text-gray-600 leading-snug">
+                      {{ c.employeeTitle }}
+                    </p>
+                  </div>
                 </div>
                 <div
                   v-if="c.email || c.phone"
@@ -278,6 +314,7 @@ type ConnectUser = {
   email?: string | null
   phone?: string | null
   avatar?: { url: string } | null
+  profilePath?: string | null
 }
 
 type ResolvedContactRef = {
@@ -529,7 +566,8 @@ const contactIdsToHydrate = computed(() => {
     const hasDisplayData = Boolean(
       seeded?.name || seeded?.email || seeded?.phone || seeded?.employeeTitle || seeded?.avatar?.url,
     )
-    if (!hasDisplayData) out.add(ref.id)
+    const hasEmail = Boolean(typeof seeded?.email === 'string' && seeded.email.includes('@'))
+    if (!hasDisplayData || !hasEmail) out.add(ref.id)
   }
   return [...out]
 })
@@ -567,13 +605,17 @@ const contacts = computed<ConnectUser[]>(() => {
     const seeded = ref.seeded || {}
     const hydrated = hydratedById[ref.id] || null
     const avatarUrl = hydrated?.avatar?.url || seeded.avatar?.url || null
-    return {
+    const contact: ConnectUser = {
       id: ref.id,
       name: hydrated?.name ?? seeded.name ?? null,
       employeeTitle: hydrated?.employeeTitle ?? seeded.employeeTitle ?? null,
       email: hydrated?.email ?? seeded.email ?? null,
       phone: hydrated?.phone ?? seeded.phone ?? null,
       avatar: avatarUrl ? { url: avatarUrl } : null,
+    }
+    return {
+      ...contact,
+      profilePath: contactProfilePath(contact),
     }
   })
 })
@@ -595,6 +637,15 @@ function initialsForContact(name: string | null | undefined) {
   if (parts.length === 0) return '?'
   if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase()
   return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase()
+}
+
+function contactProfilePath(user: ConnectUser): string | null {
+  const email = String(user.email || '').trim()
+  if (email.includes('@')) {
+    const username = email.split('@')[0]?.trim()
+    if (username) return `/user/${encodeURIComponent(username)}`
+  }
+  return null
 }
 
 function lexicalToHtml(node: any): string {
