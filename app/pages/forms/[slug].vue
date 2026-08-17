@@ -22,7 +22,11 @@
             </p>
           </header>
 
-          <div v-if="success" class="rounded-lg border border-green-200 bg-green-50 p-4 text-green-900">
+          <div v-if="isInactive" class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900">
+            This form is not currently accepting submissions.
+          </div>
+
+          <div v-else-if="success" class="rounded-lg border border-green-200 bg-green-50 p-4 text-green-900">
             Submitted.
             <span v-if="submissionId" class="text-sm text-green-900/80">Submission #{{ submissionId }}</span>
           </div>
@@ -40,7 +44,7 @@
           />
 
           <div
-            v-if="!success && !pending && formDoc && fields.length === 0"
+            v-if="!success && !pending && !isInactive && formDoc && fields.length === 0"
             class="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900 text-sm space-y-2"
           >
             <div class="font-semibold">No fields detected.</div>
@@ -73,6 +77,7 @@ type ConnectFormDoc = {
   title?: string
   componentKey?: string
   editableMode?: 'immutable' | 'versioned' | string
+  status?: 'active' | 'inactive' | string
   viewerGroups?: unknown
   schema?: any
 }
@@ -100,6 +105,7 @@ const { data, pending, error } = await useFetch<{ doc: ConnectFormDoc | null }>(
 })
 
 const formDoc = computed(() => data.value?.doc ?? null)
+const isInactive = computed(() => formDoc.value?.status === 'inactive')
 const schemaErrors = ref<string[]>([])
 const submitValidationErrors = ref<string[]>([])
 const uploadProgress = ref<Record<string, number>>({})

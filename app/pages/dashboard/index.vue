@@ -152,6 +152,12 @@ const sections = [
     icon: 'i-lucide-user-round-pen',
   },
   {
+    title: 'Jobs Manager',
+    description: 'Review, publish, edit, and remove job board listings.',
+    to: '/dashboard/jobs',
+    icon: 'i-lucide-briefcase',
+  },
+  {
     title: 'Faculty Publications',
     description: 'Manage publication records for faculty members.',
     to: '/dashboard/faculty-publications',

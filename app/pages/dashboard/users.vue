@@ -30,8 +30,23 @@
           <div v-if="error" class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{{ error }}</div>
 
           <section class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-            <div class="border-b border-gray-200 px-4 py-3">
-              <h2 class="text-base font-semibold text-gray-900">Users</h2>
+            <div class="flex flex-col gap-3 border-b border-gray-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <h2 class="text-base font-semibold text-gray-900">
+                Users
+                <span class="ml-1 text-sm font-normal text-gray-500">
+                  ({{ filteredUsers.length }}{{ userSearch.trim() ? ` / ${users.length}` : '' }})
+                </span>
+              </h2>
+              <UInput
+                v-model="userSearch"
+                type="search"
+                placeholder="Search name, email, title, phone..."
+                icon="i-lucide-search"
+                color="neutral"
+                variant="outline"
+                size="sm"
+                class="w-full sm:w-80"
+              />
             </div>
             <table class="min-w-full text-sm">
               <thead class="bg-gray-100 text-gray-700">
@@ -49,10 +64,12 @@
                 <tr v-if="loading" class="border-t border-gray-200">
                   <td colspan="7" class="px-4 py-4 text-gray-500">Loading users...</td>
                 </tr>
-                <tr v-else-if="!users.length" class="border-t border-gray-200">
-                  <td colspan="7" class="px-4 py-4 text-gray-500">No users found.</td>
+                <tr v-else-if="!filteredUsers.length" class="border-t border-gray-200">
+                  <td colspan="7" class="px-4 py-4 text-gray-500">
+                    {{ userSearch.trim() ? 'No users match your search.' : 'No users found.' }}
+                  </td>
                 </tr>
-                <tr v-for="user in users" :key="String(user.id)" class="border-t border-gray-200">
+                <tr v-for="user in filteredUsers" :key="String(user.id)" class="border-t border-gray-200">
                   <td class="px-4 py-3 font-medium text-gray-900">{{ user.name || '—' }}</td>
                   <td class="px-4 py-3 text-gray-700">{{ user.email || '—' }}</td>
                   <td class="px-4 py-3 text-gray-700">{{ user.employeeTitle || '—' }}</td>
@@ -261,6 +278,7 @@ const groups = ref<GroupItem[]>([])
 const avatarAssets = ref<AvatarAsset[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
+const userSearch = ref('')
 const uploadingAvatar = ref(false)
 const userModalOpen = ref(false)
 const groupModalOpen = ref(false)
@@ -369,6 +387,24 @@ function formatGroupNames(userGroups: unknown): string {
     .filter(Boolean)
     .join(', ')
 }
+
+const filteredUsers = computed(() => {
+  const q = userSearch.value.trim().toLowerCase()
+  if (!q) return users.value
+  return users.value.filter((user) => {
+    const haystack = [
+      user.name,
+      user.email,
+      user.employeeTitle,
+      user.phone,
+      formatRoles(user.roles),
+      formatGroupNames(user.groups),
+    ]
+      .map((v) => String(v || '').toLowerCase())
+      .join(' ')
+    return haystack.includes(q)
+  })
+})
 
 async function loadData() {
   if (!canManageDashboard.value) return

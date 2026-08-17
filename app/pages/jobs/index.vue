@@ -2,7 +2,7 @@
   <div class="flex min-h-0 bg-gray-50">
         <LeftColumn />
     <main class="flex-1 min-w-0 overflow-y-auto">
-      <div class="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div class="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="flex items-center justify-between gap-4 mb-6">
           <h1 class="text-2xl font-bold text-gray-900">Jobs Board</h1>
           <NuxtLink
@@ -51,43 +51,49 @@
           <NuxtLink to="/jobs/submit" class="text-[rgba(13,94,130,1)] hover:underline">submit a job</NuxtLink>.
         </div>
 
-        <ul v-else class="space-y-4">
-          <li
-            v-for="job in jobs"
-            :key="job.id"
-            class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-gray-300 transition-colors"
-          >
-            <div class="flex flex-col gap-2">
-              <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <h2 class="text-lg font-semibold text-gray-900">
-                  <NuxtLink
-                    v-if="job.id"
-                    :to="`/jobs/${job.id}`"
-                    class="hover:text-[rgba(13,94,130,1)] hover:underline"
+        <div v-else class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+          <div class="hidden border-b border-gray-200 bg-gray-50 sm:grid sm:grid-cols-12 sm:gap-x-6 sm:px-6 sm:py-2.5">
+            <span class="col-span-6 text-xs font-semibold uppercase tracking-wide text-gray-500">Position</span>
+            <span class="col-span-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Location</span>
+            <span class="col-span-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Type</span>
+          </div>
+          <ul class="divide-y divide-gray-200">
+            <li v-for="row in jobRows" :key="row.job.id">
+              <NuxtLink
+                :to="row.job.id ? `/jobs/${row.job.id}` : undefined"
+                class="grid grid-cols-1 gap-x-6 gap-y-2 px-4 py-4 transition-colors sm:grid-cols-12 sm:px-6"
+                :class="row.job.id ? 'hover:bg-gray-50 cursor-pointer' : 'pointer-events-none'"
+              >
+                <div class="min-w-0 sm:col-span-6">
+                  <h2
+                    class="text-base font-bold leading-snug"
+                    :class="row.job.id ? 'text-[rgba(13,94,130,1)]' : 'text-gray-900'"
                   >
-                    {{ job.jobTitle || 'Untitled' }}
-                  </NuxtLink>
-                  <span v-else>{{ job.jobTitle || 'Untitled' }}</span>
-                </h2>
-                <span v-if="job.companyName" class="text-sm text-gray-600">{{ job.companyName }}</span>
-              </div>
-              <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
-                <span v-if="job.location" class="flex items-center gap-1">
-                  <UIcon name="i-heroicons-map-pin" class="w-4 h-4 flex-shrink-0" />
-                  {{ job.location }}
-                </span>
-                <span v-if="job.remotePosition" class="flex items-center gap-1">
-                  <UIcon name="i-heroicons-home" class="w-4 h-4 flex-shrink-0" />
-                  Remote
-                </span>
-                <span v-if="job.jobType" class="capitalize">{{ formatJobType(job.jobType) }}</span>
-              </div>
-              <p v-if="job.description" class="text-sm text-gray-600 line-clamp-2 mt-1">
-                {{ stripHtml(job.description) }}
-              </p>
-            </div>
-          </li>
-        </ul>
+                    {{ row.title }}
+                  </h2>
+                  <p v-if="row.job.companyName || row.job.companyTagline" class="mt-0.5 text-sm leading-snug text-gray-500">
+                    <span v-if="row.job.companyName" class="font-semibold text-gray-600">{{ row.job.companyName }}</span>
+                    <span v-if="row.job.companyTagline">{{ row.job.companyName ? ' — ' : '' }}{{ row.job.companyTagline }}</span>
+                  </p>
+                </div>
+
+                <div class="min-w-0 text-sm text-gray-600 sm:col-span-3">
+                  <span v-if="row.job.location">{{ row.job.location }}</span>
+                  <span v-if="row.job.remotePosition" class="block text-gray-500">Remote</span>
+                </div>
+
+                <div class="text-sm sm:col-span-3 sm:text-right">
+                  <span v-if="row.typeLabel" class="font-semibold" :class="row.typeClass">
+                    {{ row.typeLabel }}
+                  </span>
+                  <span v-if="row.postedLabel" class="block text-gray-500 sm:mt-1">
+                    {{ row.postedLabel }}
+                  </span>
+                </div>
+              </NuxtLink>
+            </li>
+          </ul>
+        </div>
       </div>
     </main>
   </div>
@@ -96,12 +102,21 @@
 <script setup lang="ts">
 const JOB_TYPES = [
   { label: 'Freelance', value: 'freelance' },
-  { label: 'Full time', value: 'full_time' },
+  { label: 'Full Time', value: 'full_time' },
   { label: 'Internship', value: 'internship' },
-  { label: 'Part time', value: 'part_time' },
+  { label: 'Part Time', value: 'part_time' },
   { label: 'Temporary', value: 'temporary' },
   { label: 'Volunteer', value: 'volunteer' },
 ] as const
+
+const JOB_TYPE_TEXT_CLASSES: Record<string, string> = {
+  freelance: 'text-violet-600',
+  full_time: 'text-emerald-600',
+  internship: 'text-sky-600',
+  part_time: 'text-orange-500',
+  temporary: 'text-amber-600',
+  volunteer: 'text-teal-600',
+}
 
 const JOB_CATEGORIES = [
   { label: 'Administration', value: 'administration' },
@@ -133,7 +148,9 @@ interface Job {
   jobCategory?: string
   description?: string
   companyName?: string
+  companyTagline?: string
   companyWebsite?: string
+  createdAt?: string
 }
 
 interface ListResponse {
@@ -164,6 +181,16 @@ const jobs = computed(() => {
     return true
   })
 })
+const jobRows = computed(() =>
+  jobs.value.map((job) => ({
+    job,
+    title: job.jobTitle || 'Untitled',
+    typeLabel: job.jobType ? formatJobType(job.jobType) : '',
+    typeClass: job.jobType ? jobTypeClass(job.jobType) : '',
+    postedLabel: postedLabel(job.createdAt),
+  })),
+)
+
 const errorMessage = computed(() => {
   const e = error.value
   if (!e) return ''
@@ -172,11 +199,34 @@ const errorMessage = computed(() => {
 
 function formatJobType(value: string): string {
   if (!value) return ''
-  return value.replace(/_/g, ' ')
+  return JOB_TYPES.find((t) => t.value === value)?.label ?? value.replace(/_/g, ' ')
 }
 
-function stripHtml(html: string): string {
-  if (!html) return ''
-  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+function jobTypeClass(value: string): string {
+  return JOB_TYPE_TEXT_CLASSES[value] ?? 'text-gray-700'
+}
+
+const relativeTime = new Intl.RelativeTimeFormat('en', { numeric: 'always' })
+
+const RELATIVE_UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+  ['year', 365 * 24 * 60 * 60 * 1000],
+  ['month', 30 * 24 * 60 * 60 * 1000],
+  ['week', 7 * 24 * 60 * 60 * 1000],
+  ['day', 24 * 60 * 60 * 1000],
+  ['hour', 60 * 60 * 1000],
+  ['minute', 60 * 1000],
+]
+
+function postedLabel(value?: string): string {
+  if (!value) return ''
+  const posted = new Date(value).getTime()
+  if (Number.isNaN(posted)) return ''
+  const elapsed = Date.now() - posted
+  if (elapsed < 60 * 1000) return 'Posted just now'
+  for (const [unit, ms] of RELATIVE_UNITS) {
+    const amount = Math.floor(elapsed / ms)
+    if (amount >= 1) return `Posted ${relativeTime.format(-amount, unit)}`
+  }
+  return ''
 }
 </script>

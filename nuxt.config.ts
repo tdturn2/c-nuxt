@@ -59,6 +59,11 @@ export default defineNuxtConfig({
   alias: {
     '@shared': join(projectDir, 'shared'),
   },
+  build: {
+    // Keep the table extension in Nuxt's dependency graph so ProseMirror does
+    // not register a second CellSelection JSON type in production builds.
+    transpile: ['@tiptap/extension-table'],
+  },
   modules: ['@nuxt/ui', '@nuxt/image', '@sidebase/nuxt-auth'],
   image: {
     domains: nuxtImageDomains,
@@ -88,6 +93,7 @@ export default defineNuxtConfig({
         '@tiptap/extension-code',
         '@tiptap/extension-horizontal-rule',
         '@tiptap/extension-placeholder',
+        '@tiptap/extension-table',
         'prosemirror-state',
         'prosemirror-view',
         'prosemirror-model',
@@ -98,7 +104,11 @@ export default defineNuxtConfig({
         'prosemirror-dropcursor',
         'prosemirror-gapcursor',
         'prosemirror-schema-list',
+        'prosemirror-tables',
       ],
+    },
+    optimizeDeps: {
+      include: ['@tiptap/extension-table'],
     },
     server: {
       // macOS often has low default file-watch limits; aggressively ignore large folders.

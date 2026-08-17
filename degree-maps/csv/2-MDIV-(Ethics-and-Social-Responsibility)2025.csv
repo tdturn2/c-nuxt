@@ -1,0 +1,33 @@
+section_name,section_credits_required,section_order,specialization_name,course_code,item_order,course_title,course_credits
+Linguistic Formation,6,0,,NT501,0,Elementary Greek-One,3
+Linguistic Formation,6,0,,OT501,1,Elementary Hebrew-One,3
+Biblical Formation,18,1,,NT(IBS)510,0,NT(IBS)510 or NT(IBS)511 IBS,3
+Biblical Formation,18,1,,NT(IBS)610-649,1,NT(IBS)610-649 or OT(IBS)610-649 IBS,3
+Biblical Formation,18,1,,NT520,2,New Testament Introduction,3
+Biblical Formation,18,1,,OT520,3,Old Testament Introduction,3
+Biblical Formation,18,1,,OTHER-BIBLICAL-NTEXEGESISNT610649-4,4,NT Exegesis (NT610-649 or 710-749),3
+Biblical Formation,18,1,,OTHER-BIBLICAL-OTEXEGESISOT610649-5,5,"OT Exegesis (OT610-649, 651, or 710-749)",3
+Theological Formation,21,2,,CH501,0,Church History-One,3
+Theological Formation,21,2,,CH502,1,Church History-Two,3
+Theological Formation,21,2,,CS601,2,Christian Ethics,3
+Theological Formation,21,2,,PH501,3,Philosophy of Christian Religion,3
+Theological Formation,21,2,,TH501,4,Basic Christian Doctrine,3
+Theological Formation,21,2,,TH601,5,Theology of John Wesley,3
+Theological Formation,21,2,,TH701,6,Contemporary Theology,3
+Praxis Formation,27,3,,CD501,0,Vocation of Ministry,3
+Praxis Formation,27,3,,CD605,1,Gospel Catechesis: Trans Disc,3
+Praxis Formation,27,3,,CL605,2,Theol & Prac of Christian Leadership,3
+Praxis Formation,27,3,,MM520,3,Mentored Ministry-One,1
+Praxis Formation,27,3,,MM620,4,Mentored Ministry-Two,1
+Praxis Formation,27,3,,MM720,5,Mentored Ministry-Three,1
+Praxis Formation,27,3,,MS501,6,Miss Form: Church in Global Era,3
+Praxis Formation,27,3,,MS708,7,World Religions and Mission,3
+Praxis Formation,27,3,,PC510/515,8,Care of Per or Past Crisis Inter,3
+Praxis Formation,27,3,,PR610-649,9,Theol & Practice of Preach,3
+Praxis Formation,27,3,,WO510,10,Worship Leadership,3
+Specialization Courses,15,4,Aesthetics & Applied Arts,CS615,0,Moral Issues in Death & Sickness,3
+Specialization Courses,15,4,Aesthetics & Applied Arts,CS638,1,CS638 OR CS652,3
+Specialization Courses,15,4,Aesthetics & Applied Arts,CS/TH631,2,CS/TH631 OR CS650 OR MS627,3
+Specialization Courses,15,4,Aesthetics & Applied Arts,OTHER-SPECIALI-CSELECTIVE-3,3,CS Elective,3
+Specialization Courses,15,4,Aesthetics & Applied Arts,OTHER-SPECIALI-ANYCHCSPHSFORTHCOU-4,4,Any CH/CS/PH/SF/ or TH course,3
+General Elective Courses,9,5,,OTHER-GENERALE-ELECTIVES-0,0,General Elective Courses electives,9

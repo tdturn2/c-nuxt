@@ -220,17 +220,18 @@ export async function importDegreeMapRows(options: {
       let course = courseByCode.get(codeKey)
       if (!course && createMissingCourses) {
         const title = row.courseTitle?.trim() || row.courseCode
+        const credits = row.courseCredits ?? null
         try {
           const created = await $fetch<any>(`${payloadBaseUrl}/api/courses`, {
             method: 'POST',
             headers,
-            body: { code: row.courseCode, title },
+            body: { code: row.courseCode, title, ...(credits != null ? { credits } : {}) },
           })
           course = {
             id: Number(created.id),
             code: row.courseCode,
             title,
-            credits: created.credits ?? null,
+            credits: created.credits ?? credits,
           }
           courseByCode.set(codeKey, course)
           summary.coursesCreated++
@@ -248,6 +249,7 @@ export async function importDegreeMapRows(options: {
       }
 
       const order = row.itemOrder ?? nextItemOrder++
+      const itemCredits = row.courseCredits ?? course.credits ?? undefined
       try {
         await $fetch(`${payloadBaseUrl}/api/degree-section-items/create`, {
           method: 'POST',
@@ -258,8 +260,8 @@ export async function importDegreeMapRows(options: {
             section: section.id,
             type: 'single',
             course: course.id,
-            label: course.title,
-            credits: course.credits ?? undefined,
+            label: row.courseTitle?.trim() || course.title,
+            credits: itemCredits,
             order,
           },
         })

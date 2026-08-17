@@ -71,6 +71,7 @@ const allItems = [
   { label: 'Daily Eucharist', to: '/dashboard/daily-eucharist', icon: 'i-lucide-calendar-heart' },
   { label: 'Chapel', to: '/dashboard/chapel', icon: 'i-lucide-mic-vocal' },
   { label: 'Chapel Speakers', to: '/dashboard/chapel-speakers', icon: 'i-lucide-user-round-pen' },
+  { label: 'Jobs Manager', to: '/dashboard/jobs', icon: 'i-lucide-briefcase' },
   { label: 'Faculty Publications', to: '/dashboard/faculty-publications', icon: 'i-lucide-book-open', adminOnly: true },
   { label: 'Featured Publications', to: '/dashboard/featured-publications', icon: 'i-lucide-star', adminOnly: true },
   { label: 'Form Results', to: '/dashboard/form-results', icon: 'i-lucide-clipboard-list' },

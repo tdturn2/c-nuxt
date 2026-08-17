@@ -71,34 +71,32 @@
               class="bg-asbury-blue/15 px-3 pt-3 sm:px-4"
             >
               <ConnectPageSectionNav
-                v-if="primaryTabPages.length > 1"
-                :heading="sectionNavHeading"
-                :pages="primaryTabPages"
+                v-for="(row, index) in sectionTabRows"
+                :key="row.key"
+                :heading="row.heading"
+                :pages="row.pages"
                 :is-active="isTabActive"
-              />
-              <ConnectPageSectionNav
-                v-if="secondaryTabPages.length > 1"
-                :heading="nestedChildPagesHeading"
-                :pages="secondaryTabPages"
-                :is-active="isTabActive"
-                variant="secondary"
-                :class="primaryTabPages.length > 1 ? 'mt-2 border-t border-asbury-blue/15 pt-2' : ''"
+                :variant="index === 0 ? 'primary' : 'secondary'"
+                :class="index > 0 ? 'mt-2 border-t border-asbury-blue/15 pt-2' : ''"
               />
             </div>
 
             <div :class="hasSectionNav ? 'px-4 py-6 sm:px-6 sm:py-8' : ''">
-              <h1
-                v-if="hasSectionNav"
-                class="sr-only"
-              >
-                {{ effectivePage?.title || page?.title }}
-              </h1>
-              <h1
-                v-else
-                class="text-3xl font-bold text-gray-900 mb-6"
-              >
-                {{ effectivePage?.title || page?.title }}
-              </h1>
+              <div class="mb-6 flex items-center gap-2">
+                <h1 class="text-3xl font-bold text-gray-900 min-w-0">
+                  {{ effectivePage?.title || page?.title }}
+                </h1>
+                <button
+                  v-if="canEditPage && currentPageId"
+                  type="button"
+                  class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-[rgba(13,94,130,0.08)] hover:text-[rgba(13,94,130,1)]"
+                  aria-label="Edit page"
+                  title="Edit page"
+                  @click="openPageEditor()"
+                >
+                  <UIcon name="i-lucide-pencil" class="h-4 w-4" />
+                </button>
+              </div>
 
           <section v-if="contacts.length" class="not-prose max-w-3xl mb-10">
             <h2 class="text-xl font-semibold text-gray-900">
@@ -204,16 +202,23 @@
         </article>
       </div>
     </main>
+
+    <ConnectPageEditSlideover
+      ref="pageEditorRef"
+      v-model:open="editorOpen"
+      :sync-route-query="false"
+      @saved="onPageSaved"
+      @deleted="onPageSaved"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import {
   buildConnectPageBreadcrumbs,
-  buildPagePathMap,
   connectPageHasUsableDetail,
   findConnectPageByPath,
-  getConnectPageSiblings,
+  getConnectPageAncestors,
   getDirectChildConnectPages,
   useConnectPagesTreeData,
 } from '~/composables/useConnectPagesTree'
@@ -328,7 +333,7 @@ type ConnectPageDoc = {
   contacts?: Array<string | number | ConnectUser> | null
 }
 
-const { data: fetchData, pending, error, status } = useConnectPagesTreeData()
+const { data: fetchData, pending, error, status, refresh: refreshPagesTree } = useConnectPagesTreeData()
 
 const isTreeLoading = computed(() => (pending.value || status.value === 'idle') && !fetchData.value?.docs?.length)
 const errorMessage = computed(() => {
@@ -349,7 +354,7 @@ const currentPageId = computed(() => {
 
 const hasPageDetailInTree = computed(() => connectPageHasUsableDetail(page.value))
 
-const { data: pageDetail } = useAsyncData<any>(
+const { data: pageDetail, refresh: refreshPageDetail } = useAsyncData<any>(
   () => `connect-page-detail-${currentPageId.value}`,
   async () => {
     if (!currentPageId.value) return null
@@ -361,17 +366,46 @@ const { data: pageDetail } = useAsyncData<any>(
   { watch: [currentPageId, hasPageDetailInTree], lazy: true },
 )
 
+const { canEditConnectPages } = useIsConnectAdmin({
+  meKey: 'connect-page-slug-me',
+  connectUserKey: 'connect-page-slug-connect-user',
+})
+
+const editorOpen = ref(false)
+const pageEditorRef = ref<{
+  openEditById: (id: string | number) => void | Promise<void>
+} | null>(null)
+
+const canEditPage = computed(() => canEditConnectPages.value)
+
+function openPageEditor() {
+  if (!currentPageId.value) return
+  void pageEditorRef.value?.openEditById(currentPageId.value)
+}
+
+async function onPageSaved() {
+  await refreshPagesTree()
+  // Prefer a fresh depth=2 doc so content/contacts update even when the tree
+  // still marks the page as having usable detail.
+  if (currentPageId.value) {
+    try {
+      const fresh = await $fetch(
+        `/api/connect-pages/${encodeURIComponent(currentPageId.value)}`,
+        { query: { depth: 2 } },
+      )
+      pageDetail.value = fresh
+      return
+    } catch {
+      // fall through
+    }
+  }
+  await refreshPageDetail()
+}
+
 const effectivePage = computed(() => {
   const detail = pageDetail.value
   if (detail && typeof detail === 'object') return detail
   return page.value
-})
-
-const childPages = computed(() => {
-  const docs = Array.isArray(fetchData.value?.docs) ? fetchData.value.docs : []
-  const current = page.value
-  if (!current) return [] as Array<{ id: string; title: string; path: string }>
-  return getDirectChildConnectPages(docs, current.id)
 })
 
 const pageBreadcrumbs = computed(() => {
@@ -379,9 +413,13 @@ const pageBreadcrumbs = computed(() => {
   return buildConnectPageBreadcrumbs(docs, route.path)
 })
 
-const isChildConnectPage = computed(() => Boolean(page.value?.parentId))
-
 type ConnectPageTabItem = { id: string; title: string; path: string }
+
+type ConnectPageTabRow = {
+  key: string
+  heading: string
+  pages: ConnectPageTabItem[]
+}
 
 function toConnectPageTabItem(
   doc: { id?: string | number; title?: string | null; slug?: string | null },
@@ -394,82 +432,42 @@ function toConnectPageTabItem(
   }
 }
 
-const primaryTabPages = computed(() => {
+/** One tab row per ancestor (and current) that has children — full hierarchy stack. */
+const sectionTabRows = computed((): ConnectPageTabRow[] => {
   const docs = Array.isArray(fetchData.value?.docs) ? fetchData.value.docs : []
   const current = page.value
-  if (!current) return [] as ConnectPageTabItem[]
+  if (!current?.id) return []
 
-  const { pathById } = buildPagePathMap(docs)
-  const currentPath = pathById.get(String(current.id)) || route.path.replace(/\/$/, '') || '/'
-
-  if (current.parentId) {
-    const parent = docs.find((p: { id?: string | number }) => String(p.id) === String(current.parentId))
-    const parentPath = parent ? pathById.get(String(parent.id)) : null
-    const siblings = getConnectPageSiblings(docs, current.id)
-    const tabs: ConnectPageTabItem[] = []
-    if (parent && parentPath) {
-      tabs.push(toConnectPageTabItem(parent, parentPath))
-    }
-    tabs.push(...siblings)
-    return tabs.length > 1 ? tabs : []
-  }
-
-  const children = getDirectChildConnectPages(docs, current.id)
-  if (!children.length) return []
-
-  return [
-    toConnectPageTabItem(current, currentPath),
-    ...children,
+  const ancestors = getConnectPageAncestors(docs, current.id)
+  const chain: Array<{ id: string; title: string }> = [
+    ...ancestors.map((a) => ({ id: String(a.id), title: a.title })),
+    {
+      id: String(current.id),
+      title: (current.title || current.slug || 'Untitled').toString().trim(),
+    },
   ]
-})
 
-const secondaryTabPages = computed(() => {
-  if (!isChildConnectPage.value) return [] as ConnectPageTabItem[]
-  const children = childPages.value
-  if (!children.length) return []
-
-  const docs = Array.isArray(fetchData.value?.docs) ? fetchData.value.docs : []
-  const current = page.value
-  if (!current) return []
-
-  const { pathById } = buildPagePathMap(docs)
-  const currentPath = pathById.get(String(current.id)) || route.path.replace(/\/$/, '') || '/'
-
-  const tabs = [
-    toConnectPageTabItem(current, currentPath),
-    ...children,
-  ]
-  return tabs.length > 1 ? tabs : []
-})
-
-const hasSectionNav = computed(() => primaryTabPages.value.length > 1 || secondaryTabPages.value.length > 1)
-
-const parentPageTitle = computed(() => {
-  const docs = Array.isArray(fetchData.value?.docs) ? fetchData.value.docs : []
-  const parentId = page.value?.parentId
-  if (!parentId) return ''
-  const parent = docs.find((p: any) => String(p.id) === String(parentId))
-  return (parent?.title || parent?.slug || '').toString().trim()
-})
-
-const sectionNavHeading = computed(() => {
-  if (isChildConnectPage.value) {
-    const title = parentPageTitle.value
-    return title ? `Pages in ${title}` : 'Pages in this section'
+  const rows: ConnectPageTabRow[] = []
+  for (const node of chain) {
+    const children = getDirectChildConnectPages(docs, node.id)
+    if (!children.length) continue
+    rows.push({
+      key: `tabs-${node.id}`,
+      heading: node.title ? `Pages in ${node.title}` : 'Pages in this section',
+      pages: children.map((child) => toConnectPageTabItem(child, child.path)),
+    })
   }
-  const title = (effectivePage.value?.title || page.value?.title || '').toString().trim()
-  return title ? `Pages in ${title}` : 'Pages in this section'
+  return rows
 })
 
-const nestedChildPagesHeading = computed(() => {
-  const title = (effectivePage.value?.title || page.value?.title || '').toString().trim()
-  return title ? `Pages in ${title}` : 'Pages in this section'
-})
+const hasSectionNav = computed(() => sectionTabRows.value.length > 0)
 
 function isTabActive(path: string): boolean {
   const current = route.path.replace(/\/$/, '') || '/'
   const target = path.replace(/\/$/, '') || '/'
-  return current === target
+  if (current === target) return true
+  // Keep ancestor tabs highlighted while viewing deeper pages.
+  return current.startsWith(`${target}/`)
 }
 
 function normalizeContactRef(raw: unknown): ResolvedContactRef | null {
@@ -989,6 +987,27 @@ function lexicalToHtml(node: any): string {
     const inner = ch.map(lexicalToHtml).join('')
     return inner ? `<li class="list-item my-0 py-0.5">${inner}</li>` : ''
   }
+  if (node.type === 'table') {
+    const rows = (node.children || []).map(lexicalToHtml).join('')
+    return rows
+      ? `<div class="connect-page-table-wrap not-prose my-6 overflow-x-auto rounded-lg border border-gray-200 shadow-sm"><table class="min-w-full border-collapse bg-white text-left text-sm"><tbody class="divide-y divide-gray-200">${rows}</tbody></table></div>`
+      : ''
+  }
+  if (node.type === 'tablerow' || node.type === 'tableRow') {
+    const cells = (node.children || []).map(lexicalToHtml).join('')
+    return cells ? `<tr class="divide-x divide-gray-200 even:bg-gray-50/60">${cells}</tr>` : ''
+  }
+  if (node.type === 'tablecell' || node.type === 'tableCell') {
+    const inner = (node.children || []).map(lexicalToHtml).join('')
+    const tag = Number(node.headerState) > 0 ? 'th' : 'td'
+    const colSpan = Math.min(100, Math.max(1, Number(node.colSpan) || 1))
+    const rowSpan = Math.min(100, Math.max(1, Number(node.rowSpan) || 1))
+    const spans = `${colSpan > 1 ? ` colspan="${colSpan}"` : ''}${rowSpan > 1 ? ` rowspan="${rowSpan}"` : ''}`
+    const classes = tag === 'th'
+      ? 'bg-gray-100 px-4 py-3 align-top font-semibold text-gray-900 [&>p]:mb-0'
+      : 'px-4 py-3 align-top text-gray-700 [&>p]:mb-0'
+    return `<${tag}${spans} class="${classes}">${inner}</${tag}>`
+  }
   if (node.type === 'link') {
     const inner = (node.children || []).map(lexicalToHtml).join('')
     const href = typeof node?.fields?.url === 'string' ? node.fields.url : (typeof node.url === 'string' ? node.url : '')
@@ -1017,6 +1036,9 @@ function lexicalToHtml(node: any): string {
     const codeMagic = buildConnectMagicBlockHtml(raw)
     if (codeMagic !== null) return codeMagic
     return `<pre class="not-prose my-3 overflow-x-auto rounded border border-gray-200 bg-gray-50 p-3 text-xs"><code class="font-mono text-gray-800">${escapeHtml(raw)}</code></pre>`
+  }
+  if (node.type === 'linebreak' || node.type === 'lineBreak') {
+    return '<br>'
   }
   if (node.type === 'text') {
     const raw = node.text || ''

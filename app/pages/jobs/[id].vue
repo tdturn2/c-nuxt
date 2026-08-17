@@ -43,7 +43,7 @@
           <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm space-y-6">
             <section v-if="job.description">
               <h2 class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-2">Description</h2>
-              <div class="prose prose-sm max-w-none text-gray-700" v-html="job.description" />
+              <div class="job-description text-gray-700" v-html="job.description" />
             </section>
 
             <section v-if="applicationLink">
@@ -60,8 +60,8 @@
             </section>
           </div>
 
-          <div class="mt-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 class="text-lg font-semibold text-gray-900 mb-4">About the company</h2>
+          <div v-if="hasCompanyDetails" class="mt-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">About the company/organization</h2>
             <p v-if="job.companyTagline" class="text-gray-600 mb-4">{{ job.companyTagline }}</p>
             <dl class="space-y-3">
               <div v-if="job.companyWebsite" class="flex items-center gap-2">
@@ -119,6 +119,17 @@ const errorMessage = computed(() => {
   return (e as any)?.data?.message ?? (e as any)?.message ?? 'Failed to load job.'
 })
 
+const hasCompanyDetails = computed(() => {
+  const j = job.value
+  if (!j) return false
+  return Boolean(
+    j.companyTagline?.trim()
+    || j.companyWebsite?.trim()
+    || j.companyTwitterUsername?.trim()
+    || j.companyVideoUrl?.trim(),
+  )
+})
+
 const applicationLink = computed(() => {
   const raw = job.value?.applicationEmailOrUrl?.trim()
   if (!raw) return ''
@@ -172,3 +183,107 @@ function normalizeUrl(url: string): string {
   return u.startsWith('http') ? u : `https://${u}`
 }
 </script>
+
+<style scoped>
+/* Submitted descriptions are raw HTML and this app has no Tailwind typography plugin,
+   so preflight leaves every block element with zero margin. */
+.job-description :deep(p) {
+  margin-bottom: 1rem;
+  line-height: 1.65;
+}
+
+.job-description :deep(h1),
+.job-description :deep(h2),
+.job-description :deep(h3),
+.job-description :deep(h4),
+.job-description :deep(h5),
+.job-description :deep(h6) {
+  margin-top: 1.75rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--color-gray-900);
+}
+
+.job-description :deep(h1) { font-size: 1.5rem; }
+.job-description :deep(h2) { font-size: 1.25rem; }
+.job-description :deep(h3) { font-size: 1.125rem; }
+.job-description :deep(h4),
+.job-description :deep(h5),
+.job-description :deep(h6) { font-size: 1rem; }
+
+.job-description :deep(ul),
+.job-description :deep(ol) {
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+}
+
+.job-description :deep(ul) { list-style: disc; }
+.job-description :deep(ol) { list-style: decimal; }
+
+.job-description :deep(li) {
+  margin-bottom: 0.375rem;
+  line-height: 1.6;
+}
+
+.job-description :deep(li > p) {
+  margin-bottom: 0.25rem;
+}
+
+.job-description :deep(strong) {
+  font-weight: 600;
+  color: var(--color-gray-900);
+}
+
+.job-description :deep(a) {
+  color: rgba(13, 94, 130, 1);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.job-description :deep(blockquote) {
+  margin-bottom: 1rem;
+  border-left: 3px solid var(--color-gray-200);
+  padding-left: 1rem;
+  font-style: italic;
+  color: var(--color-gray-600);
+}
+
+.job-description :deep(hr) {
+  margin: 1.5rem 0;
+  border-top: 1px solid var(--color-gray-200);
+}
+
+.job-description :deep(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+}
+
+.job-description :deep(table) {
+  margin-bottom: 1rem;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.job-description :deep(th),
+.job-description :deep(td) {
+  border: 1px solid var(--color-gray-200);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.job-description :deep(th) {
+  background-color: var(--color-gray-50);
+  font-weight: 600;
+}
+
+.job-description :deep(> *:first-child) {
+  margin-top: 0;
+}
+
+.job-description :deep(> *:last-child) {
+  margin-bottom: 0;
+}
+</style>

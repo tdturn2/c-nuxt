@@ -6,6 +6,10 @@
   },
   "type": "module",
   "private": true,
+  "overrides": {
+    "@tiptap/core": "3.19.0",
+    "@tiptap/pm": "3.19.0"
+  },
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
@@ -20,6 +24,7 @@
     "@nuxt/image": "^2.0.0",
     "@nuxt/ui": "^4.4.0",
     "@sidebase/nuxt-auth": "^1.2.0",
+    "@tiptap/extension-table": "3.19.0",
     "@vueuse/core": "^11.1.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",

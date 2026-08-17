@@ -47,10 +47,11 @@ export default defineEventHandler(async (event) => {
     headers: { 'Content-Type': 'application/json' },
     body: payloadBody,
   }).catch((err: any) => {
+    const data = err?.data ?? err?.response?._data
     throw createError({
       statusCode: err?.statusCode || 502,
-      statusMessage: err?.statusMessage || 'Failed to submit form',
-      data: err?.data,
+      statusMessage: data?.error || data?.message || err?.statusMessage || 'Failed to submit form',
+      data,
     })
   })
 

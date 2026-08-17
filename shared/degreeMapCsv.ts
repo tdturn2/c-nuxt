@@ -2,19 +2,19 @@
  * CSV format for Degree Builder import (one row per course in a section).
  *
  * Required columns: section_name, course_code
- * Optional: section_credits_required, section_order, specialization_name, item_order, course_title
+ * Optional: section_credits_required, section_order, specialization_name, item_order, course_title, course_credits
  *
  * Example:
- * section_name,section_credits_required,section_order,specialization_name,course_code,item_order,course_title
- * Biblical Foundations,12,0,,OT501,0,Hebrew I
- * Biblical Foundations,,,,NT501,1,New Testament Introduction
- * Electives,6,1,Youth Ministry,YM610,0,Youth Ministry Practicum
+ * section_name,section_credits_required,section_order,specialization_name,course_code,item_order,course_title,course_credits
+ * Biblical Foundations,12,0,,OT501,0,Hebrew I,3
+ * Biblical Foundations,,,,NT501,1,New Testament Introduction,3
+ * Electives,6,1,Youth Ministry,YM610,0,Youth Ministry Practicum,3
  */
 
-export const DEGREE_MAP_CSV_TEMPLATE = `section_name,section_credits_required,section_order,specialization_name,course_code,item_order,course_title
-Biblical Foundations,12,0,,OT501,0,Hebrew I
-Biblical Foundations,,,,NT501,1,New Testament Introduction
-Electives,6,1,Youth Ministry,YM610,0,Youth Ministry Practicum
+export const DEGREE_MAP_CSV_TEMPLATE = `section_name,section_credits_required,section_order,specialization_name,course_code,item_order,course_title,course_credits
+Biblical Foundations,12,0,,OT501,0,Hebrew I,3
+Biblical Foundations,,,,NT501,1,New Testament Introduction,3
+Electives,6,1,Youth Ministry,YM610,0,Youth Ministry Practicum,3
 `
 
 export type DegreeMapCsvRow = {
@@ -26,6 +26,7 @@ export type DegreeMapCsvRow = {
   courseCode: string
   courseTitle: string | null
   itemOrder: number | null
+  courseCredits: number | null
 }
 
 export type ParseDegreeMapCsvResult = {
@@ -41,6 +42,7 @@ const HEADER_ALIASES: Record<keyof Omit<DegreeMapCsvRow, 'line'>, string[]> = {
   courseCode: ['course_code', 'code', 'course'],
   courseTitle: ['course_title', 'title', 'course name'],
   itemOrder: ['item_order', 'order', 'item order'],
+  courseCredits: ['course_credits', 'credits', 'hours', 'hours_required', 'hrs_req'],
 }
 
 function normalizeHeader(value: string): string {
@@ -177,6 +179,12 @@ export function parseDegreeMapCsv(text: string): ParseDegreeMapCsvResult {
     const specializationName = get('specializationName') || null
     const courseTitle = get('courseTitle') || null
 
+    const courseCreditsRaw = get('courseCredits')
+    const courseCredits = courseCreditsRaw ? parseOptionalInt(courseCreditsRaw) : null
+    if (courseCreditsRaw && courseCredits == null) {
+      errors.push(`Line ${line}: course_credits must be a whole number.`)
+    }
+
     rows.push({
       line,
       sectionName,
@@ -186,6 +194,7 @@ export function parseDegreeMapCsv(text: string): ParseDegreeMapCsvResult {
       courseCode,
       courseTitle,
       itemOrder,
+      courseCredits,
     })
   }
 

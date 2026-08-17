@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
 import {
-  buildConnectPageContextualNavItems,
   buildDepartmentsSidebarNavItems,
+  isConnectDepartmentsPath,
   useConnectPagesTreeData,
 } from '~/composables/useConnectPagesTree'
 
@@ -20,21 +20,22 @@ const internalDepartmentsItems = computed<NavigationMenuItem[]>(() => {
 
 const isDepartmentsSectionActive = computed(() => {
   const docs = Array.isArray(internalPagesData.value?.docs) ? internalPagesData.value.docs : []
-  if (route.path === '/internal' || route.path.startsWith('/internal/')) return true
-  return buildConnectPageContextualNavItems(docs, route.path) != null
+  return isConnectDepartmentsPath(docs, route.path)
 })
 
 const isMenuItemActive = (item: NavigationMenuItem): boolean => {
   const to = item.to
   if (typeof to === 'string' && to.length > 0) {
-    return route.path === to || route.path.startsWith(`${to}/`)
+    if (route.path === to || route.path.startsWith(`${to}/`)) return true
   }
+  // Category groups link to a landing page that isn't a path prefix of their children,
+  // so a link match alone can't decide whether the branch holds the current route.
   return item.children?.some((c) => isMenuItemActive(c)) ?? false
 }
 
 const applyDefaultOpenForActiveRoute = (item: NavigationMenuItem): NavigationMenuItem => {
   if (!item.children?.length) return item
-  const isOpen = item.children.some((c) => isMenuItemActive(c))
+  const isOpen = item.defaultOpen === true || isMenuItemActive(item)
   return {
     ...item,
     defaultOpen: isOpen,
@@ -225,6 +226,31 @@ const filteredResourceNavItems = computed(() => {
 })
 
 const showResourcesSection = computed(() => filteredResourceNavItems.value.length > 0)
+
+const navScrollEl = ref<HTMLElement | null>(null)
+
+const scrollActiveLinkIntoView = () => {
+  const container = navScrollEl.value
+  if (!container) return
+  const active = container.querySelector<HTMLElement>('[aria-current="page"]')
+  if (!active) return
+  const containerRect = container.getBoundingClientRect()
+  const activeRect = active.getBoundingClientRect()
+  if (activeRect.top >= containerRect.top && activeRect.bottom <= containerRect.bottom) return
+  container.scrollTop += activeRect.top - containerRect.top - container.clientHeight / 3
+}
+
+// The menu remounts and its accordions animate open on navigation, so retry until the
+// active link has settled into its final position.
+const revealActiveLink = () => {
+  if (!import.meta.client) return
+  nextTick(() => {
+    scrollActiveLinkIntoView()
+    setTimeout(scrollActiveLinkIntoView, 250)
+  })
+}
+
+watch([() => route.path, () => internalPagesData.value?.docs], revealActiveLink, { immediate: true })
 </script>
 
 <template>
@@ -272,7 +298,10 @@ const showResourcesSection = computed(() => filteredResourceNavItems.value.lengt
             <UIcon name="i-lucide-chevrons-left" class="h-4 w-4" />
           </button>
         </div>
-        <div class="connect-left-nav-scroll flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden gap-4 px-2 my-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
+        <div
+          ref="navScrollEl"
+          class="connect-left-nav-scroll flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden gap-4 px-2 my-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]"
+        >
           <UNavigationMenu
             :key="`left-nav-${route.path}-${menuSearchQuery.trim()}`"
             :items="filteredMainNavItems"

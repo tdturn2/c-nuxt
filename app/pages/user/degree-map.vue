@@ -31,7 +31,7 @@
             class="rounded-lg border border-gray-200 bg-white p-10 text-center shadow-sm"
           >
             <p class="text-gray-600 mb-6 max-w-md mx-auto">
-              You do not have a degree map yet. Create one by choosing your degree program below.
+              You do not have a degree map yet. Create one by choosing the year you began and your degree program.
             </p>
             <button
               type="button"
@@ -77,33 +77,98 @@
           </div>
         </template>
 
-        <UModal v-model:open="createModalOpen" :ui="{ content: 'max-w-md' }">
-          <template #header>Create degree map</template>
-          <template #body>
-            <div class="space-y-4 p-2">
-              <p class="text-sm text-gray-600">
-                Select the degree program to add as a new map. You can keep more than one map if you want to track multiple degree programs.
-              </p>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Degree program</label>
-                <select
-                  v-model="selectedDegreeId"
-                  class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[rgba(13,94,130,1)] focus:outline-none focus:ring-1 focus:ring-[rgba(13,94,130,1)]"
-                >
-                  <option value="">Choose a degree…</option>
-                  <option v-for="opt in degreeCatalog" :key="opt.id" :value="String(opt.id)">
-                    {{ opt.label }}
-                  </option>
-                </select>
+        <UModal v-model:open="createModalOpen" :ui="{ content: 'max-w-lg' }">
+          <template #header>
+            <div class="flex items-start gap-3">
+              <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[rgba(13,94,130,0.1)]">
+                <UIcon name="i-lucide-map" class="h-5 w-5 text-[rgba(13,94,130,1)]" />
+              </span>
+              <div class="min-w-0">
+                <h2 class="text-base font-semibold text-gray-900">Create degree map</h2>
+                <p class="mt-0.5 text-sm text-gray-500">
+                  Your map is built from the catalog for the year you started.
+                </p>
               </div>
-              <p v-if="createPlanError" class="text-sm text-red-600">{{ createPlanError }}</p>
             </div>
           </template>
+
+          <template #body>
+            <div class="space-y-5">
+              <div>
+                <label for="degree-map-year" class="block text-sm font-medium text-gray-900">
+                  <span class="mr-1.5 text-xs font-semibold text-[rgba(13,94,130,1)]">1</span>
+                  Calendar year
+                </label>
+                <p class="mt-0.5 mb-2 text-xs text-gray-500">
+                  The year you began your degree program.
+                </p>
+                <USelectMenu
+                  id="degree-map-year"
+                  v-model="selectedCatalogYear"
+                  :items="catalogYearItems"
+                  value-key="value"
+                  label-key="label"
+                  color="neutral"
+                  variant="outline"
+                  size="lg"
+                  placeholder="Select a year…"
+                  icon="i-lucide-calendar"
+                  :search-input="{ placeholder: 'Search years…' }"
+                  class="w-full"
+                />
+              </div>
+
+              <div>
+                <label for="degree-map-degree" class="block text-sm font-medium text-gray-900">
+                  <span class="mr-1.5 text-xs font-semibold text-[rgba(13,94,130,1)]">2</span>
+                  Degree program
+                </label>
+                <p class="mt-0.5 mb-2 text-xs text-gray-500">
+                  {{
+                    selectedCatalogYear
+                      ? `Programs offered in ${selectedCatalogYear}.`
+                      : 'Choose a calendar year to see available programs.'
+                  }}
+                </p>
+                <USelectMenu
+                  id="degree-map-degree"
+                  v-model="selectedDegreeId"
+                  :items="degreeItemsForSelectedYear"
+                  value-key="value"
+                  label-key="label"
+                  color="neutral"
+                  variant="outline"
+                  size="lg"
+                  icon="i-lucide-graduation-cap"
+                  :disabled="!selectedCatalogYear || !degreeItemsForSelectedYear.length"
+                  :placeholder="selectedCatalogYear ? 'Select a degree…' : 'Select a year first'"
+                  :search-input="{ placeholder: 'Search degrees…' }"
+                  class="w-full"
+                />
+                <p
+                  v-if="selectedCatalogYear && !degreeItemsForSelectedYear.length"
+                  class="mt-2 flex items-start gap-1.5 text-xs text-amber-700"
+                >
+                  <UIcon name="i-lucide-triangle-alert" class="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  No degree maps are available for {{ selectedCatalogYear }}.
+                </p>
+              </div>
+
+              <p
+                v-if="createPlanError"
+                class="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+              >
+                <UIcon name="i-lucide-circle-alert" class="mt-0.5 h-4 w-4 shrink-0" />
+                {{ createPlanError }}
+              </p>
+            </div>
+          </template>
+
           <template #footer>
-            <div class="flex justify-end gap-2">
+            <div class="flex w-full justify-end gap-2">
               <button
                 type="button"
-                class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                 :disabled="createPlanPending"
                 @click="createModalOpen = false"
               >
@@ -111,11 +176,12 @@
               </button>
               <button
                 type="button"
-                class="rounded-md bg-[rgba(13,94,130,1)] px-3 py-1.5 text-sm font-medium text-white hover:bg-[rgba(10,69,92,1)] disabled:opacity-50"
-                :disabled="createPlanPending"
+                class="inline-flex items-center gap-2 rounded-md bg-[rgba(13,94,130,1)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgba(10,69,92,1)] disabled:opacity-50"
+                :disabled="createPlanPending || !selectedCatalogYear || !selectedDegreeId"
                 @click="submitCreatePlan"
               >
-                {{ createPlanPending ? 'Creating…' : 'Create' }}
+                <UIcon v-if="createPlanPending" name="i-lucide-loader-circle" class="h-4 w-4 animate-spin" />
+                {{ createPlanPending ? 'Creating…' : 'Create map' }}
               </button>
             </div>
           </template>
@@ -388,8 +454,52 @@ function planSummaryTitle(p: DegreePlan) {
 const createModalOpen = ref(false)
 const createPlanPending = ref(false)
 const createPlanError = ref<string | null>(null)
-const degreeCatalog = ref<{ id: number; label: string }[]>([])
+type DegreeCatalogEntry = {
+  id: number
+  name: string
+  catalogYear: string | null
+}
+const degreeCatalog = ref<DegreeCatalogEntry[]>([])
+const selectedCatalogYear = ref('')
 const selectedDegreeId = ref('')
+
+const catalogYearOptions = computed(() => {
+  const years = new Set<string>()
+  for (const d of degreeCatalog.value) {
+    if (d.catalogYear) years.add(d.catalogYear)
+  }
+  return Array.from(years).sort((a, b) => Number(b) - Number(a) || b.localeCompare(a))
+})
+
+const catalogYearItems = computed(() =>
+  catalogYearOptions.value.map((year) => ({ label: year, value: year })),
+)
+
+const degreesForSelectedYear = computed(() => {
+  const year = selectedCatalogYear.value
+  if (!year) return []
+  return degreeCatalog.value
+    .filter((d) => d.catalogYear === year)
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name) || a.id - b.id)
+})
+
+/** Year is already chosen in step 1, so labels stay program-only. */
+const degreeItemsForSelectedYear = computed(() =>
+  degreesForSelectedYear.value.map((d) => ({ label: d.name, value: String(d.id) })),
+)
+
+watch(selectedCatalogYear, () => {
+  selectedDegreeId.value = ''
+})
+
+function normalizeCatalogYear(value: unknown): string | null {
+  if (value == null || value === '') return null
+  const raw = String(value).trim()
+  if (!raw) return null
+  const match = raw.match(/\d{4}/)
+  return match?.[0] ?? raw
+}
 
 async function loadDegreeCatalog() {
   try {
@@ -400,10 +510,9 @@ async function loadDegreeCatalog() {
     degreeCatalog.value = docs
       .map((d: any) => {
         const id = Number(d.id)
-        const name = d.name ?? d.title ?? `Degree #${d.id}`
-        const cy = d.catalogYear ?? d.catalog_year
-        const label = cy != null && cy !== '' ? `${name} (${cy})` : name
-        return { id, label }
+        const name = String(d.name ?? d.title ?? `Degree #${d.id}`).trim() || `Degree #${d.id}`
+        const catalogYear = normalizeCatalogYear(d.catalogYear ?? d.catalog_year)
+        return { id, name, catalogYear }
       })
       .filter((x) => Number.isFinite(x.id))
   } catch (e: any) {
@@ -413,6 +522,7 @@ async function loadDegreeCatalog() {
 
 async function openCreatePlanModal() {
   createPlanError.value = null
+  selectedCatalogYear.value = ''
   selectedDegreeId.value = ''
   createModalOpen.value = true
   if (!degreeCatalog.value.length) {
@@ -421,9 +531,18 @@ async function openCreatePlanModal() {
 }
 
 async function submitCreatePlan() {
+  if (!selectedCatalogYear.value) {
+    createPlanError.value = 'Select the calendar year you began your degree program.'
+    return
+  }
   const id = Number(selectedDegreeId.value)
   if (!Number.isFinite(id) || id <= 0) {
     createPlanError.value = 'Select a degree program.'
+    return
+  }
+  const selected = degreeCatalog.value.find((d) => d.id === id)
+  if (!selected || selected.catalogYear !== selectedCatalogYear.value) {
+    createPlanError.value = 'Select a degree program available for that calendar year.'
     return
   }
   createPlanPending.value = true
@@ -434,6 +553,7 @@ async function submitCreatePlan() {
       body: { degreeId: id },
     })
     createModalOpen.value = false
+    selectedCatalogYear.value = ''
     selectedDegreeId.value = ''
     await refreshPlan()
   } catch (e: any) {

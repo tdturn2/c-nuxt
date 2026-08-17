@@ -8,6 +8,7 @@ describe('parseDegreeMapCsv', () => {
     expect(rows.length).toBe(3)
     expect(rows[0]?.sectionName).toBe('Biblical Foundations')
     expect(rows[0]?.courseCode).toBe('OT501')
+    expect(rows[0]?.courseCredits).toBe(3)
     expect(rows[2]?.specializationName).toBe('Youth Ministry')
   })
 
