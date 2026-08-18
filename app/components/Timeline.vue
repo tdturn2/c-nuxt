@@ -390,6 +390,13 @@ function isPinnedPost(post: PostWithUser) {
   return post.categories?.includes('pinned') ?? false
 }
 
+function isGeneralAudience(post: PostWithUser) {
+  return !post.audience ||
+    post.audience.length === 0 ||
+    post.audience.includes('all') ||
+    post.audience.includes('general')
+}
+
 function isRecentPost(post: PostWithUser) {
   const created = new Date(post.createdAt).getTime()
   if (!Number.isFinite(created)) return true
@@ -419,28 +426,22 @@ const filterPosts = () => {
   let categoryFiltered: PostWithUser[]
 
   if (category === 'home') {
-    categoryFiltered = allPostsWithUsers.value.filter(post =>
-      !post.audience ||
-      post.audience.length === 0 ||
-      post.audience.includes('all'),
-    )
+    categoryFiltered = allPostsWithUsers.value.filter(isGeneralAudience)
   } else if (category === 'students') {
     categoryFiltered = allPostsWithUsers.value.filter(post =>
-      post.audience && post.audience.includes('students'),
+      isGeneralAudience(post) || post.audience?.includes('students'),
     )
   } else if (category === 'staff') {
     categoryFiltered = allPostsWithUsers.value.filter(post =>
-      post.audience && (
-        post.audience.includes('staff') ||
-        post.audience.includes('employees')
-      ),
+      isGeneralAudience(post) ||
+      post.audience?.includes('staff') ||
+      post.audience?.includes('employees'),
     )
   } else if (category === 'faculty') {
     categoryFiltered = allPostsWithUsers.value.filter(post =>
-      post.audience && (
-        post.audience.includes('faculty') ||
-        post.audience.includes('employees')
-      ),
+      isGeneralAudience(post) ||
+      post.audience?.includes('faculty') ||
+      post.audience?.includes('employees'),
     )
   } else {
     categoryFiltered = allPostsWithUsers.value

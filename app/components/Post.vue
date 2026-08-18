@@ -1,7 +1,15 @@
 <template>
-  <article class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-3">
+  <article
+    class="bg-white overflow-hidden"
+    :class="inModal
+      ? 'rounded-lg'
+      : 'rounded-lg shadow-sm border border-gray-200 mb-3'"
+  >
     <!-- Post Header -->
-    <div class="px-4 py-3 flex items-center gap-2.5">
+    <div
+      class="flex items-center gap-2.5"
+      :class="inModal ? 'px-4 py-2.5 pr-12' : 'px-4 py-3'"
+    >
       <UPopover
         :open="showHoverCard"
         :popper="{ placement: 'top-start', strategy: 'fixed' }"
@@ -753,6 +761,7 @@ const props = defineProps<{
   allowInlineComments?: boolean
   startInEditMode?: boolean
   startWithCommentsOpen?: boolean
+  inModal?: boolean
 }>()
 
 const { toggleReaction, getReactions, createReaction, deleteReaction, unreact } = useReactions()

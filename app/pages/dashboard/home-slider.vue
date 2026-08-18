@@ -119,9 +119,9 @@
               <thead class="bg-gray-100 text-gray-700">
                 <tr>
                   <th class="w-10 px-2 py-2"><span class="sr-only">Reorder</span></th>
+                  <th class="px-4 py-2 text-left font-semibold">Preview</th>
                   <th class="px-4 py-2 text-left font-semibold">Title</th>
                   <th class="px-4 py-2 text-left font-semibold">Link</th>
-                  <th class="px-4 py-2 text-left font-semibold">Image ID</th>
                   <th class="px-4 py-2 text-left font-semibold">Status</th>
                   <th class="px-4 py-2 text-left font-semibold">Order</th>
                   <th class="px-4 py-2 text-right font-semibold">Actions</th>
@@ -157,9 +157,17 @@
                       <UIcon name="i-heroicons-bars-3-bottom-right" class="h-5 w-5" />
                     </span>
                   </td>
+                  <td class="px-4 py-3">
+                    <img
+                      v-if="slidePreviewUrl(item)"
+                      :src="slidePreviewUrl(item) || ''"
+                      :alt="item.title || 'Slide preview'"
+                      class="h-10 w-16 rounded border border-gray-200 bg-gray-50 object-cover"
+                    >
+                    <span v-else class="text-gray-400">—</span>
+                  </td>
                   <td class="px-4 py-3 font-medium text-gray-900">{{ item.title }}</td>
                   <td class="px-4 py-3 text-gray-700 truncate max-w-[260px]">{{ item.href }}</td>
-                  <td class="px-4 py-3 text-gray-700">{{ item.image?.id ?? '—' }}</td>
                   <td class="px-4 py-3 text-gray-700">{{ item.active ? 'Active' : 'Inactive' }}</td>
                   <td class="px-4 py-3 text-gray-700">{{ item.sortOrder ?? 0 }}</td>
                   <td class="px-4 py-3 text-right space-x-2">
@@ -271,6 +279,24 @@ function mediaLabel(asset: any) {
 
 function mediaFilename(asset: any): string {
   return String(asset?.file?.filename || asset?.filename || asset?.file?.name || '').trim()
+}
+
+function pagesMediaBrowserUrl(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null
+  const input = raw.trim()
+  if (!input) return null
+  const match = input.match(/\/api\/connect-pages-media\/file\/([^/?#]+)/i)
+  if (match?.[1]) return `/api/connect-pages-media/file/${encodeURIComponent(match[1])}`
+  return input
+}
+
+function mediaPreviewUrl(image: any): string | null {
+  if (!image || typeof image !== 'object') return null
+  return pagesMediaBrowserUrl(image._normalizedUrl || image.url || image.file?.url || null)
+}
+
+function slidePreviewUrl(item: DashboardSliderItem): string | null {
+  return mediaPreviewUrl(item.image)
 }
 
 function selectedImageTitle(): string {

@@ -1,19 +1,31 @@
 <template>
-  <UModal 
+  <UModal
     v-model:open="isOpen"
-    :ui="{ 
-      content: 'max-w-2xl max-h-[90vh]',
-      body: 'overflow-y-auto'
+    :close="false"
+    :ui="{
+      overlay: 'bg-black/70',
+      content: 'max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-hidden ring-0 shadow-2xl divide-y-0',
+      header: 'hidden p-0 min-h-0',
+      body: 'p-0 sm:p-0 overflow-y-auto max-h-[90vh]'
     }"
   >
-    <template #body>
-      <div v-if="post">
+    <template #body="{ close }">
+      <div v-if="post" class="relative">
+        <button
+          type="button"
+          class="absolute top-2 right-2 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
+          aria-label="Close"
+          @click="close"
+        >
+          <UIcon name="i-lucide-x" class="h-4 w-4" />
+        </button>
         <Post
           :post="post"
           :user="user"
           :current-user-id="currentUserId"
           :start-in-edit-mode="startInEditMode"
           :start-with-comments-open="startWithCommentsOpen"
+          in-modal
           @post-updated="(p) => emit('postUpdated', p)"
           @post-deleted="(id) => emit('postDeleted', id)"
         />

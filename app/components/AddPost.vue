@@ -66,7 +66,20 @@
         </select>
       </div>
 
-      <div class="rounded-md border border-gray-200 bg-gray-50 p-3">
+      <div class="rounded-md border border-gray-200 bg-gray-50 p-3 space-y-3">
+        <label v-if="allowPostAs" class="flex items-start gap-2">
+          <input
+            v-model="pinToTimeline"
+            type="checkbox"
+            class="mt-0.5 h-4 w-4 rounded border-gray-300 text-[rgba(13,94,130,1)] focus:ring-[rgba(13,94,130,1)]"
+          >
+          <span>
+            <span class="block text-sm font-medium text-gray-700">Pin to top of timeline</span>
+            <span class="block text-xs text-gray-500">
+              Keeps this post at the top of the homepage feed until it is unpinned.
+            </span>
+          </span>
+        </label>
         <label class="flex items-start gap-2">
           <input
             v-model="addToNotifications"
@@ -321,15 +334,19 @@ function resolveSelectedAuthorId(): number | null {
 }
 
 const addToNotifications = ref(false)
+const pinToTimeline = ref(false)
 const notificationTtlDays = NOTIFICATION_UPDATE_TTL_DAYS
 
 /**
- * Post `categories` is a fixed-option select in Payload (`priority`, `pinned`), so only
+ * Post `categories` is a fixed-option select (`priority`, `pinned`), so only
  * known values may be sent. Expiry is enforced client-side from the post's createdAt
  * (see NOTIFICATION_UPDATE_TTL_DAYS in useNotifications).
  */
-function buildNotificationCategories(): string[] {
-  return addToNotifications.value ? ['priority'] : []
+function buildPostCategories(): string[] {
+  const categories: string[] = []
+  if (pinToTimeline.value) categories.push('pinned')
+  if (addToNotifications.value) categories.push('priority')
+  return categories
 }
 const imageInputRef = ref<HTMLInputElement | null>(null)
 type SelectedImage = {
@@ -630,7 +647,7 @@ const handleSubmit = async () => {
       payload.author = authorId
       payload.connectUserId = authorId
     }
-    const categories = buildNotificationCategories()
+    const categories = buildPostCategories()
     if (categories.length > 0) {
       payload.categories = categories
     }
@@ -670,6 +687,7 @@ const resetForm = () => {
   selectedAudience.value = props.defaultAudience ?? 'general'
   selectedAuthorOption.value = undefined
   addToNotifications.value = false
+  pinToTimeline.value = false
   selectedImages.value = []
   draftLinkPreview.value = null
   draftYoutubeEmbed.value = null

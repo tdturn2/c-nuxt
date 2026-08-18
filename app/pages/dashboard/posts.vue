@@ -66,6 +66,9 @@
                 </tr>
                 <tr v-for="post in filteredPosts" :key="post.id" class="border-t border-gray-200">
                   <td class="max-w-xl px-4 py-3 text-gray-900">
+                    <p v-if="isPinned(post)" class="mb-1 text-xs font-semibold uppercase tracking-wide text-[rgba(13,94,130,1)]">
+                      Pinned
+                    </p>
                     <p class="line-clamp-2 whitespace-pre-line">{{ postText(post) || '—' }}</p>
                   </td>
                   <td class="whitespace-nowrap px-4 py-3 text-gray-700">{{ post.author?.name || post.author?.email || '—' }}</td>
@@ -73,7 +76,15 @@
                   <td class="whitespace-nowrap px-4 py-3 text-gray-700">{{ notificationLabel(post) }}</td>
                   <td class="whitespace-nowrap px-4 py-3 text-gray-600">{{ formatDate(post.createdAt) }}</td>
                   <td class="whitespace-nowrap px-4 py-3 text-right">
-                    <button type="button" class="text-[rgba(13,94,130,1)] hover:underline" @click="openEdit(post)">Edit</button>
+                    <button
+                      type="button"
+                      class="text-[rgba(13,94,130,1)] hover:underline disabled:opacity-50"
+                      :disabled="pinningId === post.id"
+                      @click="pinOrUnpinPost(post)"
+                    >
+                      {{ pinningId === post.id ? 'Saving...' : isPinned(post) ? 'Unpin' : 'Pin' }}
+                    </button>
+                    <button type="button" class="ml-3 text-[rgba(13,94,130,1)] hover:underline" @click="openEdit(post)">Edit</button>
                     <button type="button" class="ml-3 text-red-700 hover:underline" @click="deletePost(post)">Delete</button>
                   </td>
                 </tr>
@@ -124,7 +135,20 @@
             </select>
           </div>
 
-          <div class="rounded-md border border-gray-200 bg-gray-50 p-3">
+          <div class="rounded-md border border-gray-200 bg-gray-50 p-3 space-y-3">
+            <label class="flex items-start gap-2">
+              <input
+                v-model="editForm.pinned"
+                type="checkbox"
+                class="mt-0.5 h-4 w-4 rounded border-gray-300 text-[rgba(13,94,130,1)] focus:ring-[rgba(13,94,130,1)]"
+              >
+              <span>
+                <span class="block text-sm font-medium text-gray-700">Pin to top of timeline</span>
+                <span class="block text-xs text-gray-500">
+                  Pinned posts stay at the top of the homepage feed until you unpin them.
+                </span>
+              </span>
+            </label>
             <label class="flex items-start gap-2">
               <input
                 v-model="editForm.addToNotifications"
@@ -180,12 +204,14 @@ const saving = ref(false)
 const error = ref('')
 const success = ref('')
 const editingId = ref<number | string | null>(null)
+const pinningId = ref<number | string | null>(null)
 const notificationTtlDays = NOTIFICATION_UPDATE_TTL_DAYS
 const editForm = reactive({
   content: '',
   audience: 'general',
+  pinned: false,
   addToNotifications: false,
-  /** Non-notification categories preserved across edit (e.g. `pinned`). */
+  /** Categories preserved across edit other than `priority` and `pinned`. */
   otherCategories: [] as string[],
 })
 
@@ -195,10 +221,12 @@ watch(canManageDashboard, (allowed) => {
 
 const filteredPosts = computed(() => {
   const query = search.value.trim().toLowerCase()
-  if (!query) return posts.value
-  return posts.value.filter((post) =>
-    `${postText(post)} ${post.author?.name || ''} ${post.author?.email || ''}`.toLowerCase().includes(query),
-  )
+  const list = !query
+    ? posts.value
+    : posts.value.filter((post) =>
+        `${postText(post)} ${post.author?.name || ''} ${post.author?.email || ''}`.toLowerCase().includes(query),
+      )
+  return [...list].sort((a, b) => Number(isPinned(b)) - Number(isPinned(a)))
 })
 
 function postText(post: any): string {
@@ -226,6 +254,14 @@ function isPriority(categories: unknown): boolean {
   return Array.isArray(categories) && categories.includes('priority')
 }
 
+function isPinned(post: any): boolean {
+  return Array.isArray(post?.categories) && post.categories.includes('pinned')
+}
+
+function postCategories(post: any): string[] {
+  return Array.isArray(post?.categories) ? post.categories.map(String) : []
+}
+
 function notificationLabel(post: any): string {
   if (!isPriority(post?.categories)) return '—'
   const created = post?.createdAt ? new Date(String(post.createdAt)) : null
@@ -235,8 +271,12 @@ function notificationLabel(post: any): string {
   return `Until ${expiresAt.toLocaleDateString()}`
 }
 
-function buildNotificationCategories(): string[] {
-  return editForm.addToNotifications ? ['priority'] : []
+function buildEditCategories(): string[] {
+  return [
+    ...editForm.otherCategories,
+    ...(editForm.pinned ? ['pinned'] : []),
+    ...(editForm.addToNotifications ? ['priority'] : []),
+  ]
 }
 
 function openEdit(post: any) {
@@ -247,8 +287,9 @@ function openEdit(post: any) {
   const firstAudience = Array.isArray(post.audience) ? post.audience[0] : ''
   editForm.audience = !firstAudience || firstAudience === 'all' ? 'general' : String(firstAudience)
 
-  const categories = Array.isArray(post.categories) ? post.categories.map(String) : []
-  editForm.otherCategories = categories.filter((c) => c !== 'priority')
+  const categories = postCategories(post)
+  editForm.otherCategories = categories.filter((c) => c !== 'priority' && c !== 'pinned')
+  editForm.pinned = categories.includes('pinned')
   editForm.addToNotifications = categories.includes('priority')
 
   editOpen.value = true
@@ -271,7 +312,7 @@ async function savePost() {
       body: {
         content: createLexicalContentWithMentions(editForm.content),
         audience: [editForm.audience === 'general' ? 'all' : editForm.audience],
-        categories: [...editForm.otherCategories, ...buildNotificationCategories()],
+        categories: buildEditCategories(),
       },
     })
     editOpen.value = false
@@ -281,6 +322,28 @@ async function savePost() {
     error.value = err?.data?.statusMessage || err?.statusMessage || 'Failed to update post.'
   } finally {
     saving.value = false
+  }
+}
+
+const pinOrUnpinPost = async (post: any) => {
+  if (pinningId.value) return
+  pinningId.value = post.id
+  error.value = ''
+  success.value = ''
+  const currentlyPinned = isPinned(post)
+  const categories = postCategories(post).filter((c) => c !== 'pinned')
+  if (!currentlyPinned) categories.push('pinned')
+  try {
+    await $fetch(`/api/posts/${post.id}`, {
+      method: 'PATCH',
+      body: { categories },
+    })
+    success.value = currentlyPinned ? 'Post unpinned.' : 'Post pinned to the top of the timeline.'
+    await refreshPosts()
+  } catch (err: any) {
+    error.value = err?.data?.statusMessage || err?.statusMessage || 'Failed to update pin.'
+  } finally {
+    pinningId.value = null
   }
 }
 
