@@ -12,6 +12,10 @@ const FORM_FIELD_TYPES = new Set<FormFieldType>([
   'file',
   'section',
   'repeater',
+  'product',
+  'total',
+  'html',
+  'hidden',
 ])
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
@@ -98,6 +102,11 @@ export function validateFormSchemaV1(schema: unknown): { valid: boolean; errors:
 
     const label = String(field.label ?? id)
     const columns = type === 'repeater' ? normalizeRepeaterColumns(field.columns, label) : undefined
+    const unitPriceRaw = field.unitPrice ?? field.basePrice ?? field.price
+    const unitPriceNum =
+      typeof unitPriceRaw === 'number'
+        ? unitPriceRaw
+        : Number(String(unitPriceRaw ?? '').replace(/[^0-9.-]/g, ''))
 
     return {
       id,
@@ -108,6 +117,13 @@ export function validateFormSchemaV1(schema: unknown): { valid: boolean; errors:
       options: options?.length ? options : undefined,
       accept: accept.length ? accept : undefined,
       columns,
+      unitPrice: type === 'product' && Number.isFinite(unitPriceNum) ? Math.round(unitPriceNum * 100) / 100 : undefined,
+      disableQuantity: type === 'product' ? field.disableQuantity === true : undefined,
+      content: type === 'html' && typeof field.content === 'string' ? field.content : undefined,
+      defaultValue:
+        typeof field.defaultValue === 'string' && (type === 'hidden' || type === 'product')
+          ? field.defaultValue
+          : undefined,
     }
   })
 
@@ -174,7 +190,17 @@ export function validateAnswersAgainstSchema(
       continue
     }
 
-    if (field.type === 'file' || field.type === 'section') {
+    if (field.type === 'file' || field.type === 'section' || field.type === 'html' || field.type === 'hidden' || field.type === 'total') {
+      continue
+    }
+
+    if (field.type === 'product') {
+      const qty = value && typeof value === 'object' && !Array.isArray(value)
+        ? Number((value as Record<string, unknown>).quantity)
+        : Number(value)
+      if (!Number.isFinite(qty) || qty < 1) {
+        errors.push(`${field.label || field.id} is required.`)
+      }
       continue
     }
 

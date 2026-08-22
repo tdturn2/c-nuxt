@@ -98,6 +98,17 @@ export function useDashboardForms() {
     }
   }
 
+  async function deleteForm(id: string | number) {
+    try {
+      return await $fetch<{ id: string | number; deleted?: boolean }>(
+        `/api/dashboard/forms/${encodeURIComponent(String(id))}`,
+        { method: 'DELETE' },
+      )
+    } catch (error: any) {
+      throw normalizeApiError(error, 'Failed to delete form.')
+    }
+  }
+
   async function importGravityJson(file: File, mode: 'dryRun' | 'commit' = 'dryRun') {
     try {
       const formData = new FormData()
@@ -118,6 +129,7 @@ export function useDashboardForms() {
     createForm,
     updateForm,
     setFormStatus,
+    deleteForm,
     importGravityJson,
   }
 }

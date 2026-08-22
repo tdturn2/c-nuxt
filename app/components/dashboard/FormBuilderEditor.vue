@@ -162,7 +162,10 @@
                   <option v-for="type in fieldTypes" :key="type" :value="type">{{ type }}</option>
                 </select>
               </div>
-              <div class="flex items-end gap-3">
+              <div
+                v-if="field.type !== 'html' && field.type !== 'hidden' && field.type !== 'total' && field.type !== 'section'"
+                class="flex items-end gap-3"
+              >
                 <label class="inline-flex items-center gap-2 text-xs text-gray-700">
                   <input v-model="field.required" type="checkbox">
                   Required
@@ -240,6 +243,54 @@
                 Respondents get one row of these text fields, plus a button to add more rows.
               </p>
             </div>
+
+            <div v-if="field.type === 'product'" class="mt-3 grid gap-3 sm:grid-cols-2">
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Unit price</label>
+                <input
+                  :value="field.unitPrice ?? 0"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  class="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                  @input="onUnitPriceInput(field, $event)"
+                >
+              </div>
+              <label class="inline-flex items-end gap-2 text-xs text-gray-700 pb-2">
+                <input v-model="field.disableQuantity" type="checkbox">
+                Quantity is always 1
+              </label>
+              <p class="sm:col-span-2 text-xs text-gray-500">
+                Respondents enter a quantity. Line total is price × quantity. A Total field sums visible products.
+              </p>
+            </div>
+
+            <div v-if="field.type === 'html'" class="mt-3">
+              <label class="block text-xs font-medium text-gray-700 mb-1">HTML content</label>
+              <textarea
+                v-model="field.content"
+                rows="4"
+                class="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm font-mono"
+                placeholder="<p>Note shown to respondents</p>"
+              />
+            </div>
+
+            <div v-if="field.type === 'hidden'" class="mt-3">
+              <label class="block text-xs font-medium text-gray-700 mb-1">Default value</label>
+              <input
+                v-model="field.defaultValue"
+                type="text"
+                class="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm font-mono"
+                placeholder="{user:user_email}"
+              >
+              <p class="mt-1 text-xs text-gray-500">
+                Not shown to respondents. <code>{user:user_email}</code> is replaced with the signed-in email.
+              </p>
+            </div>
+
+            <p v-if="field.type === 'total'" class="mt-3 text-xs text-gray-500">
+              Displays the sum of visible product line totals. The amount is stored with the submission.
+            </p>
           </template>
 
           <template v-else-if="fieldTab(idx) === 'description'">
@@ -406,7 +457,23 @@ const emit = defineEmits<{
   (e: 'cancel'): void
 }>()
 
-const fieldTypes: FormFieldType[] = ['text', 'textarea', 'select', 'radio', 'checkbox', 'date', 'time', 'number', 'file', 'section', 'repeater']
+const fieldTypes: FormFieldType[] = [
+  'text',
+  'textarea',
+  'select',
+  'radio',
+  'checkbox',
+  'date',
+  'time',
+  'number',
+  'file',
+  'section',
+  'repeater',
+  'product',
+  'total',
+  'html',
+  'hidden',
+]
 const conditionOperators = [
   { label: 'is', value: 'is' },
   { label: 'is not', value: 'isnot' },
@@ -554,10 +621,12 @@ function normalizeIncomingSchema(schema: any): FormSchemaV1 {
     if (t === 'multiselect' || t === 'multi_select') return 'checkbox'
     if (
       t === 'text' || t === 'textarea' || t === 'select' || t === 'radio' || t === 'checkbox' ||
-      t === 'date' || t === 'time' || t === 'number' || t === 'file' || t === 'section' || t === 'repeater'
+      t === 'date' || t === 'time' || t === 'number' || t === 'file' || t === 'section' || t === 'repeater' ||
+      t === 'product' || t === 'total' || t === 'html' || t === 'hidden'
     ) {
       return t as FormFieldType
     }
+    if (t === 'singleproduct') return 'product'
     return 'text'
   }
 
@@ -607,6 +676,18 @@ function normalizeIncomingSchema(schema: any): FormSchemaV1 {
             const fallbackLabel = String(field?.label || 'Column 1').trim() || 'Column 1'
             coerced.columns = [{ id: slugifyRepeaterColumnId(fallbackLabel, 0), label: fallbackLabel }]
           }
+        }
+        if (type === 'product') {
+          const priceRaw = field?.unitPrice ?? field?.basePrice ?? field?.price
+          const price = typeof priceRaw === 'number' ? priceRaw : Number(String(priceRaw ?? '').replace(/[^0-9.-]/g, ''))
+          if (Number.isFinite(price)) coerced.unitPrice = Math.round(price * 100) / 100
+          coerced.disableQuantity = field?.disableQuantity === true
+        }
+        if (type === 'html' && typeof field?.content === 'string') {
+          coerced.content = field.content
+        }
+        if ((type === 'hidden' || type === 'product') && typeof field?.defaultValue === 'string') {
+          coerced.defaultValue = field.defaultValue
         }
         return coerced
       })
@@ -713,7 +794,15 @@ function ensureRepeaterColumns(field: FormSchemaV1['fields'][number]) {
 function onFieldTypeChange(field: FormSchemaV1['fields'][number]) {
   if (field.type === 'repeater') {
     ensureRepeaterColumns(field)
-    return
+  }
+  if (field.type === 'product' && typeof field.unitPrice !== 'number') {
+    field.unitPrice = 0
+  }
+  if (field.type === 'html' && typeof field.content !== 'string') {
+    field.content = ''
+  }
+  if (field.type === 'hidden' && typeof field.defaultValue !== 'string') {
+    field.defaultValue = ''
   }
   if (field.type !== 'select' && field.type !== 'radio' && field.type !== 'checkbox') {
     delete field.options
@@ -724,6 +813,21 @@ function onFieldTypeChange(field: FormSchemaV1['fields'][number]) {
   if (field.type !== 'repeater') {
     delete field.columns
   }
+  if (field.type !== 'product') {
+    delete field.unitPrice
+    delete field.disableQuantity
+  }
+  if (field.type !== 'html') {
+    delete field.content
+  }
+  if (field.type !== 'hidden' && field.type !== 'product') {
+    delete field.defaultValue
+  }
+}
+
+function onUnitPriceInput(field: FormSchemaV1['fields'][number], event: Event) {
+  const n = Number((event.target as HTMLInputElement | null)?.value)
+  field.unitPrice = Number.isFinite(n) ? Math.round(n * 100) / 100 : 0
 }
 
 function addRepeaterColumn(field: FormSchemaV1['fields'][number]) {

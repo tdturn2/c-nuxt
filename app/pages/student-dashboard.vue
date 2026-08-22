@@ -70,6 +70,7 @@
             <p v-else class="mt-3 text-sm text-gray-600">No classes saved yet.</p>
           </section>
 
+          <template v-if="!canvasUnavailable">
           <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <div class="sm:col-span-2 xl:col-span-3 flex items-center justify-between">
               <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700">Courses</h2>
@@ -304,6 +305,7 @@
               <p v-else class="mt-3 text-sm text-gray-600">No feedback has been posted yet.</p>
             </article>
           </section>
+          </template>
         </template>
       </div>
       <ClassPlannerSlideover

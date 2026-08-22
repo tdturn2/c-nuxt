@@ -12,6 +12,10 @@ export type FormFieldType =
   | 'file'
   | 'section'
   | 'repeater'
+  | 'product'
+  | 'total'
+  | 'html'
+  | 'hidden'
 
 /** Fixed From address for form notification emails (SendGrid). */
 export const FORM_NOTIFICATION_FROM = 'webdeveloper@asburyseminary.edu'
@@ -47,6 +51,14 @@ export type FormFieldV1 = {
   accept?: string[]
   /** Column definitions for `repeater` fields (text inputs per row). */
   columns?: FormRepeaterColumnV1[]
+  /** Unit price for Gravity-style `product` fields. */
+  unitPrice?: number
+  /** When true, product quantity is fixed at 1. */
+  disableQuantity?: boolean
+  /** HTML markup for `html` fields. */
+  content?: string
+  /** Default / merge-tag value for `hidden` (and product name fallback). */
+  defaultValue?: string
 }
 
 export type FormSchemaV1 = {

@@ -26,6 +26,10 @@ type GravityField = {
   placeholder?: string
   defaultValue?: string
   inputs?: Array<{ id?: string | number; label?: string }>
+  basePrice?: string | number
+  disableQuantity?: boolean | string
+  content?: string
+  inputType?: string
 }
 
 type GravityFormLike = {
@@ -97,6 +101,11 @@ const SUPPORTED_FIELD_TYPES = new Set([
   'number',
   'file',
   'section',
+  'repeater',
+  'product',
+  'total',
+  'html',
+  'hidden',
 ] as const)
 
 const FIELD_TYPE_MAP: Record<string, FormFieldType | null> = {
@@ -115,6 +124,11 @@ const FIELD_TYPE_MAP: Record<string, FormFieldType | null> = {
   address: 'textarea',
   list: 'textarea',
   section: 'section',
+  product: 'product',
+  singleproduct: 'product',
+  total: 'total',
+  html: 'html',
+  hidden: 'hidden',
 }
 
 function safeString(value: unknown): string {
@@ -128,8 +142,25 @@ function slugify(input: string): string {
     .replace(/^-+|-+$/g, '')
 }
 
-function normalizeFieldId(formId: string, fieldId: string | number): string {
-  return `gf_${formId}_${String(fieldId).replace(/[^\w.-]+/g, '_')}`
+function gravityFieldKey(field: GravityField, idx: number): string {
+  if (field.id == null || field.id === '') return `unknown_${idx}`
+  return String(field.id)
+}
+
+function uniqueFieldId(label: string, used: Set<string>): string {
+  const base = slugify(label) || 'field'
+  let id = base
+  let n = 2
+  while (used.has(id)) {
+    id = `${base}-${n}`
+    n += 1
+  }
+  used.add(id)
+  return id
+}
+
+function fieldIdForGravityKey(gravityId: string, idByGravityId: Map<string, string>): string {
+  return idByGravityId.get(gravityId) || slugify(gravityId) || gravityId
 }
 
 function parseGravityExport(raw: unknown): ParsedGravityExport {
@@ -184,7 +215,11 @@ function mapChoices(field: GravityField) {
   return options.length ? options : undefined
 }
 
-function mapField(formId: string, field: GravityField, idx: number): DashboardFormSchema['fields'][number] {
+function mapField(
+  field: GravityField,
+  idx: number,
+  fieldId: string,
+): DashboardFormSchema['fields'][number] {
   const idRaw = field.id
   if (idRaw == null || idRaw === '') {
     throw createError({
@@ -222,11 +257,25 @@ function mapField(formId: string, field: GravityField, idx: number): DashboardFo
   }
 
   const out: DashboardFormSchema['fields'][number] = {
-    id: normalizeFieldId(formId, idRaw),
+    id: fieldId,
     type: mappedType,
     label,
     required: !!field.isRequired,
     description: descriptionBits.filter(Boolean).join(' ').trim() || undefined,
+  }
+
+  if (mappedType === 'product') {
+    const priceRaw = String(field.basePrice ?? '').replace(/[^0-9.-]/g, '')
+    const price = Number(priceRaw)
+    if (Number.isFinite(price)) out.unitPrice = Math.round(price * 100) / 100
+    out.disableQuantity = field.disableQuantity === true || field.disableQuantity === 'true'
+    out.defaultValue = label
+  }
+  if (mappedType === 'html') {
+    out.content = typeof field.content === 'string' ? field.content : ''
+  }
+  if (mappedType === 'hidden') {
+    out.defaultValue = safeString(field.defaultValue)
   }
 
   const options = mapChoices(field)
@@ -239,18 +288,22 @@ function mapField(formId: string, field: GravityField, idx: number): DashboardFo
   return out
 }
 
-function mapConditionalRule(formId: string, field: GravityField, idx: number) {
+function mapConditionalRule(
+  field: GravityField,
+  idx: number,
+  idByGravityId: Map<string, string>,
+) {
   if (!hasConditionalLogic(field)) return null
   const logic = field.conditionalLogic as GravityConditionalLogic
   const fieldIdRaw = field.id
   if (fieldIdRaw == null || fieldIdRaw === '') return null
   return {
     type: 'gravityConditional',
-    targetFieldId: normalizeFieldId(formId, fieldIdRaw),
+    targetFieldId: fieldIdForGravityKey(String(fieldIdRaw), idByGravityId),
     actionType: safeString(logic.actionType || 'show') || 'show',
     logicType: safeString(logic.logicType || 'all') || 'all',
     conditions: (logic.rules || []).map((rule, rIdx) => ({
-      sourceFieldId: normalizeFieldId(formId, safeString(rule.fieldId || `unknown_${idx}_${rIdx}`)),
+      sourceFieldId: fieldIdForGravityKey(safeString(rule.fieldId || `unknown_${idx}_${rIdx}`), idByGravityId),
       operator: safeString(rule.operator || 'is') || 'is',
       value: safeString(rule.value || ''),
     })),
@@ -276,6 +329,15 @@ function analyzeForm(input: GravityFormLike): GravityImportFormResult {
 
   const mappedFields: DashboardFormSchema['fields'] = []
   const mappedRules: Array<Record<string, unknown>> = []
+  const idByGravityId = new Map<string, string>()
+  const usedFieldIds = new Set<string>()
+  fields.forEach((field, idx) => {
+    if (hasUnsupportedFieldType(safeString(field.type).toLowerCase())) return
+    const gravityId = gravityFieldKey(field, idx)
+    const label = safeString(field.label) || `Field ${gravityId}`
+    idByGravityId.set(gravityId, uniqueFieldId(label, usedFieldIds))
+  })
+
   fields.forEach((field, idx) => {
     const type = safeString(field.type).toLowerCase()
     if (hasUnsupportedFieldType(type)) {
@@ -288,17 +350,18 @@ function analyzeForm(input: GravityFormLike): GravityImportFormResult {
     }
 
     try {
-      mappedFields.push(mapField(gravityFormId, field, idx))
+      const fieldId = fieldIdForGravityKey(gravityFieldKey(field, idx), idByGravityId)
+      mappedFields.push(mapField(field, idx, fieldId))
       if (safeString(field.type).toLowerCase() === 'section') {
         mappedRules.push({
           type: 'gravitySection',
-          fieldId: normalizeFieldId(gravityFormId, field.id ?? `section_${idx}`),
+          fieldId,
           title: safeString(field.label),
           description: safeString(field.description),
           gravity: field,
         })
       }
-      const rule = mapConditionalRule(gravityFormId, field, idx)
+      const rule = mapConditionalRule(field, idx, idByGravityId)
       if (rule) {
         mappedRules.push(rule)
         warnings.push({

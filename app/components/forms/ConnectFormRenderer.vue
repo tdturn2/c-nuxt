@@ -6,6 +6,47 @@
         <h3 class="text-sm font-semibold text-gray-900">{{ f.label || f.key }}</h3>
         <p v-if="f.description" class="mt-1 text-xs text-gray-600">{{ f.description }}</p>
       </div>
+      <div
+        v-else-if="f.type === 'html'"
+        class="prose prose-sm max-w-none text-gray-800"
+        v-html="f.content || ''"
+      />
+      <input
+        v-else-if="f.type === 'hidden'"
+        type="hidden"
+        :value="String(answersProxy[f.key] ?? '')"
+      >
+      <div v-else-if="f.type === 'product'" class="rounded-md border border-gray-200 bg-white p-3">
+        <div class="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p class="text-sm font-medium text-gray-900">
+              {{ f.label || f.key }}
+              <span v-if="f.required" class="text-red-600">*</span>
+            </p>
+            <p v-if="f.description" class="mt-0.5 text-xs text-gray-600">{{ f.description }}</p>
+            <p class="mt-1 text-sm text-gray-700">{{ formatMoney(Number(f.unitPrice || 0)) }} each</p>
+          </div>
+          <div v-if="!f.disableQuantity" class="w-28">
+            <label class="mb-1 block text-xs font-medium text-gray-700">Quantity</label>
+            <input
+              :value="productQuantity(f.key)"
+              type="number"
+              min="0"
+              step="1"
+              class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(13,94,130,0.25)] focus:border-[rgba(13,94,130,1)]"
+              :required="f.required && visibilityByField[f.key] !== false"
+              @input="onProductQuantityInput(f, $event)"
+            >
+          </div>
+        </div>
+        <p class="mt-2 text-sm text-gray-800">
+          Line total: <span class="font-semibold">{{ formatMoney(productLineTotal(f)) }}</span>
+        </p>
+      </div>
+      <div v-else-if="f.type === 'total'" class="rounded-md border border-[rgba(13,94,130,0.25)] bg-[rgba(13,94,130,0.06)] px-3 py-3">
+        <p class="text-sm font-medium text-gray-900">{{ f.label || 'Total' }}</p>
+        <p class="mt-1 text-xl font-semibold text-[rgba(13,94,130,1)]">{{ formatMoney(productsTotal) }}</p>
+      </div>
       <template v-else>
       <label class="block text-sm font-medium text-gray-900">
         {{ f.label || f.key }}
@@ -148,16 +189,22 @@
 </template>
 
 <script setup lang="ts">
+import { applyProductAndTotalAnswers, formatMoney, normalizeProductAnswer, resolveFormMergeTags, sumProductAnswers } from '~/utils/forms/productFields'
+
 type Choice = { label: string; value: string }
 type RepeaterColumn = { id: string; label: string }
 type Field = {
   key: string
   label?: string
   description?: string
-  type: 'text' | 'textarea' | 'email' | 'number' | 'select' | 'radio' | 'checkbox' | 'date' | 'time' | 'file' | 'section' | 'repeater' | string
+  type: 'text' | 'textarea' | 'email' | 'number' | 'select' | 'radio' | 'checkbox' | 'date' | 'time' | 'file' | 'section' | 'repeater' | 'product' | 'total' | 'html' | 'hidden' | string
   required?: boolean
   choices?: Choice[]
   columns?: RepeaterColumn[]
+  unitPrice?: number
+  disableQuantity?: boolean
+  content?: string
+  defaultValue?: string
 }
 
 type ConditionalRule = {
@@ -192,10 +239,14 @@ function canonicalFieldType(raw: unknown): string {
     .trim()
     .toLowerCase()
   if (!t) return 'text'
+  if (t === 'product' || t === 'singleproduct') return 'product'
+  if (t === 'total') return 'total'
+  if (t === 'html') return 'html'
+  if (t === 'hidden') return 'hidden'
   if (t === 'repeater' || t === 'list') return 'repeater'
   if (t.includes('textarea') || t.includes('longtext') || t.includes('paragraph')) return 'textarea'
-  if (t.includes('text')) return 'text'
   if (t === 'text' || t === 'shorttext' || t === 'short_text' || t === 'textfield' || t === 'textinput') return 'text'
+  if (t.includes('text')) return 'text'
   if (t === 'textarea' || t === 'longtext' || t === 'long_text' || t === 'paragraph') return 'textarea'
   if (t === 'email' || t === 'e-mail') return 'email'
   if (t === 'number' || t === 'numeric' || t === 'integer' || t === 'decimal') return 'number'
@@ -206,7 +257,6 @@ function canonicalFieldType(raw: unknown): string {
   if (t === 'checkbox' || t === 'multi_select' || t === 'multiselect') return 'checkbox'
   if (t === 'file' || t === 'upload') return 'file'
   if (t === 'section') return 'section'
-  if (t === 'repeater' || t === 'list') return 'repeater'
   return t
 }
 
@@ -293,6 +343,75 @@ const visibilityByField = computed<Record<string, boolean>>(() => {
 
   return out
 })
+
+const { data: session } = useAuth()
+const viewerEmail = computed(() => String((session.value as any)?.user?.email || '').trim())
+
+const productsTotal = computed(() => {
+  const visible = new Set(
+    normalizedFields.value
+      .filter((field) => visibilityByField.value[field.key] !== false)
+      .map((field) => field.key),
+  )
+  return sumProductAnswers(
+    normalizedFields.value.map((field) => ({
+      id: field.key,
+      type: field.type,
+      label: field.label,
+      unitPrice: field.unitPrice,
+    })),
+    answersProxy.value,
+    visible,
+  )
+})
+
+function productQuantity(key: string): number {
+  return normalizeProductAnswer({ unitPrice: 0 }, answersProxy.value[key]).quantity
+}
+
+function productLineTotal(field: Field): number {
+  return normalizeProductAnswer(
+    { label: field.label, unitPrice: field.unitPrice },
+    answersProxy.value[field.key],
+  ).lineTotal
+}
+
+function onProductQuantityInput(field: Field, event: Event) {
+  const quantity = Math.max(0, Math.floor(Number((event.target as HTMLInputElement | null)?.value || 0)))
+  answersProxy.value = {
+    ...answersProxy.value,
+    [field.key]: normalizeProductAnswer(
+      { label: field.label, unitPrice: field.unitPrice },
+      { quantity, price: field.unitPrice, name: field.label },
+    ),
+  }
+}
+
+watch(
+  [normalizedFields, viewerEmail],
+  () => {
+    const next = { ...answersProxy.value }
+    let changed = false
+    for (const field of normalizedFields.value) {
+      if (field.type === 'hidden') {
+        const resolved = resolveFormMergeTags(field.defaultValue, { email: viewerEmail.value })
+        if (String(next[field.key] ?? '') !== resolved) {
+          next[field.key] = resolved
+          changed = true
+        }
+      }
+      if (field.type === 'product' && (next[field.key] == null || next[field.key] === '')) {
+        next[field.key] = normalizeProductAnswer(
+          { label: field.label, unitPrice: field.unitPrice },
+          { quantity: field.disableQuantity ? 1 : 0, price: field.unitPrice, name: field.label },
+        )
+        changed = true
+      }
+    }
+    if (changed) answersProxy.value = next
+  },
+  { immediate: true },
+)
 
 function toggleCheckbox(key: string, value: string) {
   const cur = answersProxy.value[key]
@@ -399,7 +518,18 @@ function onSubmit() {
   const visibleFieldKeys = normalizedFields.value
     .filter((field) => visibilityByField.value[field.key] !== false)
     .map((field) => field.key)
-  emit('submit', { answers: answersProxy.value, files: filesByKey.value, visibleFieldKeys })
+  const answers = applyProductAndTotalAnswers(
+    normalizedFields.value.map((field) => ({
+      id: field.key,
+      type: field.type,
+      label: field.label,
+      unitPrice: field.unitPrice,
+    })),
+    answersProxy.value,
+    visibleFieldKeys,
+  )
+  emit('update:modelValue', answers)
+  emit('submit', { answers, files: filesByKey.value, visibleFieldKeys })
 }
 </script>
 

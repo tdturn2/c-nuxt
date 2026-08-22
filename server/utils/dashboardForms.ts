@@ -13,6 +13,10 @@ export const FORM_FIELD_TYPES = new Set([
   'file',
   'section',
   'repeater',
+  'product',
+  'total',
+  'html',
+  'hidden',
 ] as const)
 
 export type FormFieldType = (typeof FORM_FIELD_TYPES extends Set<infer T> ? T : never) & string
@@ -26,6 +30,10 @@ export type DashboardFormField = {
   accept?: string[]
   options?: Array<{ label?: string; value?: string }>
   columns?: Array<{ id: string; label: string }>
+  unitPrice?: number
+  disableQuantity?: boolean
+  content?: string
+  defaultValue?: string
 }
 
 export type DashboardFormSchema = {
@@ -455,6 +463,24 @@ export function normalizeDashboardFormSchema(schema: unknown): DashboardFormSche
           .replace(/^_+|_+$/g, '') || 'value'
         fieldOut.columns = [{ id: fallbackId, label: fallbackLabel }]
       }
+    }
+
+    if (type === 'product') {
+      const priceRaw = fieldObj.unitPrice ?? fieldObj.basePrice ?? fieldObj.price
+      const price = typeof priceRaw === 'number' ? priceRaw : Number(String(priceRaw ?? '').replace(/[^0-9.-]/g, ''))
+      if (Number.isFinite(price)) fieldOut.unitPrice = Math.round(price * 100) / 100
+      fieldOut.disableQuantity = fieldObj.disableQuantity === true
+      if (typeof fieldObj.defaultValue === 'string' && fieldObj.defaultValue.trim()) {
+        fieldOut.defaultValue = fieldObj.defaultValue.trim()
+      }
+    }
+
+    if (type === 'html' && typeof fieldObj.content === 'string') {
+      fieldOut.content = fieldObj.content
+    }
+
+    if (type === 'hidden' && typeof fieldObj.defaultValue === 'string') {
+      fieldOut.defaultValue = fieldObj.defaultValue
     }
 
     return fieldOut

@@ -125,4 +125,38 @@ describe('answer validation', () => {
     })
     expect(ok.valid).toBe(true)
   })
+
+  it('accepts product, total, html, and hidden fields', () => {
+    const result = validateFormSchemaV1({
+      version: 1,
+      fields: [
+        { id: 'carafe', type: 'product', label: 'Carafe Regular', unitPrice: 11, required: true },
+        { id: 'total', type: 'total', label: 'Total' },
+        { id: 'note', type: 'html', label: 'Note', content: '<p>Return unused condiments.</p>' },
+        { id: 'submitter', type: 'hidden', label: 'Submitter', defaultValue: '{user:user_email}' },
+      ],
+    })
+    expect(result.valid).toBe(true)
+    expect(result.schema?.fields[0]).toMatchObject({ type: 'product', unitPrice: 11 })
+    expect(result.schema?.fields[2]?.content).toBe('<p>Return unused condiments.</p>')
+    expect(result.schema?.fields[3]?.defaultValue).toBe('{user:user_email}')
+  })
+
+  it('requires a product quantity of at least 1 when the field is required', () => {
+    const schemaResult = validateFormSchemaV1({
+      version: 1,
+      fields: [{ id: 'carafe', type: 'product', label: 'Carafe Regular', unitPrice: 11, required: true }],
+    })
+    expect(schemaResult.valid).toBe(true)
+
+    const empty = validateAnswersAgainstSchema(schemaResult.schema!, {
+      carafe: { name: 'Carafe Regular', price: 11, quantity: 0, lineTotal: 0 },
+    })
+    expect(empty.valid).toBe(false)
+
+    const ok = validateAnswersAgainstSchema(schemaResult.schema!, {
+      carafe: { name: 'Carafe Regular', price: 11, quantity: 2, lineTotal: 22 },
+    })
+    expect(ok.valid).toBe(true)
+  })
 })

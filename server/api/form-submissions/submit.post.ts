@@ -6,6 +6,7 @@ import {
   normalizeFormEmailNotification,
   type FormEmailNotification,
 } from '~/types/forms'
+import { formatStoredAnswer } from '~/utils/forms/productFields'
 
 type SubmitBody = {
   formSlug?: string
@@ -135,15 +136,7 @@ function buildHtmlSummary(
 }
 
 function formatAnswerValue(value: unknown): string {
-  if (value == null) return ''
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-    return String(value)
-  }
-  try {
-    return JSON.stringify(value)
-  } catch {
-    return String(value)
-  }
+  return formatStoredAnswer(value)
 }
 
 function escapeHtml(value: string): string {

@@ -149,6 +149,14 @@
                     <button type="button" class="text-sm text-gray-700 hover:underline" @click="toggleStatus(form)">
                       {{ form.status === 'active' ? 'Deactivate' : 'Activate' }}
                     </button>
+                    <button
+                      type="button"
+                      class="text-sm text-red-700 hover:underline disabled:opacity-50"
+                      :disabled="deletingId === form.id"
+                      @click="removeForm(form)"
+                    >
+                      {{ deletingId === form.id ? 'Deleting…' : 'Delete' }}
+                    </button>
                   </td>
                 </tr>
               </tbody>
@@ -163,7 +171,7 @@
 <script setup lang="ts">
 import type { ConnectFormDefinition, FormStatus } from '~/types/forms'
 
-const { listForms, setFormStatus, importGravityJson } = useDashboardForms()
+const { listForms, setFormStatus, deleteForm, importGravityJson } = useDashboardForms()
 const { data: me, pending: mePending } = await useFetch<any>('/api/users/me', { key: 'dashboard-forms-me' })
 
 const canManageDashboard = computed(() => {
@@ -182,6 +190,7 @@ const importError = ref<string | null>(null)
 const importLoading = ref(false)
 const importCommitting = ref(false)
 const importReport = ref<any | null>(null)
+const deletingId = ref<string | number | null>(null)
 
 async function loadForms() {
   if (!canManageDashboard.value) return
@@ -204,6 +213,21 @@ async function toggleStatus(form: ConnectFormDefinition) {
     form.status = next
   } catch (e: any) {
     error.value = e?.message || 'Failed to update status.'
+  }
+}
+
+async function removeForm(form: ConnectFormDefinition) {
+  const label = form.title || form.slug || 'this form'
+  if (!window.confirm(`Delete “${label}”? This also removes its submissions and cannot be undone.`)) return
+  deletingId.value = form.id
+  error.value = null
+  try {
+    await deleteForm(form.id)
+    forms.value = forms.value.filter((row) => String(row.id) !== String(form.id))
+  } catch (e: any) {
+    error.value = e?.message || 'Failed to delete form.'
+  } finally {
+    deletingId.value = null
   }
 }
 

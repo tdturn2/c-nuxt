@@ -68,6 +68,7 @@
 import ConnectFormRenderer from '~/components/forms/ConnectFormRenderer.vue'
 import type { FormSchemaV1 } from '~/types/forms'
 import { normalizeApiError } from '~/utils/forms/apiError'
+import { applyProductAndTotalAnswers } from '~/utils/forms/productFields'
 import { validateAnswersAgainstSchema, validateFormSchemaV1 } from '~/utils/forms/validation'
 
 type PayloadFindResponse<T> = { docs?: T[] }
@@ -90,6 +91,10 @@ type Field = {
   required?: boolean
   choices?: Array<{ label: string; value: string }>
   columns?: Array<{ id: string; label: string }>
+  unitPrice?: number
+  disableQuantity?: boolean
+  content?: string
+  defaultValue?: string
 }
 
 const route = useRoute()
@@ -174,6 +179,10 @@ function toField(f: any): Field | null {
   else if (type === 'checkbox') type = 'checkbox'
   else if (type === 'file' || type === 'upload') type = 'file'
   else if (type === 'repeater' || type === 'list') type = 'repeater'
+  else if (type === 'product' || type === 'singleproduct') type = 'product'
+  else if (type === 'total') type = 'total'
+  else if (type === 'html') type = 'html'
+  else if (type === 'hidden') type = 'hidden'
   else type = 'text'
 
   const columnsArr = Array.isArray(f?.columns)
@@ -191,6 +200,12 @@ function toField(f: any): Field | null {
     }))
     .filter((c: any) => c.id)
 
+  const unitPriceRaw = f?.unitPrice ?? f?.basePrice ?? f?.price
+  const unitPriceNum =
+    typeof unitPriceRaw === 'number'
+      ? unitPriceRaw
+      : Number(String(unitPriceRaw ?? '').replace(/[^0-9.-]/g, ''))
+
   return {
     key,
     label,
@@ -199,6 +214,10 @@ function toField(f: any): Field | null {
     required,
     choices: choices.length ? choices : undefined,
     columns: columns.length ? columns : undefined,
+    unitPrice: type === 'product' && Number.isFinite(unitPriceNum) ? Math.round(unitPriceNum * 100) / 100 : undefined,
+    disableQuantity: type === 'product' ? !!f?.disableQuantity : undefined,
+    content: type === 'html' && typeof f?.content === 'string' ? f.content : undefined,
+    defaultValue: typeof f?.defaultValue === 'string' ? f.defaultValue : undefined,
   }
 }
 
@@ -215,13 +234,17 @@ function normalizeTimeString(value: unknown): string {
   return raw
 }
 
-function normalizeAnswersForSubmit(schema: FormSchemaV1, answers: Record<string, unknown>) {
+function normalizeAnswersForSubmit(
+  schema: FormSchemaV1,
+  answers: Record<string, unknown>,
+  visibleFieldKeys: string[] = [],
+) {
   const out: Record<string, unknown> = { ...answers }
   for (const field of schema.fields) {
     if (field.type !== 'time') continue
     out[field.id] = normalizeTimeString(out[field.id])
   }
-  return out
+  return applyProductAndTotalAnswers(schema.fields, out, visibleFieldKeys)
 }
 
 const fields = computed<Field[]>(() => {
@@ -239,6 +262,10 @@ const fields = computed<Field[]>(() => {
         required: f.required,
         choices: f.options,
         columns: f.columns,
+        unitPrice: f.unitPrice,
+        disableQuantity: f.disableQuantity,
+        content: f.content,
+        defaultValue: f.defaultValue,
       })
       if (!mapped) return null
       // Prefer columns already normalized by validateFormSchemaV1.
@@ -294,7 +321,7 @@ async function handleSubmit(payload: { answers: Record<string, unknown>; files: 
   }
   submitting.value = true
   try {
-    const normalizedAnswers = normalizeAnswersForSubmit(schema, payload.answers)
+    const normalizedAnswers = normalizeAnswersForSubmit(schema, payload.answers, payload.visibleFieldKeys || [])
     const submitted: any = await $fetch('/api/form-submissions/submit', {
       method: 'POST',
       body: {

@@ -31,6 +31,7 @@
 <script setup lang="ts">
 import ConnectFormRenderer from '~/components/forms/ConnectFormRenderer.vue'
 import { normalizeApiError } from '~/utils/forms/apiError'
+import { applyProductAndTotalAnswers } from '~/utils/forms/productFields'
 import { validateAnswersAgainstSchema, validateFormSchemaV1 } from '~/utils/forms/validation'
 
 const props = defineProps<{
@@ -73,6 +74,10 @@ function normalizeRendererFieldType(raw: unknown): string {
   if (t === 'checkbox' || t === 'multi_select' || t === 'multiselect') return 'checkbox'
   if (t === 'file' || t === 'upload') return 'file'
   if (t === 'repeater' || t === 'list') return 'repeater'
+  if (t === 'product' || t === 'singleproduct') return 'product'
+  if (t === 'total') return 'total'
+  if (t === 'html') return 'html'
+  if (t === 'hidden') return 'hidden'
   return t
 }
 
@@ -89,7 +94,7 @@ function normalizeTimeString(value: unknown): string {
   return raw
 }
 
-function normalizeAnswersForSubmit(rawAnswers: Record<string, unknown>) {
+function normalizeAnswersForSubmit(rawAnswers: Record<string, unknown>, visibleFieldKeys: string[] = []) {
   const out: Record<string, unknown> = { ...rawAnswers }
   const s = schema.value
   if (!s) return out
@@ -97,7 +102,7 @@ function normalizeAnswersForSubmit(rawAnswers: Record<string, unknown>) {
     if (field.type !== 'time') continue
     out[field.id] = normalizeTimeString(out[field.id])
   }
-  return out
+  return applyProductAndTotalAnswers(s.fields, out, visibleFieldKeys)
 }
 
 const fields = computed(() => {
@@ -116,6 +121,10 @@ const fields = computed(() => {
           label: String(c?.label ?? c?.id ?? '').trim(),
         })).filter((c: any) => c.id)
       : undefined,
+    unitPrice: typeof f.unitPrice === 'number' ? f.unitPrice : undefined,
+    disableQuantity: !!f.disableQuantity,
+    content: typeof f.content === 'string' ? f.content : undefined,
+    defaultValue: typeof f.defaultValue === 'string' ? f.defaultValue : undefined,
   }))
 })
 
@@ -151,7 +160,7 @@ async function submit(payload: { answers: Record<string, unknown>; files: Record
 
   submitting.value = true
   try {
-    const normalizedAnswers = normalizeAnswersForSubmit(payload.answers)
+    const normalizedAnswers = normalizeAnswersForSubmit(payload.answers, payload.visibleFieldKeys || [])
     const submitted: any = await $fetch('/api/form-submissions/submit', {
       method: 'POST',
       body: {

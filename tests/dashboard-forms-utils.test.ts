@@ -73,4 +73,20 @@ describe('dashboard form schema', () => {
       { id: 'phone_number', label: 'Phone number' },
     ])
   })
+
+  it('preserves product, html, and hidden extras', () => {
+    const schema = normalizeDashboardFormSchema({
+      version: 1,
+      fields: [
+        { id: 'carafe', type: 'product', label: 'Carafe Regular', unitPrice: '$11.00', disableQuantity: false },
+        { id: 'note', type: 'html', label: 'Note', content: '<p>Return unused condiments.</p>' },
+        { id: 'submitter', type: 'hidden', label: 'Submitter', defaultValue: '{user:user_email}' },
+        { id: 'total', type: 'total', label: 'Total' },
+      ],
+    })
+    expect(schema.fields[0]).toMatchObject({ type: 'product', unitPrice: 11, disableQuantity: false })
+    expect(schema.fields[1]).toMatchObject({ type: 'html', content: '<p>Return unused condiments.</p>' })
+    expect(schema.fields[2]).toMatchObject({ type: 'hidden', defaultValue: '{user:user_email}' })
+    expect(schema.fields[3]?.type).toBe('total')
+  })
 })
