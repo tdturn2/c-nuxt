@@ -44,44 +44,106 @@
         </div>
       </div>
 
-      <div v-if="hasBio" class="mt-8 border-t border-gray-200 pt-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-3">About</h2>
-        <p class="text-gray-700 whitespace-pre-wrap">{{ user.bio }}</p>
+      <div v-if="showPublicationsTab" class="mt-8 border-t border-gray-200 pt-6">
+        <div class="flex flex-wrap gap-2">
+          <button
+            type="button"
+            class="px-3 py-1.5 text-sm rounded-md border transition-colors"
+            :class="activeTab === 'overview'
+              ? 'bg-[rgba(13,94,130,1)] text-white border-[rgba(13,94,130,1)]'
+              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
+            @click="activeTab = 'overview'"
+          >
+            Overview
+          </button>
+          <button
+            type="button"
+            class="px-3 py-1.5 text-sm rounded-md border transition-colors"
+            :class="activeTab === 'publications'
+              ? 'bg-[rgba(13,94,130,1)] text-white border-[rgba(13,94,130,1)]'
+              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
+            @click="activeTab = 'publications'"
+          >
+            Publications
+          </button>
+        </div>
       </div>
 
-      <div v-if="employeeProfileEntries.length > 0" class="mt-8 border-t border-gray-200 pt-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-3">Asbury Seminary Employee Profile</h2>
-        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
-          <template v-for="entry in employeeProfileEntries" :key="entry.key">
-            <dt class="text-sm font-medium text-gray-500">{{ entry.label }}</dt>
-            <dd class="text-gray-900 text-sm">{{ entry.value }}</dd>
-          </template>
-        </dl>
-      </div>
+      <template v-if="!showPublicationsTab || activeTab === 'overview'">
+        <div v-if="hasBio" class="mt-8 border-t border-gray-200 pt-6">
+          <h2 class="text-lg font-semibold text-gray-900 mb-3">About</h2>
+          <p class="text-gray-700 whitespace-pre-wrap">{{ user.bio }}</p>
+        </div>
 
-      <div v-if="alumniDegreeEntries.length > 0 || alumniContactEntries.length > 0" class="mt-8 border-t border-gray-200 pt-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-3">Alumni Profile</h2>
-        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
-          <template v-for="entry in alumniDegreeEntries" :key="entry.key">
-            <dt class="text-sm font-medium text-gray-500">{{ entry.label }}</dt>
-            <dd class="text-gray-900 text-sm">{{ entry.value }}</dd>
-          </template>
-          <template v-for="entry in alumniContactEntries" :key="entry.key">
-            <dt class="text-sm font-medium text-gray-500">{{ entry.label }}</dt>
-            <dd class="text-gray-900 text-sm">{{ entry.value }}</dd>
-          </template>
-        </dl>
-      </div>
+        <div v-if="employeeProfileEntries.length > 0" class="mt-8 border-t border-gray-200 pt-6">
+          <h2 class="text-lg font-semibold text-gray-900 mb-3">Asbury Seminary Employee Profile</h2>
+          <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
+            <template v-for="entry in employeeProfileEntries" :key="entry.key">
+              <dt class="text-sm font-medium text-gray-500">{{ entry.label }}</dt>
+              <dd class="text-gray-900 text-sm">{{ entry.value }}</dd>
+            </template>
+          </dl>
+        </div>
 
-      <!-- Student Profile: only these slugs, in this order, with these labels -->
-      <div v-if="studentProfileEntries.length > 0" class="mt-8 border-t border-gray-200 pt-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-3">Student Profile</h2>
-        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
-          <template v-for="entry in studentProfileEntries" :key="entry.slug">
-            <dt class="text-sm font-medium text-gray-500">{{ entry.label }}</dt>
-            <dd class="text-gray-900 text-sm">{{ entry.value }}</dd>
-          </template>
-        </dl>
+        <div v-if="alumniDegreeEntries.length > 0 || alumniContactEntries.length > 0" class="mt-8 border-t border-gray-200 pt-6">
+          <h2 class="text-lg font-semibold text-gray-900 mb-3">Alumni Profile</h2>
+          <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
+            <template v-for="entry in alumniDegreeEntries" :key="entry.key">
+              <dt class="text-sm font-medium text-gray-500">{{ entry.label }}</dt>
+              <dd class="text-gray-900 text-sm">{{ entry.value }}</dd>
+            </template>
+            <template v-for="entry in alumniContactEntries" :key="entry.key">
+              <dt class="text-sm font-medium text-gray-500">{{ entry.label }}</dt>
+              <dd class="text-gray-900 text-sm">{{ entry.value }}</dd>
+            </template>
+          </dl>
+        </div>
+
+        <!-- Student Profile: only these slugs, in this order, with these labels -->
+        <div v-if="studentProfileEntries.length > 0" class="mt-8 border-t border-gray-200 pt-6">
+          <h2 class="text-lg font-semibold text-gray-900 mb-3">Student Profile</h2>
+          <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
+            <template v-for="entry in studentProfileEntries" :key="entry.slug">
+              <dt class="text-sm font-medium text-gray-500">{{ entry.label }}</dt>
+              <dd class="text-gray-900 text-sm">{{ entry.value }}</dd>
+            </template>
+          </dl>
+        </div>
+      </template>
+
+      <div v-else-if="activeTab === 'publications'" class="mt-6 space-y-4">
+        <div
+          v-for="publication in profilePublications"
+          :key="String(publication.id)"
+          class="flex gap-4 rounded-lg border border-gray-200 p-4"
+        >
+          <div v-if="publication.image?.url" class="shrink-0">
+            <img
+              :src="publication.image.url || ''"
+              :alt="publication.title || 'Publication cover'"
+              class="h-32 w-24 rounded object-cover"
+            >
+          </div>
+          <div class="min-w-0 flex-1">
+            <h3 class="text-lg font-semibold text-gray-900">{{ publication.title }}</h3>
+            <p class="mt-0.5 text-sm text-gray-500">
+              {{ publicationTypeLabel(publication.type) }}
+              <span v-if="publication.releaseDate"> · {{ formatPublicationDate(String(publication.releaseDate)) }}</span>
+            </p>
+            <p v-if="publicationPlainText(publication.description)" class="mt-2 text-sm text-gray-700 whitespace-pre-wrap">
+              {{ publicationPlainText(publication.description) }}
+            </p>
+            <a
+              v-if="publication.link"
+              :href="publication.link || undefined"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="mt-2 inline-block text-sm text-[rgba(13,94,130,1)] hover:underline"
+            >
+              View publication →
+            </a>
+          </div>
+        </div>
       </div>
     </div>
       </div>
@@ -95,12 +157,14 @@ const username = computed(() => route.params.username as string)
 
 const loading = ref(true)
 const error = ref<string | null>(null)
+const activeTab = ref<'overview' | 'publications'>('overview')
 const user = ref<{
   id: number
   name: string
   email: string
   bio: string | null
   avatar?: { url: string } | null
+  roles?: string[] | null
   employeeTitle?: string | null
   startDate?: string | null
   phone?: string | null
@@ -117,6 +181,16 @@ const user = ref<{
     x?: string | null
     instagram?: string | null
   } | null
+  publications?: Array<{
+    id: number | string
+    type?: string | null
+    title: string
+    image?: { url?: string | null } | null
+    description?: unknown
+    link?: string | null
+    purchaseLink?: string | null
+    releaseDate?: string | null
+  }>
 } | null>(null)
 
 const studentProfile = ref<{ answers: Record<string, unknown>; updatedAt: string } | null>(null)
@@ -175,6 +249,55 @@ const headerAffiliation = computed(() => {
 })
 
 const hasBio = computed(() => Boolean(user.value?.bio?.trim()))
+
+const profilePublications = computed(() => {
+  const pubs = Array.isArray(user.value?.publications) ? user.value.publications : []
+  return [...pubs].sort((a, b) => {
+    const aBook = String(a.type || '').toLowerCase() === 'book' ? 0 : 1
+    const bBook = String(b.type || '').toLowerCase() === 'book' ? 0 : 1
+    return aBook - bBook
+  })
+})
+
+const isFaculty = computed(() => {
+  const roles = Array.isArray(user.value?.roles) ? user.value.roles : []
+  return roles.some((role) => String(role).toLowerCase() === 'faculty')
+})
+
+const showPublicationsTab = computed(() =>
+  isFaculty.value && profilePublications.value.some((pub) => String(pub.type || '').toLowerCase() === 'book'),
+)
+
+function formatPublicationDate(dateStr: string): string {
+  const d = new Date(dateStr.length <= 10 ? `${dateStr}T12:00:00` : dateStr)
+  if (Number.isNaN(d.getTime())) return dateStr
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
+}
+
+function publicationTypeLabel(type: unknown): string {
+  const value = String(type || '').trim()
+  if (!value) return 'Publication'
+  return value
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
+function publicationPlainText(value: unknown): string {
+  if (value == null) return ''
+  if (typeof value === 'string') return value.trim()
+  if (typeof value !== 'object' || !('root' in (value as object))) return ''
+  const extract = (children: any[]): string =>
+    children
+      .map((child) => {
+        if (child?.type === 'text' && typeof child?.text === 'string') return child.text
+        if (Array.isArray(child?.children)) return extract(child.children)
+        return ''
+      })
+      .join('')
+  const root = (value as { root?: { children?: any[] } }).root
+  return extract(Array.isArray(root?.children) ? root.children : []).trim()
+}
 
 const EMPLOYEE_FIELDS: { key: keyof NonNullable<typeof user.value>; label: string }[] = [
   { key: 'employeeTitle', label: 'Title' },
@@ -313,6 +436,9 @@ const loadUser = async () => {
 
     user.value = userData
     studentProfile.value = surveyData as { answers: Record<string, unknown>; updatedAt: string } | null
+    if (!showPublicationsTab.value && activeTab.value === 'publications') {
+      activeTab.value = 'overview'
+    }
   } catch (err: any) {
     console.error('Error loading user:', err)
     if (err.statusCode === 404) {
@@ -331,6 +457,7 @@ onMounted(() => {
 
 // Reload if username changes
 watch(username, () => {
+  activeTab.value = 'overview'
   loadUser()
 })
 </script>

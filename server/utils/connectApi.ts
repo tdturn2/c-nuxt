@@ -39,6 +39,20 @@ export function normalizeUserAvatar(user: any): { url: string } | null {
   return { ...media, url }
 }
 
+export function normalizePublicationDoc(pub: any) {
+  if (!pub || typeof pub !== 'object') return pub
+  const image =
+    pub.image && typeof pub.image === 'object'
+      ? { ...pub.image, url: toBrowserMediaUrl(pub.image.url) || pub.image.url || null }
+      : pub.image ?? null
+  const link = typeof pub.link === 'string' && pub.link.trim()
+    ? pub.link.trim()
+    : typeof pub.purchaseLink === 'string' && pub.purchaseLink.trim()
+      ? pub.purchaseLink.trim()
+      : null
+  return { ...pub, image, link, purchaseLink: pub.purchaseLink || link }
+}
+
 /** Normalize nested user.avatar on a reaction doc for browser display. */
 export function normalizeReactionDoc<T extends Record<string, unknown>>(reaction: T): T {
   const user = reaction.user

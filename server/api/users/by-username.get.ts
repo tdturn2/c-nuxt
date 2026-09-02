@@ -1,6 +1,6 @@
 import { defineEventHandler, getQuery, createError } from 'h3'
 import { sanitizeAlumniContact } from '../../utils/alumniProfile'
-import { normalizeUserAvatar, resolveConnectApiUrl } from '../../utils/connectApi'
+import { normalizePublicationDoc, normalizeUserAvatar, resolveConnectApiUrl } from '../../utils/connectApi'
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
@@ -54,6 +54,10 @@ export default defineEventHandler(async (event) => {
     }
 
     user.avatar = normalizeUserAvatar(user)
+
+    if (Array.isArray((user as any).publications)) {
+      ;(user as any).publications = (user as any).publications.map((pub: any) => normalizePublicationDoc(pub))
+    }
 
     const normalizedContact = sanitizeAlumniContact(user.alumniContact)
     user.alumniContact = user.alumniOptIn ? normalizedContact : {

@@ -1,48 +1,35 @@
+import { createError, defineEventHandler, getRouterParam } from 'h3'
+import { normalizePublicationDoc, normalizeUserAvatar, resolveConnectApiUrl } from '../../utils/connectApi'
+
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
-  const config = useRuntimeConfig()
-  const payloadBaseUrl = config.public.connectApi || 'http://localhost:3003'
-  
+  const payloadBaseUrl = resolveConnectApiUrl()
+
   if (!id) {
     throw createError({
       statusCode: 400,
-      statusMessage: 'User ID is required'
+      statusMessage: 'User ID is required',
     })
   }
-  
+
+  if (!payloadBaseUrl) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Missing CONNECT_API',
+    })
+  }
+
   try {
-    // Query connect-users collection explicitly
-    const user = await $fetch(`${payloadBaseUrl}/api/connect-users/${id}`, {
+    const user = await $fetch(`${payloadBaseUrl}/api/connect-users/${id}?depth=1`, {
       headers: {
         'Content-Type': 'application/json',
       },
     }) as any
-    
-    // Prefer new avatar relation, fallback to legacy avatar to keep UI contract stable.
-    user.avatar = user.avatarConnectUserMedia || user.avatar || null
 
-    // Normalize avatar URL if it's relative
-    if (user.avatar?.url) {
-      const url = user.avatar.url
-      if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        if (url.startsWith('/')) {
-          user.avatar.url = `${payloadBaseUrl}${url}`
-        } else {
-          user.avatar.url = `${payloadBaseUrl}/${url}`
-        }
-      }
-    }
+    user.avatar = normalizeUserAvatar(user)
 
-    // Normalize publication image URLs so client gets absolute URLs (avoids 404 when payloadBaseUrl missing on client)
-    if (user.publications && Array.isArray(user.publications)) {
-      user.publications = user.publications.map((pub: any) => {
-        if (pub?.image?.url && !pub.image.url.startsWith('http')) {
-          pub.image.url = pub.image.url.startsWith('/')
-            ? `${payloadBaseUrl}${pub.image.url}`
-            : `${payloadBaseUrl}/${pub.image.url}`
-        }
-        return pub
-      })
+    if (Array.isArray(user.publications)) {
+      user.publications = user.publications.map((pub: any) => normalizePublicationDoc(pub))
     }
 
     return user
@@ -50,7 +37,7 @@ export default defineEventHandler(async (event) => {
     if (error.statusCode === 404) {
       throw createError({
         statusCode: 404,
-        statusMessage: `User ${id} not found in connect-users`
+        statusMessage: `User ${id} not found in connect-users`,
       })
     }
     throw createError({
