@@ -11,6 +11,12 @@ type ChapelEpisode = {
     name?: string
     speakerDescription?: string
     photo?: { url?: string } | null
+    connectUser?: {
+      id?: number | string
+      name?: string | null
+      employeeTitle?: string | null
+      avatar?: { url?: string } | null
+    } | number | string | null
   } | null
 }
 
@@ -47,12 +53,28 @@ function toYmdUtc(date: Date): string {
   return `${y}-${m}-${d}`
 }
 
-function rewriteSpeakerPhoto(speaker: ChapelEpisode['speaker']): ChapelEpisode['speaker'] {
-  if (!speaker || typeof speaker !== 'object') return speaker
-  const raw = speaker.photo?.url
+function rewriteMediaUrl(raw: unknown): string | undefined {
   const url = toBrowserMediaUrl(raw) || (typeof raw === 'string' ? raw : undefined)
-  if (!url || !speaker.photo) return speaker
-  return { ...speaker, photo: { ...speaker.photo, url } }
+  return url || undefined
+}
+
+function rewriteSpeaker(speaker: ChapelEpisode['speaker']): ChapelEpisode['speaker'] {
+  if (!speaker || typeof speaker !== 'object') return speaker
+  const photoUrl = rewriteMediaUrl(speaker.photo?.url)
+  const connectUser =
+    speaker.connectUser && typeof speaker.connectUser === 'object'
+      ? {
+          ...speaker.connectUser,
+          avatar: speaker.connectUser.avatar
+            ? { ...speaker.connectUser.avatar, url: rewriteMediaUrl(speaker.connectUser.avatar.url) }
+            : speaker.connectUser.avatar,
+        }
+      : speaker.connectUser
+  return {
+    ...speaker,
+    photo: photoUrl && speaker.photo ? { ...speaker.photo, url: photoUrl } : speaker.photo,
+    connectUser,
+  }
 }
 
 export default defineEventHandler(async () => {
@@ -107,7 +129,7 @@ export default defineEventHandler(async () => {
           title: ep.title != null && String(ep.title).trim() ? String(ep.title).trim() : undefined,
           description: ep.description != null && String(ep.description).trim() ? String(ep.description).trim() : null,
           weekday: wd,
-          speaker: rewriteSpeakerPhoto(ep.speaker || null),
+          speaker: rewriteSpeaker(ep.speaker || null),
         }
       })
       .filter(Boolean)

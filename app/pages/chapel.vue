@@ -41,8 +41,8 @@
                 <p class="mt-4 text-base font-semibold text-gray-900">
                   {{ item.speaker?.name || 'TBD' }}
                 </p>
-                <p v-if="item.speaker?.speakerDescription" class="mt-1 max-w-[16rem] text-sm leading-snug text-gray-600">
-                  {{ item.speaker.speakerDescription }}
+                <p v-if="speakerTitle(item.speaker)" class="mt-1 max-w-[16rem] text-sm leading-snug text-gray-600">
+                  {{ speakerTitle(item.speaker) }}
                 </p>
                 <p v-if="item.title" class="mt-2 max-w-[16rem] text-sm font-medium text-[rgba(13,94,130,1)]">
                   {{ item.title }}
@@ -90,6 +90,7 @@
 </template>
 
 <script setup lang="ts">
+import { chapelSpeakerPhoto, chapelSpeakerTitle } from '@shared/chapelSpeakerDisplay'
 import { toBrowserMediaUrl } from '@shared/mediaUrls'
 
 type WeekSpeaker = {
@@ -97,6 +98,12 @@ type WeekSpeaker = {
   name?: string
   speakerDescription?: string
   photo?: { url?: string } | string | null
+  connectUser?: {
+    id?: number | string
+    name?: string
+    employeeTitle?: string
+    avatar?: { url?: string } | string | null
+  } | string | number | null
 }
 
 type WeekEntry = {
@@ -137,7 +144,7 @@ const dailySummary = computed(() => (typeof dailyData.value?.summary === 'string
 const dailyEntries = computed(() => (Array.isArray(dailyData.value?.entries) ? dailyData.value.entries : []))
 
 function speakerPhotoUrl(speaker?: WeekSpeaker | null): string {
-  const image = speaker?.photo
+  const image = chapelSpeakerPhoto(speaker)
   const raw = typeof image === 'string' ? image : image?.url ? String(image.url) : ''
   if (!raw.trim()) return ''
   const proxied = toBrowserMediaUrl(raw)
@@ -145,6 +152,10 @@ function speakerPhotoUrl(speaker?: WeekSpeaker | null): string {
   if (raw.startsWith('/')) return raw
   if (raw.startsWith('http://') || raw.startsWith('https://')) return raw
   return payloadBaseUrl ? `${payloadBaseUrl}${raw.startsWith('/') ? raw : `/${raw}`}` : raw
+}
+
+function speakerTitle(speaker?: WeekSpeaker | null): string {
+  return chapelSpeakerTitle(speaker)
 }
 
 function weekdayDateLabel(dateStr: string): string {

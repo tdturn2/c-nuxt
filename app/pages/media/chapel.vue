@@ -223,6 +223,7 @@
 </template>
 
 <script setup lang="ts">
+import { chapelSpeakerName, chapelSpeakerPhoto, chapelSpeakerTitle } from '@shared/chapelSpeakerDisplay'
 import { toBrowserMediaUrl } from '@shared/mediaUrls'
 
 interface ChapelEpisode {
@@ -482,7 +483,7 @@ function formatDate(dateStr?: string): string {
   }
 }
 
-function getImageUrl(image?: { url?: string } | string | null): string {
+function getImageUrl(image?: { url?: string | null } | string | null): string {
   const raw = typeof image === 'string' ? image : image?.url ? String(image.url) : ''
   if (!raw) return ''
   const proxied = toBrowserMediaUrl(raw)
@@ -493,26 +494,14 @@ function getImageUrl(image?: { url?: string } | string | null): string {
 }
 
 function speakerDisplayName(speaker?: WeeklySpeaker | ChapelEpisode['speaker'] | null): string {
-  if (!speaker) return ''
-  const direct = typeof speaker.name === 'string' ? speaker.name.trim() : ''
-  if (direct) return direct
-  const connectUser = typeof speaker.connectUser === 'object' && speaker.connectUser ? speaker.connectUser : null
-  return typeof connectUser?.name === 'string' ? connectUser.name.trim() : ''
+  return chapelSpeakerName(speaker)
 }
 
 function speakerDisplayTitle(speaker?: WeeklySpeaker | ChapelEpisode['speaker'] | null): string {
-  if (!speaker) return ''
-  const direct = typeof speaker.speakerDescription === 'string' ? speaker.speakerDescription.trim() : ''
-  if (direct) return direct
-  const connectUser = typeof speaker.connectUser === 'object' && speaker.connectUser ? speaker.connectUser : null
-  return typeof connectUser?.employeeTitle === 'string' ? connectUser.employeeTitle.trim() : ''
+  return chapelSpeakerTitle(speaker)
 }
 
 function speakerImageUrl(speaker?: WeeklySpeaker | ChapelEpisode['speaker'] | null): string {
-  if (!speaker) return ''
-  const fromSpeaker = getImageUrl(speaker.photo || null)
-  if (fromSpeaker) return fromSpeaker
-  const connectUser = typeof speaker.connectUser === 'object' && speaker.connectUser ? speaker.connectUser : null
-  return getImageUrl(connectUser?.avatar || null)
+  return getImageUrl(chapelSpeakerPhoto(speaker))
 }
 </script>

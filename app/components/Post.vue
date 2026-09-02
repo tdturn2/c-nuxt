@@ -25,15 +25,14 @@
             :to="`/user/${getUsernameFromEmail(displayUser.email)}`"
             class="flex w-10 h-10 rounded-full bg-gray-300 shrink-0 items-center justify-center overflow-hidden hover:opacity-80 transition-opacity"
           >
-            <NuxtImg
+            <img
               v-if="avatarUrl"
               :src="avatarUrl"
               :alt="displayUser.name"
               class="w-full h-full object-cover"
-              width="80"
-              height="80"
-              sizes="40px"
-            />
+              width="40"
+              height="40"
+            >
             <span v-else class="text-gray-600 font-semibold text-sm">
               {{ displayUser?.name?.charAt(0)?.toUpperCase() }}
             </span>
@@ -71,15 +70,14 @@
             <template v-else-if="hoverCardData">
               <div class="p-4 flex gap-3">
                 <div class="w-14 h-14 rounded-full bg-gray-200 shrink-0 overflow-hidden flex items-center justify-center">
-                  <NuxtImg
+                  <img
                     v-if="hoverCardData.avatarUrl"
                     :src="hoverCardData.avatarUrl"
                     :alt="hoverCardData.name"
                     class="w-full h-full object-cover"
-                    width="112"
-                    height="112"
-                    sizes="56px"
-                  />
+                    width="56"
+                    height="56"
+                  >
                   <span v-else class="text-gray-600 font-semibold text-lg">
                     {{ (hoverCardData.name || ' ').charAt(0).toUpperCase() }}
                   </span>
@@ -672,6 +670,7 @@
 </template>
 
 <script setup lang="ts">
+import { toBrowserMediaUrl } from '@shared/mediaUrls'
 import { lexicalToPostHtml } from '~/utils/lexicalToPostHtml'
 import { selectedAudiencesFromPost, serializePostAudience } from '~/utils/postAudience'
 import {
@@ -1615,17 +1614,17 @@ const avatarUrl = computed(() => {
     if (props.user.avatar && typeof props.user.avatar === 'object' && 'url' in props.user.avatar) {
       const url = props.user.avatar.url
       if (typeof url === 'string' && url) {
-        return url
+        return toBrowserMediaUrl(url) || url
       }
     }
     // Handle avatar as string (legacy)
     if (typeof props.user.avatar === 'string') {
-      return props.user.avatar
+      return toBrowserMediaUrl(props.user.avatar) || props.user.avatar
     }
   }
   // Fallback to author avatar (legacy format - string)
   if (props.post.author?.avatar && typeof props.post.author.avatar === 'string') {
-    return props.post.author.avatar
+    return toBrowserMediaUrl(props.post.author.avatar) || props.post.author.avatar
   }
   return null
 })

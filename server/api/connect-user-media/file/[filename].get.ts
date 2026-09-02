@@ -1,5 +1,8 @@
-import { createError, defineEventHandler, getHeader, getRouterParam, setHeader } from 'h3'
-import { authenticateWithPayloadCMS, getPayloadProxyHeaders } from '../../../utils/payloadAuth'
+import { Readable } from 'node:stream'
+import { createError, defineEventHandler, getHeader, getRouterParam, sendStream, setHeader } from 'h3'
+import { resolveConnectApiUrl } from '../../../utils/connectApi'
+
+const FILE_CACHE = 'public, max-age=86400, s-maxage=2592000, stale-while-revalidate=86400'
 
 export default defineEventHandler(async (event) => {
   const filename = getRouterParam(event, 'filename')
@@ -7,20 +10,14 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Filename is required' })
   }
 
-  const config = useRuntimeConfig()
-  const payloadBaseUrl =
-    (config.connectApi || config.public.connectApi || '').trim() ||
-    (import.meta.dev ? 'http://localhost:3003' : '')
+  const payloadBaseUrl = resolveConnectApiUrl()
   if (!payloadBaseUrl) {
     throw createError({ statusCode: 500, statusMessage: 'Missing CONNECT_API' })
   }
 
-  const { token, payloadSessionCookie } = await authenticateWithPayloadCMS(event)
-  const authHeaders = getPayloadProxyHeaders(event, { token, payloadSessionCookie })
-  delete authHeaders['Content-Type']
-
   const forwardedAccept = getHeader(event, 'accept')
-  if (forwardedAccept) authHeaders.Accept = forwardedAccept
+  const headers: Record<string, string> = {}
+  if (forwardedAccept) headers.Accept = forwardedAccept
 
   const safeName = encodeURIComponent(filename)
   const candidates = [
@@ -30,21 +27,26 @@ export default defineEventHandler(async (event) => {
 
   let lastStatusCode = 404
   for (const url of candidates) {
-    const res = await fetch(url, { headers: authHeaders })
+    const res = await fetch(url, { headers })
     if (!res.ok) {
       lastStatusCode = res.status
       continue
     }
 
     const contentType = res.headers.get('content-type') || 'application/octet-stream'
-    const cacheControl = res.headers.get('cache-control') || 'public, max-age=300'
     setHeader(event, 'Content-Type', contentType)
-    setHeader(event, 'Cache-Control', cacheControl)
+    setHeader(event, 'Cache-Control', FILE_CACHE)
+    const length = res.headers.get('content-length')
+    if (length) setHeader(event, 'Content-Length', length)
     const disposition = res.headers.get('content-disposition')
     if (disposition) setHeader(event, 'Content-Disposition', disposition)
+    event.node.res.removeHeader('x-frame-options')
+    setHeader(event, 'Cross-Origin-Resource-Policy', 'cross-origin')
 
-    const body = Buffer.from(await res.arrayBuffer())
-    return body
+    if (res.body) {
+      return sendStream(event, Readable.fromWeb(res.body as import('stream/web').ReadableStream))
+    }
+    return Buffer.from(await res.arrayBuffer())
   }
 
   throw createError({
