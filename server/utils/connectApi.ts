@@ -60,3 +60,21 @@ export function normalizeUserAvatar(user: any): { url: string } | null {
   if (!url) return null
   return { ...media, url }
 }
+
+/** Normalize nested user.avatar on a reaction doc for browser display. */
+export function normalizeReactionDoc<T extends Record<string, unknown>>(reaction: T): T {
+  const user = reaction.user
+  if (!user || typeof user !== 'object') return reaction
+  return {
+    ...reaction,
+    user: {
+      ...(user as Record<string, unknown>),
+      avatar: normalizeUserAvatar(user),
+    },
+  }
+}
+
+export function normalizeReactionDocs(docs: unknown): unknown[] {
+  if (!Array.isArray(docs)) return []
+  return docs.map((doc) => normalizeReactionDoc(doc as Record<string, unknown>))
+}

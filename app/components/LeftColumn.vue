@@ -236,6 +236,7 @@ const filteredResourceNavItems = computed(() => {
 const showResourcesSection = computed(() => filteredResourceNavItems.value.length > 0)
 
 const navScrollEl = ref<HTMLElement | null>(null)
+const campusHoursOpen = ref(false)
 
 const scrollActiveLinkIntoView = () => {
   const container = navScrollEl.value
@@ -270,7 +271,7 @@ watch([() => route.path, () => internalPagesData.value?.docs], revealActiveLink,
     <!-- Collapsed: expand control pinned to top of rail -->
     <div
       v-if="collapsed"
-      class="flex w-full min-w-0 flex-col items-center px-2 pt-2"
+      class="flex w-full min-w-0 flex-col items-center px-2 pt-2 gap-1"
     >
       <button
         type="button"
@@ -279,6 +280,15 @@ watch([() => route.path, () => internalPagesData.value?.docs], revealActiveLink,
         @click="toggleCollapsed"
       >
         <UIcon name="i-lucide-chevrons-right" class="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        aria-label="Campus hours"
+        title="Campus hours"
+        class="sidebar-toggle-btn"
+        @click="campusHoursOpen = true"
+      >
+        <UIcon name="i-lucide-clock" class="h-4 w-4" />
       </button>
     </div>
 
@@ -339,6 +349,16 @@ watch([() => route.path, () => internalPagesData.value?.docs], revealActiveLink,
             />
           </div>
         </div>
+        <div class="shrink-0 border-t border-gray-200 px-2 py-2">
+          <button
+            type="button"
+            class="flex w-full items-center justify-center gap-2 rounded-md bg-[rgba(13,94,130,1)] px-3 py-2 text-sm font-semibold text-white hover:bg-[rgba(10,69,92,1)]"
+            @click="campusHoursOpen = true"
+          >
+            <UIcon name="i-lucide-clock" class="h-4 w-4" />
+            Campus Hours
+          </button>
+        </div>
         <!-- Chapel plug hidden for now
         <div
           v-if="isHome"
@@ -359,6 +379,7 @@ watch([() => route.path, () => internalPagesData.value?.docs], revealActiveLink,
         <span class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-8 rounded-full bg-gray-300 group-hover:bg-[rgba(13,94,130,0.5)] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
       </div>
     </template>
+    <CampusHoursModal v-model:open="campusHoursOpen" />
   </aside>
 </template>
 

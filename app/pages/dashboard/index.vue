@@ -184,6 +184,12 @@ const sections = [
     icon: 'i-lucide-calendar-heart',
   },
   {
+    title: 'Campus Hours',
+    description: 'Kentucky campus week template and holiday exceptions.',
+    to: '/dashboard/campus-hours',
+    icon: 'i-lucide-clock',
+  },
+  {
     title: 'Chapel',
     description: 'Create and manage chapel episode entries.',
     to: '/dashboard/chapel',

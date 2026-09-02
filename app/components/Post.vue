@@ -201,7 +201,7 @@
         placeholder="What's on your mind?"
       />
       <div class="mt-3">
-        <PostAudienceSelect
+        <DashboardPostAudienceSelect
           v-model="selectedAudiences"
           label="Audience"
           compact
@@ -493,15 +493,14 @@
         
         <!-- Reaction Avatars -->
         <div class="flex -space-x-2 ml-2">
-          <template v-for="(reaction, index) in reactions.slice(0, 5)" :key="reaction.id">
-            <NuxtImg
+          <template v-for="reaction in reactions.slice(0, 5)" :key="reaction.id">
+            <img
               v-if="reaction.user?.avatar?.url"
               :src="reaction.user.avatar.url"
               :alt="reaction.user.name"
               class="w-6 h-6 rounded-full border-2 border-white object-cover"
-              width="48"
-              height="48"
-              sizes="24px"
+              width="24"
+              height="24"
               :title="`${reaction.user.name} reacted with ${getReactionConfig(reaction.reactionType).label}`"
             />
             <div
@@ -1563,7 +1562,9 @@ const handleReactionClick = async (reactionType: ReactionType) => {
             ? {
                 id: created.user.id ?? reaction.user.id,
                 name: created.user.name ?? reaction.user.name,
-                avatar: created.user.avatar ?? reaction.user.avatar,
+                avatar: created.user.avatar?.url
+                  ? created.user.avatar
+                  : reaction.user.avatar,
               }
             : reaction.user,
           createdAt: created.createdAt || reaction.createdAt,

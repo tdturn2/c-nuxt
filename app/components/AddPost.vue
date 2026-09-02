@@ -52,7 +52,7 @@
         </div>
       </div>
 
-      <PostAudienceSelect v-model="selectedAudiences" />
+      <DashboardPostAudienceSelect v-model="selectedAudiences" />
 
       <div class="rounded-md border border-gray-200 bg-gray-50 p-3 space-y-3">
         <label v-if="allowPostAs" class="flex items-start gap-2">

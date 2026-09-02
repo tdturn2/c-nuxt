@@ -1,9 +1,9 @@
 import { defineEventHandler, readBody, createError } from 'h3'
 import { authenticateWithPayloadCMS, getPayloadProxyHeaders } from '../../utils/payloadAuth'
+import { normalizeReactionDoc, resolveConnectApiUrl } from '../../utils/connectApi'
 
 export default defineEventHandler(async (event) => {
-  const config = useRuntimeConfig()
-  const payloadBaseUrl = config.public.connectApi || 'http://localhost:3003'
+  const payloadBaseUrl = resolveConnectApiUrl()
   const payloadApiUrl = `${payloadBaseUrl}/api/connect-post-reactions/react`
   
   try {
@@ -40,7 +40,7 @@ export default defineEventHandler(async (event) => {
       body: reactBody
     })
     
-    return response
+    return normalizeReactionDoc(response as Record<string, unknown>)
   } catch (error: any) {
     console.error('PayloadCMS API Error:', error)
     throw createError({

@@ -70,6 +70,7 @@ const allItems = [
   { label: 'Forms Builder', to: '/dashboard/forms', icon: 'i-lucide-square-pen' },
   { label: 'Home Slider', to: '/dashboard/home-slider', icon: 'i-lucide-images' },
   { label: 'Daily Eucharist', to: '/dashboard/daily-eucharist', icon: 'i-lucide-calendar-heart' },
+  { label: 'Campus Hours', to: '/dashboard/campus-hours', icon: 'i-lucide-clock' },
   { label: 'Chapel', to: '/dashboard/chapel', icon: 'i-lucide-mic-vocal' },
   { label: 'Chapel Speakers', to: '/dashboard/chapel-speakers', icon: 'i-lucide-user-round-pen' },
   { label: 'Jobs Manager', to: '/dashboard/jobs', icon: 'i-lucide-briefcase' },

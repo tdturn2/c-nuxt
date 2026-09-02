@@ -1,8 +1,8 @@
 import { defineEventHandler, createError, getHeader, getQuery } from 'h3'
+import { normalizeReactionDocs, resolveConnectApiUrl } from '../../utils/connectApi'
 
 export default defineEventHandler(async (event) => {
-  const config = useRuntimeConfig()
-  const payloadBaseUrl = config.public.connectApi || 'http://localhost:3003'
+  const payloadBaseUrl = resolveConnectApiUrl()
   const query = getQuery(event)
   
   try {
@@ -34,20 +34,8 @@ export default defineEventHandler(async (event) => {
     const response = await $fetch(payloadApiUrl, { headers }) as { docs: any[] }
     //console.log('Reactions response:', response)
     
-    // Normalize avatar URLs in reactions
     if (response?.docs) {
-      response.docs.forEach(reaction => {
-        // Prefer new avatar relation, fallback to legacy avatar.
-        if (reaction.user) {
-          reaction.user.avatar = reaction.user.avatarConnectUserMedia || reaction.user.avatar || null
-        }
-
-        if (reaction.user?.avatar?.url && !reaction.user.avatar.url.startsWith('http')) {
-          reaction.user.avatar.url = reaction.user.avatar.url.startsWith('/')
-            ? `${payloadBaseUrl}${reaction.user.avatar.url}`
-            : `${payloadBaseUrl}/${reaction.user.avatar.url}`
-        }
-      })
+      response.docs = normalizeReactionDocs(response.docs) as typeof response.docs
     }
     
     return response

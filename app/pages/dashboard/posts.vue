@@ -130,7 +130,7 @@
             />
           </div>
           <div>
-            <PostAudienceSelect v-model="editForm.audiences" />
+            <DashboardPostAudienceSelect v-model="editForm.audiences" />
           </div>
 
           <div class="rounded-md border border-gray-200 bg-gray-50 p-3 space-y-3">
