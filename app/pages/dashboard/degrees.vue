@@ -10,7 +10,7 @@
           v-else-if="!canEditDegrees"
           class="rounded-lg bg-amber-50 border border-amber-200 p-4 text-amber-800 text-sm"
         >
-          You don't have access to edit degrees. Access is limited to staff.
+          You don't have access to edit degrees. Access is limited to Connect admins.
         </div>
         <template v-else>
           <div class="flex items-center gap-3 mb-4">
@@ -671,16 +671,8 @@ const bundle = ref<DegreeBundle | null>(null)
 const bundleError = ref<string | null>(null)
 const bundlePending = ref(false)
 
-const { data: me, pending: mePending } = await useFetch<any>('/api/users/me', {
-  key: 'dashboard-degrees-me',
-})
-
-const canEditDegrees = computed(() => {
-  const user = me.value
-  if (!user) return false
-  const roles: string[] = Array.isArray(user.roles) ? user.roles : []
-  return roles.some((r) => String(r).toLowerCase() === 'staff')
-})
+const { mePending, canAccessSection } = useDashboardAccess()
+const canEditDegrees = computed(() => canAccessSection('degrees'))
 
 const {
   data: degreesData,

@@ -15,7 +15,7 @@
           v-else-if="!canManageDashboard"
           class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800"
         >
-          You do not have access to manage media. Access is limited to staff.
+          You do not have access to this dashboard section.
         </div>
 
         <template v-else>
@@ -238,13 +238,8 @@ import {
 
 const PAGE_SIZE = 48
 
-const { data: me, pending: mePending } = await useFetch<any>('/api/users/me', {
-  key: 'dashboard-media-me',
-})
-const canManageDashboard = computed(() => {
-  const roles = Array.isArray(me.value?.roles) ? me.value.roles : []
-  return roles.some((role: unknown) => ['staff', 'admin'].includes(String(role).toLowerCase()))
-})
+const { mePending, canAccessSection } = useDashboardAccess()
+const canManageDashboard = computed(() => canAccessSection('media'))
 
 const tabs = [
   { id: 'page-assets' as const, label: 'Page assets' },

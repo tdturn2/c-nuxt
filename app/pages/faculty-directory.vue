@@ -80,6 +80,7 @@
 </template>
 
 <script setup lang="ts">
+import { sortDirectoryByLastName } from '@shared/directoryNameSort'
 type FacultyRow = {
   id: number
   name: string
@@ -140,11 +141,13 @@ const filteredFaculty = computed(() => {
     .toLowerCase()
     .split(/\s+/)
     .filter(Boolean)
-  if (words.length === 0) return faculty.value
-  return faculty.value.filter((person: FacultyRow) => {
-    const name = (person.name ?? '').toLowerCase()
-    return words.every((word) => name.includes(word))
-  })
+  const list = words.length === 0
+    ? faculty.value
+    : faculty.value.filter((person: FacultyRow) => {
+        const name = (person.name ?? '').toLowerCase()
+        return words.every((word) => name.includes(word))
+      })
+  return sortDirectoryByLastName(list)
 })
 
 watch(fetchError, (e) => {

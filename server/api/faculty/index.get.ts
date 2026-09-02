@@ -1,4 +1,5 @@
 // GET faculty: connect-users with role faculty.
+import { sortDirectoryByLastName } from '@shared/directoryNameSort'
 import { defineEventHandler, createError } from 'h3'
 import { normalizeUserAvatar, resolveConnectApiUrl } from '../../utils/connectApi'
 
@@ -26,7 +27,7 @@ export default defineEventHandler(async () => {
       avatar: normalizeUserAvatar(user),
     }))
 
-    return { faculty }
+    return { faculty: sortDirectoryByLastName(faculty) }
   } catch (err: any) {
     console.error('Faculty API Error:', err)
     throw createError({

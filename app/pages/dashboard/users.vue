@@ -13,7 +13,7 @@
           v-else-if="!canManageDashboard"
           class="rounded-lg bg-amber-50 border border-amber-200 p-4 text-amber-800 text-sm"
         >
-          You do not have access to the dashboard admin panel. Access is limited to staff.
+          You do not have access to this dashboard section.
         </div>
 
         <template v-else>
@@ -261,20 +261,9 @@ type UserItem = {
   avatarConnectUserMedia?: { id?: string | number; url?: string } | string | number | null
 }
 
-type AvatarAsset = {
-  id: string | number
-  alt?: string
-  url?: string
-}
-
-const roleOptions = ['admin', 'faculty', 'staff', 'student', 'alumni'] as const
-const { data: me, pending: mePending } = await useFetch<any>('/api/users/me', { key: 'dashboard-users-me' })
+const { mePending, canAccessSection } = useDashboardAccess()
+const canManageDashboard = computed(() => canAccessSection('users'))
 const config = useRuntimeConfig()
-
-const canManageDashboard = computed(() => {
-  const roles: string[] = Array.isArray(me.value?.roles) ? me.value.roles : []
-  return roles.some((role) => String(role).toLowerCase() === 'staff')
-})
 
 const users = ref<UserItem[]>([])
 const groups = ref<GroupItem[]>([])

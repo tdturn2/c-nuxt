@@ -103,6 +103,7 @@
 </template>
 
 <script setup lang="ts">
+import { sortDirectoryByLastName } from '@shared/directoryNameSort'
 type AlumniRow = {
   id: number
   name: string
@@ -145,11 +146,13 @@ const filteredAlumni = computed(() => {
     .toLowerCase()
     .split(/\s+/)
     .filter(Boolean)
-  if (words.length === 0) return alumni.value
-  return alumni.value.filter((a: AlumniRow) => {
-    const name = (a.name ?? '').toLowerCase()
-    return words.every((word) => name.includes(word))
-  })
+  const list = words.length === 0
+    ? alumni.value
+    : alumni.value.filter((a: AlumniRow) => {
+        const name = (a.name ?? '').toLowerCase()
+        return words.every((word) => name.includes(word))
+      })
+  return sortDirectoryByLastName(list)
 })
 
 const totalPages = computed(() => Math.max(1, Math.ceil(filteredAlumni.value.length / PAGE_SIZE)))

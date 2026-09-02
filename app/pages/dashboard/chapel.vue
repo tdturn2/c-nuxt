@@ -23,7 +23,7 @@
           v-else-if="!canManageDashboard"
           class="rounded-lg bg-amber-50 border border-amber-200 p-4 text-amber-800 text-sm"
         >
-          You do not have access to the dashboard admin panel. Access is limited to staff.
+          You do not have access to this dashboard section.
         </div>
 
         <template v-else>
@@ -354,11 +354,8 @@ type ChapelEpisode = {
   speaker?: { id?: string | number; name?: string } | string | number | null
 }
 
-const { data: me, pending: mePending } = await useFetch<any>('/api/users/me', { key: 'dashboard-chapel-me' })
-const canManageDashboard = computed(() => {
-  const roles: string[] = Array.isArray(me.value?.roles) ? me.value.roles : []
-  return roles.some((r) => String(r).toLowerCase() === 'staff')
-})
+const { mePending, canAccessSection } = useDashboardAccess()
+const canManageDashboard = computed(() => canAccessSection('chapel'))
 
 const EPISODES_PER_PAGE = 50
 

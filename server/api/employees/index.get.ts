@@ -1,4 +1,5 @@
 // GET employees: connect-users with role staff or faculty.
+import { sortDirectoryByLastName } from '@shared/directoryNameSort'
 import { defineEventHandler, createError } from 'h3'
 import { normalizeUserAvatar, resolveConnectApiUrl } from '../../utils/connectApi'
 
@@ -29,7 +30,7 @@ export default defineEventHandler(async () => {
       avatar: normalizeUserAvatar(user),
     }))
 
-    return { employees }
+    return { employees: sortDirectoryByLastName(employees) }
   } catch (err: any) {
     console.error('Employees API Error:', err)
     throw createError({

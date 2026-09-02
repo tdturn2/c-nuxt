@@ -16,7 +16,7 @@
 
         <div v-if="mePending" class="py-8 text-gray-500">Checking access...</div>
         <div v-else-if="!canManageDashboard" class="rounded-lg bg-amber-50 border border-amber-200 p-4 text-amber-800 text-sm">
-          You do not have access to the dashboard admin panel. Access is limited to staff.
+          You do not have access to this dashboard section.
         </div>
         <template v-else>
           <section class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
@@ -172,13 +172,8 @@
 import type { ConnectFormDefinition, FormStatus } from '~/types/forms'
 
 const { listForms, setFormStatus, deleteForm, importGravityJson } = useDashboardForms()
-const { data: me, pending: mePending } = await useFetch<any>('/api/users/me', { key: 'dashboard-forms-me' })
-
-const canManageDashboard = computed(() => {
-  const user = me.value
-  const roles: string[] = Array.isArray(user?.roles) ? user.roles : []
-  return roles.some((r) => String(r).toLowerCase() === 'staff')
-})
+const { mePending, canAccessSection } = useDashboardAccess()
+const canManageDashboard = computed(() => canAccessSection('forms'))
 
 const forms = ref<ConnectFormDefinition[]>([])
 const loading = ref(false)

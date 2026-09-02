@@ -106,6 +106,7 @@
 </template>
 
 <script setup lang="ts">
+import { sortDirectoryByLastName } from '@shared/directoryNameSort'
 import { watchDebounced } from '@vueuse/core'
 
 type EmployeeRow = {
@@ -209,11 +210,11 @@ const filteredEmployees = computed(() => {
     .toLowerCase()
     .split(/\s+/)
     .filter(Boolean)
-  if (words.length === 0) return list
-  return list.filter((e) => {
+  if (words.length === 0) return sortDirectoryByLastName(list)
+  return sortDirectoryByLastName(list.filter((e) => {
     const name = (e.name ?? '').toLowerCase()
     return words.every((word) => name.includes(word))
-  })
+  }))
 })
 
 /** Shareable filters: department id, section slug, optional name search (`q` or legacy `name`). */

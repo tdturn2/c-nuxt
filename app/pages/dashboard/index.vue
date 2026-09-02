@@ -19,12 +19,12 @@
           v-else-if="!canManageDashboard"
           class="rounded-lg bg-amber-50 border border-amber-200 p-4 text-amber-800 text-sm"
         >
-          You do not have access to the dashboard admin panel. Access is limited to staff.
+          You do not have access to the dashboard. Access is limited to Connect admins and assigned groups.
         </div>
 
         <template v-else>
           <div
-            v-if="canManageAdmin && !me?.impersonation?.active"
+            v-if="isAdmin && !me?.impersonation?.active"
             class="mb-6 rounded-lg border border-gray-200 bg-white p-5 shadow-sm"
           >
             <h2 class="text-lg font-semibold text-gray-900">Preview as</h2>
@@ -92,144 +92,127 @@
 </template>
 
 <script setup lang="ts">
+import type { DashboardSection } from '@shared/dashboardAccess'
+
 const { startRolePreview, pending: impersonationPending } = useImpersonation()
+const { me, mePending, isAdmin, canAccessDashboard, canAccessSection } = useDashboardAccess()
+const canManageDashboard = canAccessDashboard
 
-const { data: me, pending: mePending } = await useFetch<any>('/api/users/me', {
-  key: 'dashboard-index-me',
-})
-
-const { data: connectUserData, execute: loadConnectUser } = await useFetch<any>('/api/connect-users/me', {
-  key: 'dashboard-index-connect-user',
-  immediate: false,
-})
-
-const canManageDashboard = computed(() => {
-  const user = me.value
-  if (!user) return false
-  const roles: string[] = Array.isArray(user.roles) ? user.roles : []
-  return roles.some((r) => String(r).toLowerCase() === 'staff')
-})
-
-const canManageAdmin = computed(() => {
-  const roles: string[] = [
-    ...(Array.isArray(connectUserData.value?.doc?.roles) ? connectUserData.value.doc.roles : []),
-    ...(Array.isArray(connectUserData.value?.doc?.fields?.roles) ? connectUserData.value.doc.fields.roles : []),
-    ...(Array.isArray(me.value?.roles) ? me.value.roles : []),
-  ]
-    .map((role) => String(role || '').trim().toLowerCase())
-    .filter(Boolean)
-
-  if (roles.includes('admin')) return true
-
-  const groups = Array.isArray(connectUserData.value?.doc?.groups) ? connectUserData.value.doc.groups : []
-  return groups.some((group: any) => {
-    const slug = String(group?.slug || '').trim().toLowerCase()
-    const name = String(group?.name || '').trim().toLowerCase()
-    const tag = `${slug} ${name}`.trim()
-    return tag === 'admin' || tag.includes('admin ') || tag.includes(' admin') || tag.includes('connect-admin') || tag.includes('connect admin')
-  })
-})
-
-watch(canManageDashboard, (allowed) => {
-  if (allowed) loadConnectUser()
-}, { immediate: true })
-
-const sections = [
+const sections: Array<{
+  title: string
+  description: string
+  to: string
+  icon: string
+  section: DashboardSection
+}> = [
   {
     title: 'Posts',
     description: 'Create and manage homepage timeline posts.',
     to: '/dashboard/posts',
     icon: 'i-lucide-newspaper',
+    section: 'posts',
   },
   {
     title: 'Users & Groups',
     description: 'Manage user accounts, roles, and permission groups.',
     to: '/dashboard/users',
     icon: 'i-lucide-users-round',
+    section: 'users',
   },
   {
     title: 'Docs / Pages',
     description: 'Manage Connect pages, content, contacts, and media links.',
     to: '/dashboard/docs',
     icon: 'i-lucide-file-text',
+    section: 'docs',
   },
   {
     title: 'Media',
     description: 'Browse, upload, and delete files stored in Connect S3.',
     to: '/dashboard/media',
     icon: 'i-lucide-folder-open',
+    section: 'media',
   },
   {
     title: 'Degree Builder',
     description: 'Manage degree templates, sections, and required courses.',
     to: '/dashboard/degrees',
     icon: 'i-lucide-graduation-cap',
+    section: 'degrees',
   },
   {
     title: 'Forms Builder',
     description: 'Create and manage schema-driven Connect forms.',
     to: '/dashboard/forms',
     icon: 'i-lucide-square-pen',
+    section: 'forms',
   },
   {
     title: 'Home Slider',
     description: 'Manage homepage slider images, links, and display order.',
     to: '/dashboard/home-slider',
     icon: 'i-lucide-images',
+    section: 'home-slider',
   },
   {
     title: 'Daily Eucharist',
     description: 'Manage weekly Eucharist toggle, summary, and schedule entries.',
     to: '/dashboard/daily-eucharist',
     icon: 'i-lucide-calendar-heart',
+    section: 'daily-eucharist',
   },
   {
     title: 'Campus Hours',
     description: 'Kentucky campus week template and holiday exceptions.',
     to: '/dashboard/campus-hours',
     icon: 'i-lucide-clock',
+    section: 'campus-hours',
   },
   {
     title: 'Chapel',
     description: 'Create and manage chapel episode entries.',
     to: '/dashboard/chapel',
     icon: 'i-lucide-mic-vocal',
+    section: 'chapel',
   },
   {
     title: 'Chapel Speakers',
     description: 'Manage speaker profiles, titles, and photos.',
     to: '/dashboard/chapel-speakers',
     icon: 'i-lucide-user-round-pen',
+    section: 'chapel-speakers',
   },
   {
     title: 'Jobs Manager',
     description: 'Review, publish, edit, and remove job board listings.',
     to: '/dashboard/jobs',
     icon: 'i-lucide-briefcase',
+    section: 'jobs',
   },
   {
     title: 'Faculty Publications',
     description: 'Manage publication records for faculty members.',
     to: '/dashboard/faculty-publications',
     icon: 'i-lucide-book-open',
-    adminOnly: true,
+    section: 'faculty-publications',
   },
   {
     title: 'Featured Publications',
     description: 'Choose homepage featured book covers in connect-settings.',
     to: '/dashboard/featured-publications',
     icon: 'i-lucide-star',
-    adminOnly: true,
+    section: 'featured-publications',
   },
   {
     title: 'Form Results',
     description: 'Review incoming form submissions and exported responses.',
     to: '/dashboard/form-results',
     icon: 'i-lucide-clipboard-list',
+    section: 'form-results',
   },
 ]
 
 const visibleSections = computed(() =>
-  sections.filter((section) => !section.adminOnly || canManageAdmin.value),
+  sections.filter((section) => canAccessSection(section.section)),
 )
 </script>

@@ -1,5 +1,6 @@
 // GET students: connect-users with role student.
 import { canPublishStudentProfile } from '@shared/studentProfileAccess'
+import { sortDirectoryByLastName } from '@shared/directoryNameSort'
 import { defineEventHandler, createError } from 'h3'
 import { normalizeUserAvatar, resolveConnectApiUrl } from '../../utils/connectApi'
 
@@ -33,7 +34,7 @@ export default defineEventHandler(async () => {
       avatar: normalizeUserAvatar(user),
     }))
 
-    return { students }
+    return { students: sortDirectoryByLastName(students) }
   } catch (err: any) {
     console.error('Students API Error:', err)
     throw createError({

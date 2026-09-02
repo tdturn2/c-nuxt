@@ -1,4 +1,5 @@
 // GET alumni directory users: connect-users with alumni permissions/groups.
+import { sortDirectoryByLastName } from '@shared/directoryNameSort'
 import { createError, defineEventHandler } from 'h3'
 import { normalizeAlumniDegrees } from '../../utils/alumniProfile'
 import { normalizeUserAvatar, resolveConnectApiUrl } from '../../utils/connectApi'
@@ -40,7 +41,7 @@ export default defineEventHandler(async () => {
       avatar: normalizeUserAvatar(user),
     }))
 
-    return { alumni }
+    return { alumni: sortDirectoryByLastName(alumni) }
   } catch (err: any) {
     console.error('Alumni Directory API Error:', err)
     throw createError({

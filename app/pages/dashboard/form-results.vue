@@ -22,7 +22,7 @@
           v-else-if="!canManageDashboard"
           class="rounded-lg bg-amber-50 border border-amber-200 p-4 text-amber-800 text-sm"
         >
-          You do not have access to the dashboard admin panel. Access is limited to staff.
+          You do not have access to this dashboard section.
         </div>
 
         <div
@@ -86,16 +86,8 @@
 </template>
 
 <script setup lang="ts">
-const { data: me, pending: mePending } = await useFetch<any>('/api/users/me', {
-  key: 'dashboard-form-results-me',
-})
-
-const canManageDashboard = computed(() => {
-  const user = me.value
-  if (!user) return false
-  const roles: string[] = Array.isArray(user.roles) ? user.roles : []
-  return roles.some((r) => String(r).toLowerCase() === 'staff')
-})
+const { mePending, canAccessSection } = useDashboardAccess()
+const canManageDashboard = computed(() => canAccessSection('form-results'))
 
 const selectedFormSlug = ref('')
 
