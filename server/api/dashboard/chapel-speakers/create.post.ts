@@ -16,7 +16,7 @@ function asNullableTrimmedString(value: unknown): string | null {
 }
 
 export default defineEventHandler(async (event) => {
-  const auth = await requireDashboardStaff(event)
+  const auth = await requireDashboardStaff(event, { section: 'chapel-speakers' })
   const body = (await readBody(event).catch(() => ({}))) as Record<string, any>
   const name = asTrimmedString(body.name)
   if (!name) throw createError({ statusCode: 400, statusMessage: 'Speaker name is required' })

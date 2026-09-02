@@ -29,7 +29,7 @@ function asNullableNumericRelationship(value: unknown): number | null {
 }
 
 export default defineEventHandler(async (event) => {
-  const auth = await requireDashboardStaff(event)
+  const auth = await requireDashboardStaff(event, { section: 'chapel' })
   const body = (await readBody(event).catch(() => ({}))) as Record<string, any>
 
   const isFutureEpisode = body.isFutureEpisode === true || String(body.isFutureEpisode || '').toLowerCase() === 'true'

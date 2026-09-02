@@ -20,7 +20,7 @@
 
         <div v-if="mePending" class="py-8 text-gray-500">Checking access…</div>
         <div v-else-if="!canManage" class="rounded-lg bg-amber-50 border border-amber-200 p-4 text-amber-800 text-sm">
-          You don't have access to manage pages. Access is limited to staff.
+          You don't have access to manage pages. Access is limited to Connect admins.
         </div>
         <template v-else>
           <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
@@ -210,6 +210,7 @@
 
 <script setup lang="ts">
 import { watch } from 'vue'
+import { isConnectAdminUser } from '@shared/connectUserAccess'
 import { fetchAllConnectPages, getConnectPageBreadcrumbLabel } from '~/composables/useConnectPagesTree'
 import { CONNECT_PAGE_CATEGORIES } from '~/composables/useConnectPagesTree'
 import { buildPageTree } from '~/composables/useConnectPagesTree'
@@ -229,25 +230,15 @@ type ConnectPage = {
   createdAt?: string
 }
 
-const { data: me, pending: mePending } = await useFetch<any>('/api/users/me', {
+const { pending: mePending } = await useFetch<any>('/api/users/me', {
   key: 'dashboard-docs-me',
-})
-
-const canManage = computed(() => {
-  const user = me.value
-  if (!user) return false
-  const roles: string[] = Array.isArray(user.roles) ? user.roles : []
-  return roles.some((r) => String(r).toLowerCase() === 'staff')
 })
 
 const connectUserFetch = await useFetch<any>('/api/connect-users/me', {
   key: 'dashboard-docs-connect-user',
-  immediate: false,
 })
 
-watch(canManage, (allowed) => {
-  if (allowed) connectUserFetch.execute()
-}, { immediate: true })
+const canManage = computed(() => isConnectAdminUser(connectUserFetch.data.value?.doc))
 
 const connectUserDoc = computed(() => connectUserFetch.data.value?.doc ?? null)
 

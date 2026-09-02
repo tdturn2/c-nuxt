@@ -24,7 +24,7 @@ function pickUrlFromPayload(json: any): { id: unknown; filename: string; url: st
 }
 
 export default defineEventHandler(async (event) => {
-  const auth = await requireDashboardStaff(event)
+  const auth = await requireDashboardStaff(event, { section: 'chapel' })
 
   const formData = await readMultipartFormData(event)
   const file = formData?.find((field) => field.name === 'file')

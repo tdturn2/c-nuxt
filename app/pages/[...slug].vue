@@ -403,7 +403,7 @@ const { data: pageDetail, refresh: refreshPageDetail } = useAsyncData<any>(
   { watch: [currentPageId, hasPageDetailInTree], lazy: true },
 )
 
-const { canEditConnectPages } = useIsConnectAdmin({
+const { canEditConnectPageAt } = useIsConnectAdmin({
   meKey: 'connect-page-slug-me',
   connectUserKey: 'connect-page-slug-connect-user',
 })
@@ -413,7 +413,7 @@ const pageEditorRef = ref<{
   openEditById: (id: string | number) => void | Promise<void>
 } | null>(null)
 
-const canEditPage = computed(() => canEditConnectPages.value)
+const canEditPage = computed(() => canEditConnectPageAt(route.path))
 
 function openPageEditor() {
   if (!currentPageId.value) return

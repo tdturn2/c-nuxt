@@ -6,7 +6,7 @@ import {
 } from '../../../utils/dashboardForms'
 
 export default defineEventHandler(async (event) => {
-  const auth = await requireDashboardStaff(event)
+  const auth = await requireDashboardStaff(event, { section: 'chapel-speakers' })
   const headers = getDashboardPayloadHeaders(event, auth, { 'Content-Type': 'application/json' })
   const params = new URLSearchParams()
   params.set('sort', 'name,email')

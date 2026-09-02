@@ -1,3 +1,6 @@
+import { normalizeConnectGroupSlugs } from '@shared/connectUserAccess'
+import { canEditPageByGroups } from '@shared/pageEditorGroups'
+
 /**
  * Detect Connect admins (role or admin-ish group), matching AdminDashboardFab.
  */
@@ -62,8 +65,16 @@ export function useIsConnectAdmin(options?: {
     return roles.includes('staff') || roles.includes('admin')
   })
 
-  /** Staff editors + Connect admins can edit pages from the live view. */
-  const canEditConnectPages = computed(() => isConnectAdmin.value || isStaff.value)
+  /** Connect admins can edit any page. Mapped groups (e.g. arp → /arp) edit their prefixes. */
+  const canEditConnectPages = computed(() => isConnectAdmin.value)
+
+  function canEditConnectPageAt(pagePath: string) {
+    return canEditPageByGroups({
+      isAdmin: isConnectAdmin.value,
+      groupSlugs: normalizeConnectGroupSlugs(connectUserData.value?.doc),
+      pagePath,
+    })
+  }
 
   return {
     me,
@@ -71,5 +82,6 @@ export function useIsConnectAdmin(options?: {
     isConnectAdmin,
     isStaff,
     canEditConnectPages,
+    canEditConnectPageAt,
   }
 }

@@ -88,6 +88,9 @@
           <section class="mt-6 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
             <div class="border-b border-gray-200 px-4 py-3">
               <h2 class="text-base font-semibold text-gray-900">Groups</h2>
+              <p class="mt-1 text-xs text-gray-500">
+                Assign users to a group to grant live page edit for matching paths (e.g. <span class="font-mono">arp</span> → <span class="font-mono">/arp</span>, <span class="font-mono">hr</span> → <span class="font-mono">/hr</span>, <span class="font-mono">registrar</span> → <span class="font-mono">/registrar</span>). Add prefixes in <span class="font-mono">shared/pageEditorGroups.ts</span> if needed.
+              </p>
             </div>
             <table class="min-w-full text-sm">
               <thead class="bg-gray-100 text-gray-700">

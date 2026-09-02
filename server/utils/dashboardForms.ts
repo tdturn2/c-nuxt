@@ -1,5 +1,11 @@
 import { createError, getHeader } from 'h3'
 import { authenticateWithPayloadCMS, getPayloadProxyHeaders } from './payloadAuth'
+import { isConnectAdminUser } from '@shared/connectUserAccess'
+import {
+  canAccessDashboard,
+  canAccessDashboardSection,
+  type DashboardSection,
+} from '@shared/dashboardAccess'
 
 export const FORM_FIELD_TYPES = new Set([
   'text',
@@ -96,7 +102,7 @@ function getPayloadBaseUrl() {
 
 export async function requireDashboardStaff(
   event: any,
-  options?: { adminOnly?: boolean },
+  options?: { adminOnly?: boolean; section?: DashboardSection; anyDashboard?: boolean },
 ): Promise<DashboardFormsAuth> {
   let { email } = await authenticateWithPayloadCMS(event)
   if (!email) {
@@ -180,13 +186,16 @@ export async function requireDashboardStaff(
     .filter((id): id is number => id != null)
 
   let resolvedGroupTags: string[] = []
+  const byId = new Map<string, any>()
   if (groupIds.length) {
     const allGroupsRes: any = await $fetch(
       `${payloadBaseUrl}/api/connect-groups?limit=500&depth=0&pagination=false`,
       { headers },
     ).catch(() => null)
     const allGroups = Array.isArray(allGroupsRes?.docs) ? allGroupsRes.docs : []
-    const byId = new Map<string, any>(allGroups.map((group: any) => [String(group?.id), group]))
+    for (const group of allGroups) {
+      if (group?.id != null) byId.set(String(group.id), group)
+    }
     resolvedGroupTags = groupIds
       .map((id) => byId.get(String(id)))
       .filter(Boolean)
@@ -199,15 +208,34 @@ export async function requireDashboardStaff(
   }
 
   const groupTags = [...groupObjectTags, ...resolvedGroupTags]
+  const accessGroups = [
+    ...groups.filter((group: any) => group && typeof group === 'object' && (group.slug || group.name)),
+    ...groupIds
+      .map((id) => {
+        const group = byId.get(String(id))
+        if (!group) return null
+        return { slug: group.slug, name: group.name, id: group.id }
+      })
+      .filter(Boolean),
+  ]
+  const accessUser = { roles, groups: accessGroups }
   const hasConnectAdminGroup = groupTags.some((value) => isAdminGroupTag(value))
   const hasAdminRole = roles.includes('admin')
-  const hasDashboardRole = roles.includes('staff') || hasAdminRole
+  const hasAdminAccess = isConnectAdminUser(accessUser) || hasAdminRole || hasConnectAdminGroup
 
   if (options?.adminOnly) {
-    if (!hasAdminRole && !hasConnectAdminGroup) {
+    if (!hasAdminAccess) {
       throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
     }
-  } else if (!hasDashboardRole && !hasConnectAdminGroup) {
+  } else if (options?.section) {
+    if (!canAccessDashboardSection(accessUser, options.section)) {
+      throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
+    }
+  } else if (options?.anyDashboard) {
+    if (!canAccessDashboard(accessUser)) {
+      throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
+    }
+  } else if (!hasAdminAccess) {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }
 

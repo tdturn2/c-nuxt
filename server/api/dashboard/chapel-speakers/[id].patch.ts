@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'id is required' })
 
-  const auth = await requireDashboardStaff(event)
+  const auth = await requireDashboardStaff(event, { section: 'chapel-speakers' })
   const body = (await readBody(event).catch(() => ({}))) as Record<string, any>
   delete body.date
   if ('connectUser' in body) body.connectUser = asNullableRelationship(body.connectUser)

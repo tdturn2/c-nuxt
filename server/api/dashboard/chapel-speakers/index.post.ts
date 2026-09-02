@@ -7,7 +7,7 @@ import {
 } from '../../../utils/dashboardForms'
 
 export default defineEventHandler(async (event) => {
-  const auth = await requireDashboardStaff(event)
+  const auth = await requireDashboardStaff(event, { section: 'chapel-speakers' })
   const body = (await readBody(event).catch(() => ({}))) as Record<string, any>
   const episodeDate = typeof body.date === 'string' ? body.date.trim() : ''
   const requestedSpeakerName = typeof body.name === 'string' ? body.name.trim() : ''

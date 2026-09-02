@@ -23,29 +23,31 @@
               :key="String(item.id)"
               class="min-w-0"
             >
-              <img
-                v-if="speakerPhotoUrl(item.speaker)"
-                :src="speakerPhotoUrl(item.speaker)"
-                :alt="item.speaker?.name || 'Chapel speaker'"
-                class="aspect-square w-3/4 rounded-full object-cover object-top bg-gray-100"
-              >
-              <div
-                v-else
-                class="aspect-square w-3/4 rounded-full bg-gray-200"
-                aria-hidden="true"
-              />
-              <h2 class="mt-3 text-lg font-bold text-gray-900">
-                {{ weekdayDateLabel(item.date) }}
-              </h2>
-              <p class="mt-1 text-gray-800">
-                {{ item.speaker?.name || 'TBD' }}
-              </p>
-              <p v-if="item.speaker?.speakerDescription" class="mt-0.5 text-sm text-gray-600">
-                {{ item.speaker.speakerDescription }}
-              </p>
-              <p v-if="item.title" class="mt-1 text-sm text-[rgba(13,94,130,1)]">
-                {{ item.title }}
-              </p>
+              <article class="flex flex-col items-center rounded-lg border border-gray-200 bg-white px-5 py-6 text-center shadow-sm">
+                <h2 class="font-serif text-xl text-gray-900">
+                  {{ weekdayDateLabel(item.date) }}
+                </h2>
+                <img
+                  v-if="speakerPhotoUrl(item.speaker)"
+                  :src="speakerPhotoUrl(item.speaker)"
+                  :alt="item.speaker?.name || 'Chapel speaker'"
+                  class="mt-4 aspect-square w-1/2 max-w-[140px] rounded-full border-4 border-[var(--color-gold)] object-cover object-top bg-gray-100"
+                >
+                <div
+                  v-else
+                  class="mt-4 aspect-square w-1/2 max-w-[140px] rounded-full border-4 border-[var(--color-gold)] bg-gray-200"
+                  aria-hidden="true"
+                />
+                <p class="mt-4 text-base font-semibold text-gray-900">
+                  {{ item.speaker?.name || 'TBD' }}
+                </p>
+                <p v-if="item.speaker?.speakerDescription" class="mt-1 max-w-[16rem] text-sm leading-snug text-gray-600">
+                  {{ item.speaker.speakerDescription }}
+                </p>
+                <p v-if="item.title" class="mt-2 max-w-[16rem] text-sm font-medium text-[rgba(13,94,130,1)]">
+                  {{ item.title }}
+                </p>
+              </article>
             </li>
           </ul>
         </section>

@@ -6,7 +6,7 @@ import {
 } from '../../../utils/dashboardForms'
 
 export default defineEventHandler(async (event) => {
-  const auth = await requireDashboardStaff(event)
+  const auth = await requireDashboardStaff(event, { section: 'chapel' })
   const query = getQuery(event)
   const page = Math.max(1, Number(query.page || 1))
   const limit = Math.min(100, Math.max(1, Number(query.limit || 50)))

@@ -1,5 +1,13 @@
 import { readBody, createError, getRouterParam, type H3Event } from 'h3'
 import { authenticateWithPayloadCMS, getPayloadProxyHeaders } from './payloadAuth'
+import { isConnectAdminUser } from '@shared/connectUserAccess'
+import {
+  assertCanEditConnectPagePath,
+  connectApiOriginFromConfig,
+  loadConnectUserForPageEdit,
+  resolveConnectPagePath,
+  resolveCreateConnectPagePath,
+} from './connectPageEditAccess'
 
 type UpdateBody = {
   email?: string
@@ -35,35 +43,9 @@ function normalizeSectionSlug(value: unknown): string | null {
   return id != null ? String(id).trim().toLowerCase() : null
 }
 
-function editableSectionSlugs(connectUser: any): string[] {
-  const raw = [
-    ...(Array.isArray(connectUser?.editableSections) ? connectUser.editableSections : []),
-    ...(Array.isArray(connectUser?.fields?.editableSections) ? connectUser.fields.editableSections : []),
-  ]
-  return raw
-    .map(normalizeSectionSlug)
-    .filter((slug): slug is string => Boolean(slug))
-}
-
 function toIdList(value: any): Array<number | string> {
   if (!Array.isArray(value)) return []
   return value.map(normalizeRelId).filter((v): v is number | string => v != null)
-}
-
-function connectUserRoles(connectUser: any): string[] {
-  return [
-    ...(Array.isArray(connectUser?.roles) ? connectUser.roles : []),
-    ...(Array.isArray(connectUser?.fields?.roles) ? connectUser.fields.roles : []),
-  ]
-    .map((role) => String(role || '').trim().toLowerCase())
-    .filter(Boolean)
-}
-
-/** e.g. http://localhost:3003/api → http://localhost:3003 */
-function payloadOrigin(raw: string): string {
-  let b = raw.trim().replace(/\/+$/, '')
-  if (b.endsWith('/api')) b = b.slice(0, -4).replace(/\/+$/, '')
-  return b
 }
 
 function upstreamStatus(err: any): number {
@@ -107,15 +89,7 @@ function readPersistedFormSlug(doc: any): string | null {
  */
 export async function handleConnectPagesPayloadUpdate(event: H3Event) {
   const config = useRuntimeConfig()
-  const payloadBaseUrl =
-    (config.connectApi || config.public.connectApi || '').trim() ||
-    (import.meta.dev ? 'http://localhost:3003' : '')
-
-  if (!payloadBaseUrl) {
-    throw createError({ statusCode: 500, statusMessage: 'Missing CONNECT_API' })
-  }
-
-  const origin = payloadOrigin(payloadBaseUrl)
+  const origin = connectApiOriginFromConfig(config)
   const updatePath = String((config as { payloadConnectPagesUpdatePath?: string }).payloadConnectPagesUpdatePath || 'connect-pages/update')
     .replace(/^\/+/, '')
     .replace(/\/+$/, '')
@@ -128,39 +102,13 @@ export async function handleConnectPagesPayloadUpdate(event: H3Event) {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized - must be signed in' })
   }
 
-  let isPayloadAdminJwt = false
-  if (token) {
-    try {
-      await $fetch(`${origin}/api/users/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      isPayloadAdminJwt = true
-    } catch {
-      isPayloadAdminJwt = false
-    }
-  }
-
   const body = (await readBody(event).catch(() => ({}))) as UpdateBody
   if (body.email && body.email !== sessionEmail) {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden - email mismatch' })
   }
 
-  const connectUserRes: any = await $fetch(
-    `${origin}/api/connect-users?where[email][equals]=${encodeURIComponent(sessionEmail)}&limit=1&depth=2`
-  ).catch((err: any) => {
-    throw createError({
-      statusCode: err?.statusCode || 502,
-      statusMessage: err?.statusMessage || 'Failed to load connect-user',
-      data: err?.data,
-    })
-  })
-
-  const connectUser = Array.isArray(connectUserRes?.docs) ? connectUserRes.docs[0] : null
-  const roles = connectUserRoles(connectUser)
-
-  const isConnectAdmin = roles.includes('admin')
-  const isConnectStaff = roles.includes('staff')
-  const isAdminSession = isPayloadAdminJwt || isConnectAdmin || isConnectStaff
+  const connectUser = await loadConnectUserForPageEdit(origin, sessionEmail)
+  const isAdminSession = isConnectAdminUser(connectUser)
 
   const existing: any = await $fetch(`${origin}/api/connect-pages/${encodeURIComponent(id)}?depth=2`).catch((err: any) => {
     throw createError({
@@ -170,21 +118,25 @@ export async function handleConnectPagesPayloadUpdate(event: H3Event) {
     })
   })
 
-  const existingSection =
-    normalizeSectionSlug(existing?.section) ??
-    normalizeSectionSlug(existing?.fields?.section) ??
-    null
-
+  const existingPath = await resolveConnectPagePath(origin, existing)
   if (!isAdminSession) {
     if (!connectUser) throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
+    assertCanEditConnectPagePath(connectUser, existingPath)
 
-    const editableSections = editableSectionSlugs(connectUser)
-
-    if (!existingSection || !editableSections.includes(existingSection)) {
-      throw createError({ statusCode: 403, statusMessage: 'Forbidden - not allowed to edit this section' })
+    const nextSlug = typeof body.slug === 'string' ? body.slug : existing?.slug
+    if (body.slug !== undefined || body.parent !== undefined) {
+      const nextPath = await resolveCreateConnectPagePath(origin, {
+        slug: String(nextSlug || ''),
+        parent: body.parent !== undefined ? body.parent : existing?.parent,
+      })
+      assertCanEditConnectPagePath(connectUser, nextPath)
     }
 
     const requestedSection = normalizeSectionSlug(body.section)
+    const existingSection =
+      normalizeSectionSlug(existing?.section) ??
+      normalizeSectionSlug(existing?.fields?.section) ??
+      null
     if (requestedSection && requestedSection !== existingSection) {
       throw createError({ statusCode: 403, statusMessage: 'Forbidden - cannot change section' })
     }

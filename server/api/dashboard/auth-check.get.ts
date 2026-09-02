@@ -7,7 +7,7 @@ import {
 } from '../../utils/dashboardForms'
 
 export default defineEventHandler(async (event) => {
-  const auth = await requireDashboardStaff(event)
+  const auth = await requireDashboardStaff(event, { anyDashboard: true })
   const headers = withServerBearer(
     getDashboardPayloadHeaders(event, auth, { 'Content-Type': 'application/json' }),
   )

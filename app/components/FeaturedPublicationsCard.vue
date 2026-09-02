@@ -1,15 +1,5 @@
 <template>
   <section v-if="featuredBooks.length" class="w-full max-w-[180px]">
-    <div class="mb-2 flex items-baseline justify-between gap-2">
-      <h2 class="text-xs font-semibold uppercase tracking-wide text-gray-500">Publications</h2>
-      <NuxtLink
-        to="/latest-books"
-        class="text-xs font-medium text-[rgba(13,94,130,1)] hover:underline"
-      >
-        View all
-      </NuxtLink>
-    </div>
-
     <UCarousel
       v-slot="{ item }"
       loop
