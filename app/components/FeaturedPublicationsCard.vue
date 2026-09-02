@@ -12,9 +12,7 @@
       class="mx-auto w-[140px]"
     >
       <NuxtLink
-        :to="item.link || '/latest-books'"
-        :target="isExternalLink(item.link) ? '_blank' : undefined"
-        :rel="isExternalLink(item.link) ? 'noopener noreferrer' : undefined"
+        to="/latest-books"
         class="block"
       >
         <div
@@ -44,8 +42,4 @@ const { data } = useFetch<{ books?: FeaturedBook[] }>('/api/books/featured', {
 const featuredBooks = computed<FeaturedBook[]>(() =>
   Array.isArray(data.value?.books) ? data.value.books : [],
 )
-
-function isExternalLink(link?: string | null) {
-  return typeof link === 'string' && /^https?:\/\//i.test(link)
-}
 </script>
