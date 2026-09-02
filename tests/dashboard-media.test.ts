@@ -19,6 +19,7 @@ describe('dashboard media helpers', () => {
 
   it('detects images and formats size labels', () => {
     expect(mediaIsImage({ mimeType: 'image/png' })).toBe(true)
+    expect(mediaIsImage({ filename: 'flyer.jpg' })).toBe(true)
     expect(mediaIsImage({ filename: 'notes.pdf', mimeType: 'application/pdf' })).toBe(false)
     expect(formatMediaBytes(2048)).toBe('2.0 KB')
     expect(userMediaKindLabel('post-images')).toBe('Post images')

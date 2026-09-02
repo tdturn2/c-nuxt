@@ -1,5 +1,8 @@
 <template>
-  <div class="container mx-auto max-w-4xl py-8 px-4">
+  <div class="flex min-h-0 bg-gray-50">
+    <LeftColumn />
+    <main class="flex-1 min-w-0 overflow-y-auto">
+      <div class="w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <div v-if="loading" class="text-center py-12">
       <div class="text-gray-500">Loading profile...</div>
     </div>
@@ -8,41 +11,45 @@
       <div class="text-red-800">{{ error }}</div>
     </div>
 
-    <div v-else-if="user" class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-      <!-- Profile Header -->
-      <div class="flex flex-col items-center text-center mb-8">
-        <!-- Avatar -->
-        <div class="w-32 h-32 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden mb-4">
+    <div v-else-if="user" class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+      <div class="flex flex-col items-center text-center">
+        <div class="mb-4 flex h-28 w-28 items-center justify-center overflow-hidden rounded-full bg-gray-200">
           <img
             v-if="user.avatar?.url"
             :src="user.avatar.url"
             :alt="user.name"
-            class="w-full h-full object-cover"
-          />
-          <span v-else class="text-gray-600 font-semibold text-4xl">
+            class="h-full w-full object-cover"
+          >
+          <span v-else class="text-4xl font-semibold text-gray-500">
             {{ user.name?.charAt(0).toUpperCase() }}
           </span>
         </div>
 
-        <!-- Name -->
-        <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ user.name }}</h1>
-        
-        <!-- Email/Username -->
-        <p class="text-gray-500 text-sm">{{ user.email }}</p>
+        <h1 class="text-3xl font-bold tracking-tight text-gray-900">{{ user.name }}</h1>
+        <p v-if="user.employeeTitle" class="mt-1 text-gray-600">{{ user.employeeTitle }}</p>
+        <p v-if="headerAffiliation" class="mt-1 text-sm text-gray-500">{{ headerAffiliation }}</p>
+
+        <div v-if="alumniSocialLinks.length" class="mt-4 flex items-center justify-center gap-2">
+          <a
+            v-for="link in alumniSocialLinks"
+            :key="link.key"
+            :href="link.href"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-700 transition-colors hover:bg-[rgba(13,94,130,0.12)] hover:text-[rgba(13,94,130,1)]"
+            :aria-label="link.label"
+          >
+            <UIcon :name="link.icon" class="h-5 w-5" />
+          </a>
+        </div>
       </div>
 
-      <!-- Bio Section -->
-      <div v-if="user.bio" class="border-t border-gray-200 pt-6 mb-6">
+      <div v-if="hasBio" class="mt-8 border-t border-gray-200 pt-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-3">About</h2>
         <p class="text-gray-700 whitespace-pre-wrap">{{ user.bio }}</p>
       </div>
 
-      <div v-else class="border-t border-gray-200 pt-6 mb-6">
-        <p class="text-gray-500 italic">No bio available.</p>
-      </div>
-
-      <!-- Employee profile: show when user has any employee data -->
-      <div v-if="employeeProfileEntries.length > 0" class="border-t border-gray-200 pt-6 mb-6">
+      <div v-if="employeeProfileEntries.length > 0" class="mt-8 border-t border-gray-200 pt-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-3">Asbury Seminary Employee Profile</h2>
         <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
           <template v-for="entry in employeeProfileEntries" :key="entry.key">
@@ -52,8 +59,7 @@
         </dl>
       </div>
 
-      <!-- Student Profile: only these slugs, in this order, with these labels -->
-      <div v-if="alumniDegreeEntries.length > 0 || alumniContactEntries.length > 0" class="border-t border-gray-200 pt-6 mb-6">
+      <div v-if="alumniDegreeEntries.length > 0 || alumniContactEntries.length > 0" class="mt-8 border-t border-gray-200 pt-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-3">Alumni Profile</h2>
         <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
           <template v-for="entry in alumniDegreeEntries" :key="entry.key">
@@ -68,7 +74,7 @@
       </div>
 
       <!-- Student Profile: only these slugs, in this order, with these labels -->
-      <div v-if="studentProfileEntries.length > 0" class="border-t border-gray-200 pt-6">
+      <div v-if="studentProfileEntries.length > 0" class="mt-8 border-t border-gray-200 pt-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-3">Student Profile</h2>
         <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
           <template v-for="entry in studentProfileEntries" :key="entry.slug">
@@ -78,6 +84,8 @@
         </dl>
       </div>
     </div>
+      </div>
+    </main>
   </div>
 </template>
 
@@ -101,7 +109,7 @@ const user = ref<{
   section?: string | null
   alumniOptIn?: boolean
   studentOptIn?: boolean
-  alumniDegrees?: Array<{ degree?: string | null; graduationYear?: number | null }> | null
+  alumniDegrees?: Array<{ degree?: string | null; graduationYear?: number | string | null }> | null
   alumniContact?: {
     email?: string | null
     phone?: string | null
@@ -113,7 +121,6 @@ const user = ref<{
 
 const studentProfile = ref<{ answers: Record<string, unknown>; updatedAt: string } | null>(null)
 
-// Department/section labels for employee display (match employee edit page)
 const DEPARTMENT_LABELS: Record<string, string> = {
   '1': 'Academic Affairs',
   '2': 'EMT',
@@ -136,11 +143,38 @@ function yearsEmployed(startDateStr: string): number | null {
     const now = Date.now()
     if (start > now) return null
     const years = (now - start) / (365.25 * 24 * 60 * 60 * 1000)
-    return Math.round(years * 10) / 10 // one decimal
+    return Math.round(years * 10) / 10
   } catch {
     return null
   }
 }
+
+function toSocialHref(network: 'facebook' | 'x' | 'instagram', raw: string): string {
+  const value = raw.trim()
+  if (!value) return ''
+  if (/^https?:\/\//i.test(value)) return value
+
+  const stripped = value.replace(/^@+/, '').replace(/^\/+/, '')
+  if (/^(www\.)?(facebook\.com|fb\.com|instagram\.com|x\.com|twitter\.com)\//i.test(stripped)) {
+    return `https://${stripped}`
+  }
+
+  if (network === 'facebook') return `https://www.facebook.com/${stripped}`
+  if (network === 'instagram') return `https://www.instagram.com/${stripped}`
+  return `https://x.com/${stripped}`
+}
+
+const headerAffiliation = computed(() => {
+  const u = user.value
+  if (!u) return ''
+  const parts = [
+    u.department ? (DEPARTMENT_LABELS[String(u.department)] ?? String(u.department)) : '',
+    u.section ? formatSectionLabel(String(u.section)) : '',
+  ].filter(Boolean)
+  return parts.join(' · ')
+})
+
+const hasBio = computed(() => Boolean(user.value?.bio?.trim()))
 
 const EMPLOYEE_FIELDS: { key: keyof NonNullable<typeof user.value>; label: string }[] = [
   { key: 'employeeTitle', label: 'Title' },
@@ -195,21 +229,27 @@ const alumniDegreeEntries = computed(() => {
 const alumniContactEntries = computed(() => {
   if (!user.value?.alumniOptIn || !user.value?.alumniContact) return []
   const contact = user.value.alumniContact
-  const rowConfig = [
-    { key: 'email', label: 'Email' },
-    { key: 'phone', label: 'Phone' },
-    { key: 'facebook', label: 'Facebook' },
-    { key: 'x', label: 'X' },
-    { key: 'instagram', label: 'Instagram' },
-  ] as const
+  const entries: { key: string; label: string; value: string }[] = []
+  const email = String(contact.email ?? '').trim()
+  const phone = String(contact.phone ?? '').trim()
+  if (email) entries.push({ key: 'email', label: 'Email', value: email })
+  if (phone) entries.push({ key: 'phone', label: 'Phone', value: phone })
+  return entries
+})
 
-  return rowConfig
-    .map((row) => {
-      const value = String(contact[row.key] ?? '').trim()
-      if (!value) return null
-      return { key: row.key, label: row.label, value }
-    })
-    .filter((entry): entry is { key: string; label: string; value: string } => Boolean(entry))
+const alumniSocialLinks = computed(() => {
+  if (!user.value?.alumniOptIn || !user.value?.alumniContact) return []
+  const contact = user.value.alumniContact
+  const networks = [
+    { key: 'facebook' as const, label: 'Facebook', icon: 'i-simple-icons-facebook' },
+    { key: 'x' as const, label: 'X', icon: 'i-simple-icons-x' },
+    { key: 'instagram' as const, label: 'Instagram', icon: 'i-simple-icons-instagram' },
+  ]
+  return networks.flatMap((network) => {
+    const value = String(contact[network.key] ?? '').trim()
+    if (!value) return []
+    return [{ ...network, href: toSocialHref(network.key, value) }]
+  })
 })
 
 // Control exactly which answers show, in what order, and with what label. Add/remove/reorder as needed.

@@ -11,7 +11,7 @@ export type DashboardMediaDoc = {
   kind?: string | null
   owner?: number | string | null
   prefix?: string | null
-  file?: { url?: string | null; filename?: string | null; name?: string | null; alt?: string | null }
+  file?: { url?: string | null; filename?: string | null; name?: string | null; alt?: string | null; mimeType?: string | null }
   _normalizedUrl?: string | null
 }
 
@@ -49,7 +49,7 @@ export function mediaUrl(doc: DashboardMediaDoc | null | undefined): string | nu
 }
 
 export function mediaIsImage(doc: DashboardMediaDoc | null | undefined): boolean {
-  const mime = String(doc?.mimeType || '').toLowerCase()
+  const mime = String(doc?.mimeType || doc?.file?.mimeType || '').toLowerCase()
   if (mime.startsWith('image/')) return true
   const name = (mediaFilename(doc) || '').toLowerCase()
   return /\.(avif|gif|jpe?g|png|svg|webp)$/i.test(name)

@@ -65,9 +65,9 @@
                   </div>
                   <div class="min-w-0 w-full">
                     <h2 class="font-semibold text-gray-900 truncate hover:text-[rgba(13,94,130,1)]">{{ a.name }}</h2>
-                    <div v-for="(degree, degreeIndex) in a.degrees" :key="`${a.id}-degree-${degreeIndex}`" class="mt-1">
-                      <p class="text-sm text-gray-600 truncate">{{ degree.degree }}</p>
-                      <p v-if="degree.graduationYear" class="text-xs text-gray-500">Class of {{ degree.graduationYear }}</p>
+                    <div v-if="a.latestDegree" class="mt-1">
+                      <p class="text-sm text-gray-600 truncate">{{ a.latestDegree.degree }}</p>
+                      <p v-if="a.latestDegree.graduationYear" class="text-xs text-gray-500">Class of {{ a.latestDegree.graduationYear }}</p>
                     </div>
                   </div>
                 </NuxtLink>
@@ -154,10 +154,22 @@ const filteredAlumni = computed(() => {
 
 const totalPages = computed(() => Math.max(1, Math.ceil(filteredAlumni.value.length / PAGE_SIZE)))
 
+function getLatestDegree(degrees: AlumniRow['degrees']) {
+  if (!degrees.length) return null
+  return [...degrees].sort((a, b) => {
+    const aYear = a.graduationYear ?? -1
+    const bYear = b.graduationYear ?? -1
+    return bYear - aYear
+  })[0]
+}
+
 const paginatedAlumni = computed(() => {
   const list = filteredAlumni.value
   const start = (currentPage.value - 1) * PAGE_SIZE
-  return list.slice(start, start + PAGE_SIZE)
+  return list.slice(start, start + PAGE_SIZE).map((a) => ({
+    ...a,
+    latestDegree: getLatestDegree(a.degrees),
+  }))
 })
 
 const rangeStart = computed(() => (currentPage.value - 1) * PAGE_SIZE + 1)

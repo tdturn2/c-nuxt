@@ -18,39 +18,77 @@
 
         <template v-else>
           <form class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm" @submit.prevent="saveItem">
-            <h2 class="text-base font-semibold text-gray-900">{{ editingId ? 'Edit slide' : 'Add slide' }}</h2>
+            <h2 class="text-base font-semibold text-gray-900">{{ editingId ? 'Edit slide' : 'Add slides' }}</h2>
+            <p v-if="!editingId" class="mt-1 text-xs text-gray-500">
+              All fields are optional. Select or upload several images to create one slide per image.
+            </p>
             <div class="mt-3 grid gap-3 sm:grid-cols-2">
-              <input v-model="form.title" type="text" placeholder="Title (defaults to filename)" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
+              <input v-model="form.title" type="text" placeholder="Title (optional)" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
               <input v-model="form.href" type="text" placeholder="Link (optional)" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
-              <input :value="selectedImageLabel" type="text" readonly placeholder="No image selected" class="rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm">
-              <input v-model.number="form.sortOrder" type="number" placeholder="Sort order" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
-              <input v-model="form.startAt" type="date" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
-              <input v-model="form.endAt" type="date" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
+              <div class="min-w-0">
+                <div v-if="form.images.length" class="flex flex-wrap gap-1.5 rounded-md border border-gray-300 bg-gray-50 px-2 py-2">
+                  <span
+                    v-for="imageId in form.images"
+                    :key="String(imageId)"
+                    class="inline-flex max-w-full items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-0.5 text-xs text-gray-700"
+                  >
+                    <span class="truncate">{{ imageLabelById(imageId) }}</span>
+                    <button type="button" class="shrink-0 text-gray-400 hover:text-gray-700" :aria-label="`Remove ${imageLabelById(imageId)}`" @click="removeSelectedImage(imageId)">×</button>
+                  </span>
+                </div>
+                <input
+                  v-else
+                  type="text"
+                  readonly
+                  placeholder="No image selected (optional)"
+                  class="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm"
+                >
+              </div>
+              <input v-model="form.sortOrder" type="number" placeholder="Sort order (optional)" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
+              <label class="block text-xs text-gray-500">
+                Start date (optional)
+                <input v-model="form.startAt" type="date" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900">
+              </label>
+              <label class="block text-xs text-gray-500">
+                End date (optional)
+                <input v-model="form.endAt" type="date" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900">
+              </label>
             </div>
             <details class="mt-3 rounded-lg border border-gray-200 bg-white [&_summary::-webkit-details-marker]:hidden">
               <summary class="cursor-pointer list-none px-3 py-2 hover:bg-gray-50">
                 <span class="text-sm font-medium text-gray-900">Page media library selector</span>
-                <p class="text-xs text-gray-500">Upload or pick from Connect Page Assets.</p>
+                <p class="text-xs text-gray-500">
+                  {{ editingId ? 'Upload or pick an image from Connect Page Assets.' : 'Upload or pick one or more images from Connect Page Assets.' }}
+                </p>
               </summary>
               <div class="border-t border-gray-100 p-3">
-                <div class="grid gap-3 sm:grid-cols-2 mb-3">
+                <div class="mb-3 grid gap-2">
                   <input
                     v-model="uploadAlt"
                     type="text"
                     placeholder="Image alt/name (optional)"
                     class="rounded-md border border-gray-300 px-3 py-2 text-sm"
                   >
-                  <div class="flex gap-2">
-                    <input ref="uploadInputRef" type="file" accept="image/*" class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm">
+                  <div class="flex min-w-0 items-center gap-2">
+                    <input
+                      ref="uploadInputRef"
+                      type="file"
+                      accept="image/*"
+                      :multiple="!editingId"
+                      class="min-w-0 flex-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                      :disabled="uploadingImage"
+                      @change="uploadImageAsset({ silentIfEmpty: true })"
+                    >
                     <button
                       type="button"
-                      class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                      class="shrink-0 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                       :disabled="uploadingImage"
-                      @click="uploadImageAsset"
+                      @click="uploadImageAsset()"
                     >
-                      {{ uploadingImage ? 'Uploading...' : 'Upload' }}
+                      {{ uploadingImage ? uploadProgressLabel : 'Upload' }}
                     </button>
                   </div>
+                  <p class="text-xs text-gray-500">Images upload when you choose them. The list below shows images only.</p>
                 </div>
                 <UInput
                   v-model="assetLibrarySearch"
@@ -78,7 +116,7 @@
                         : 'rounded border border-gray-200 bg-white px-2 py-1 text-xs text-[rgba(13,94,130,1)] hover:bg-gray-50'"
                       @click="selectImage(asset)"
                     >
-                      {{ isSelectedAsset(asset) ? 'Selected' : 'Select' }}
+                      {{ isSelectedAsset(asset) ? (editingId ? 'Selected' : 'Deselect') : 'Select' }}
                     </button>
                   </li>
                   <li v-if="!filteredMediaAssets.length" class="px-3 py-3 text-sm text-gray-500">No matching assets.</li>
@@ -86,23 +124,27 @@
               </div>
             </details>
             <p class="mt-2 text-xs text-gray-500">
-              Selected image ID: {{ selectedImageId ?? 'none' }}
+              {{ selectedImagesSummary }}
             </p>
             <div class="mt-3 flex items-center gap-4 text-sm">
               <label class="inline-flex items-center gap-2"><input v-model="form.active" type="checkbox"> Active</label>
               <label class="inline-flex items-center gap-2"><input v-model="form.openInNewTab" type="checkbox"> Open in new tab</label>
             </div>
             <div class="mt-4 flex items-center gap-2">
-              <button type="submit" class="rounded-md bg-[rgba(13,94,130,1)] px-3 py-2 text-sm font-medium text-white hover:bg-[rgba(10,69,92,1)]">
-                {{ editingId ? 'Update slide' : 'Create slide' }}
+              <button
+                type="submit"
+                class="rounded-md bg-[rgba(13,94,130,1)] px-3 py-2 text-sm font-medium text-white hover:bg-[rgba(10,69,92,1)] disabled:opacity-50"
+                :disabled="saving"
+              >
+                {{ submitLabel }}
               </button>
               <button
-                v-if="editingId"
+                v-if="editingId || form.images.length"
                 type="button"
                 class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
                 @click="resetForm"
               >
-                Cancel
+                {{ editingId ? 'Cancel' : 'Clear' }}
               </button>
             </div>
           </form>
@@ -166,8 +208,8 @@
                     >
                     <span v-else class="text-gray-400">—</span>
                   </td>
-                  <td class="px-4 py-3 font-medium text-gray-900">{{ item.title }}</td>
-                  <td class="px-4 py-3 text-gray-700 truncate max-w-[260px]">{{ item.href }}</td>
+                  <td class="px-4 py-3 font-medium text-gray-900">{{ item.title || '—' }}</td>
+                  <td class="px-4 py-3 text-gray-700 truncate max-w-[260px]">{{ item.href || '—' }}</td>
                   <td class="px-4 py-3 text-gray-700">{{ item.active ? 'Active' : 'Inactive' }}</td>
                   <td class="px-4 py-3 text-gray-700">{{ item.sortOrder ?? 0 }}</td>
                   <td class="px-4 py-3 text-right space-x-2">
@@ -185,7 +227,9 @@
 </template>
 
 <script setup lang="ts">
+import { buildHomeSliderCreateItems } from '@shared/homeSlider'
 import type { DashboardSliderItem } from '~/composables/useDashboardContent'
+import { mediaIsImage } from '~/utils/dashboardMedia'
 
 const { listSliderItems, createSliderItem, updateSliderItem, deleteSliderItem } = useDashboardContent()
 const { data: me, pending: mePending } = await useFetch<any>('/api/users/me', { key: 'dashboard-home-slider-me' })
@@ -202,15 +246,17 @@ const error = ref<string | null>(null)
 const uploadInputRef = ref<HTMLInputElement | null>(null)
 const uploadAlt = ref('')
 const uploadingImage = ref(false)
+const uploadProgressLabel = ref('Uploading...')
 const assetLibrarySearch = ref('')
 const editingId = ref<string | number | null>(null)
+const saving = ref(false)
 const form = ref({
   title: '',
   href: '',
-  image: null as string | number | null,
+  images: [] as Array<string | number>,
   active: true,
   openInNewTab: false,
-  sortOrder: 0,
+  sortOrder: '',
   startAt: '',
   endAt: '',
 })
@@ -222,35 +268,34 @@ function resolveAssetId(asset: any): string | number | null {
   return id as string | number
 }
 
-const selectedImageId = computed<string | number | null>(() => {
-  const id = form.value.image
-  if (id === null || id === undefined || id === '') return null
-  return id
-})
-
-function resetForm() {
-  editingId.value = null
-  form.value = {
+function emptyForm() {
+  return {
     title: '',
     href: '',
-    image: null,
+    images: [] as Array<string | number>,
     active: true,
     openInNewTab: false,
-    sortOrder: 0,
+    sortOrder: '',
     startAt: '',
     endAt: '',
   }
 }
 
+function resetForm() {
+  editingId.value = null
+  form.value = emptyForm()
+}
+
 function startEdit(item: DashboardSliderItem) {
   editingId.value = item.id
+  const imageId = item.image?.id ?? (typeof item.image === 'number' || typeof item.image === 'string' ? item.image : null)
   form.value = {
     title: item.title || '',
     href: item.href || '',
-    image: item.image?.id || item.image || null,
+    images: imageId == null || imageId === '' ? [] : [imageId],
     active: item.active !== false,
     openInNewTab: !!item.openInNewTab,
-    sortOrder: Number(item.sortOrder || 0),
+    sortOrder: item.sortOrder == null ? '' : String(item.sortOrder),
     startAt: item.startAt ? String(item.startAt).slice(0, 10) : '',
     endAt: item.endAt ? String(item.endAt).slice(0, 10) : '',
   }
@@ -277,10 +322,6 @@ function mediaLabel(asset: any) {
   return alt || filename || `Asset #${asset?.id}`
 }
 
-function mediaFilename(asset: any): string {
-  return String(asset?.file?.filename || asset?.filename || asset?.file?.name || '').trim()
-}
-
 function pagesMediaBrowserUrl(raw: unknown): string | null {
   if (typeof raw !== 'string') return null
   const input = raw.trim()
@@ -299,29 +340,48 @@ function slidePreviewUrl(item: DashboardSliderItem): string | null {
   return mediaPreviewUrl(item.image)
 }
 
-function selectedImageTitle(): string {
-  if (selectedImageId.value == null) return ''
-  const asset = mediaAssets.value.find(
-    (item: any) => String(resolveAssetId(item)) === String(selectedImageId.value),
-  )
-  return mediaFilename(asset)
+function imageLabelById(id: string | number): string {
+  const match = mediaAssets.value.find((asset: any) => String(resolveAssetId(asset)) === String(id))
+  return match ? mediaLabel(match) : `Asset #${String(id)}`
 }
 
 const filteredMediaAssets = computed(() => {
+  const images = mediaAssets.value.filter((asset: any) => mediaIsImage(asset))
   const q = assetLibrarySearch.value.trim().toLowerCase()
-  if (!q) return mediaAssets.value
-  return mediaAssets.value.filter((asset: any) => {
+  if (!q) return images
+  return images.filter((asset: any) => {
     const label = mediaLabel(asset).toLowerCase()
-    const filename = String(asset?.file?.filename || '').toLowerCase()
+    const filename = String(asset?.file?.filename || asset?.filename || '').toLowerCase()
     return label.includes(q) || filename.includes(q)
   })
 })
 
-const selectedImageLabel = computed(() => {
-  if (!selectedImageId.value) return ''
-  const match = mediaAssets.value.find((asset: any) => String(resolveAssetId(asset)) === String(selectedImageId.value))
-  return match ? mediaLabel(match) : `Asset #${String(selectedImageId.value)}`
+const selectedImagesSummary = computed(() => {
+  const ids = form.value.images
+  if (!ids.length) return 'No image selected'
+  if (ids.length === 1) return `Selected image ID: ${String(ids[0])}`
+  return `${ids.length} images selected`
 })
+
+const submitLabel = computed(() => {
+  if (saving.value) return editingId.value ? 'Updating...' : 'Creating...'
+  if (editingId.value) return 'Update slide'
+  const count = Math.max(form.value.images.length, 1)
+  return count === 1 ? 'Create slide' : `Create ${count} slides`
+})
+
+function addSelectedImage(id: string | number) {
+  if (editingId.value) {
+    form.value.images = [id]
+    return
+  }
+  if (form.value.images.some((existing) => String(existing) === String(id))) return
+  form.value.images = [...form.value.images, id]
+}
+
+function removeSelectedImage(id: string | number) {
+  form.value.images = form.value.images.filter((existing) => String(existing) !== String(id))
+}
 
 function selectImage(asset: any) {
   const id = resolveAssetId(asset)
@@ -330,91 +390,111 @@ function selectImage(asset: any) {
     return
   }
   error.value = null
-  form.value.image = id
-  if (!form.value.title.trim()) form.value.title = mediaFilename(asset)
+  if (isSelectedAsset(asset) && !editingId.value) {
+    removeSelectedImage(id)
+    return
+  }
+  addSelectedImage(id)
 }
 
 function isSelectedAsset(asset: any): boolean {
   const id = resolveAssetId(asset)
-  if (id == null || selectedImageId.value == null) return false
-  return String(id) === String(selectedImageId.value)
+  if (id == null) return false
+  return form.value.images.some((existing) => String(existing) === String(id))
 }
 
 async function loadMediaAssets() {
   try {
     const res: any = await $fetch('/api/connect-pages-media', {
-      query: { limit: 100, sort: '-createdAt', depth: 1 },
+      query: { limit: 200, sort: '-createdAt', depth: 1, kind: 'image' },
     })
-    mediaAssets.value = Array.isArray(res?.docs) ? res.docs : []
+    const docs = Array.isArray(res?.docs) ? res.docs : []
+    mediaAssets.value = docs.filter((asset: any) => mediaIsImage(asset))
   } catch {
     mediaAssets.value = []
   }
 }
 
-async function uploadImageAsset() {
-  const file = uploadInputRef.value?.files?.[0]
-  if (!file) {
-    error.value = 'Choose an image file to upload.'
+async function uploadImageAsset(opts?: { silentIfEmpty?: boolean }) {
+  const chosen = Array.from(uploadInputRef.value?.files || [])
+  if (!chosen.length) {
+    if (!opts?.silentIfEmpty) error.value = 'Choose image file(s) to upload.'
     return
   }
+  const files = chosen.filter((file) => mediaIsImage({ mimeType: file.type, filename: file.name }))
+  if (!files.length) {
+    error.value = 'Choose image files (jpg, png, gif, webp, or svg).'
+    return
+  }
+
   uploadingImage.value = true
+  uploadProgressLabel.value = files.length > 1 ? `Uploading 1 of ${files.length}...` : 'Uploading...'
   error.value = null
   try {
-    const body = new FormData()
-    body.append('file', file)
-    if (uploadAlt.value.trim()) body.append('alt', uploadAlt.value.trim())
-    const res: any = await $fetch('/api/connect-pages-media/upload', {
-      method: 'POST',
-      body,
-    })
-    await loadMediaAssets()
-    if (res?.id != null) form.value.image = res.id
-    if (!form.value.title.trim()) {
-      form.value.title = mediaFilename(res) || file.name
+    const uploadedIds: Array<string | number> = []
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]!
+      uploadProgressLabel.value = files.length > 1 ? `Uploading ${i + 1} of ${files.length}...` : 'Uploading...'
+      const body = new FormData()
+      body.append('file', file)
+      if (uploadAlt.value.trim()) body.append('alt', uploadAlt.value.trim())
+      const res: any = await $fetch('/api/connect-pages-media/upload', {
+        method: 'POST',
+        body,
+      })
+      if (res?.id != null) uploadedIds.push(res.id)
     }
+    await loadMediaAssets()
+    for (const id of uploadedIds) addSelectedImage(id)
     if (uploadInputRef.value) uploadInputRef.value.value = ''
     uploadAlt.value = ''
   } catch (e: any) {
-    error.value = e?.message || 'Failed to upload image.'
+    error.value = e?.data?.statusMessage || e?.statusMessage || e?.message || 'Failed to upload image.'
   } finally {
     uploadingImage.value = false
+    uploadProgressLabel.value = 'Uploading...'
   }
 }
 
 async function saveItem() {
   error.value = null
-  if (selectedImageId.value == null) {
-    error.value = 'An image is required.'
-    return
-  }
-
-  const title = form.value.title.trim() || selectedImageTitle()
-  if (!title) {
-    error.value = 'Title could not be derived from the selected image filename.'
-    return
-  }
-
-  const payload = {
-    title,
-    href: form.value.href.trim(),
-    image: selectedImageId.value,
-    active: form.value.active,
-    openInNewTab: form.value.openInNewTab,
-    sortOrder: Number(form.value.sortOrder || 0),
-    startAt: form.value.startAt || null,
-    endAt: form.value.endAt || null,
-  }
-
+  saving.value = true
   try {
     if (editingId.value) {
-      await updateSliderItem(editingId.value, payload)
+      await updateSliderItem(editingId.value, {
+        title: form.value.title.trim(),
+        href: form.value.href.trim(),
+        image: form.value.images[0] ?? null,
+        active: form.value.active,
+        openInNewTab: form.value.openInNewTab,
+        sortOrder: form.value.sortOrder === '' ? 0 : Number(form.value.sortOrder),
+        startAt: form.value.startAt || null,
+        endAt: form.value.endAt || null,
+      })
     } else {
-      await createSliderItem(payload)
+      const payloads = buildHomeSliderCreateItems({
+        images: form.value.images,
+        title: form.value.title,
+        href: form.value.href,
+        active: form.value.active,
+        openInNewTab: form.value.openInNewTab,
+        sortOrder: form.value.sortOrder,
+        startAt: form.value.startAt || null,
+        endAt: form.value.endAt || null,
+        existingItems: items.value,
+      })
+      if (payloads.length === 1) {
+        await createSliderItem(payloads[0])
+      } else {
+        await createSliderItem({ items: payloads })
+      }
     }
     resetForm()
     await loadItems()
   } catch (e: any) {
     error.value = e?.message || 'Failed to save slider item.'
+  } finally {
+    saving.value = false
   }
 }
 

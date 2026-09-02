@@ -114,76 +114,74 @@
         <p class="text-sm mt-1">{{ searchQuery.trim() ? 'Try a different search term.' : 'Try changing the campus filter or check back later.' }}</p>
       </div>
 
-      <!-- Episode list -->
+      <!-- Episode cards -->
       <div v-else>
         <p v-if="searchQuery.trim()" class="mb-3 text-sm text-gray-500">
           Showing {{ episodes.length }} match{{ episodes.length === 1 ? '' : 'es' }} for "{{ searchQuery.trim() }}"
         </p>
-        <ul class="space-y-4">
+        <ul class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <li
-            v-for="ep in episodes"
+            v-for="ep in episodeCards"
             :key="ep.id"
-            class="group rounded-xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm hover:shadow-md hover:border-[rgba(13,94,130,0.3)] transition-all"
+            class="group flex flex-col rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:border-[rgba(13,94,130,0.35)] hover:shadow-md"
           >
-            <div class="flex flex-col sm:flex-row sm:items-center gap-3">
-              <!-- Date -->
-              <div class="flex-shrink-0">
-                <span class="inline-flex rounded-md bg-[rgba(2,34,50,1)] px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-[#E8C766]">
+            <div class="flex gap-3">
+              <img
+                v-if="ep.imageUrl"
+                :src="ep.imageUrl"
+                :alt="ep.speakerName || 'Chapel speaker'"
+                class="h-12 w-12 shrink-0 rounded-full object-cover"
+              >
+              <div
+                v-else
+                class="h-12 w-12 shrink-0 rounded-full bg-gray-100"
+                aria-hidden="true"
+              />
+              <div class="min-w-0 flex-1">
+                <p class="text-xs font-medium uppercase tracking-wide text-gray-500">
                   {{ formatDate(ep.date) }}
-                </span>
-              </div>
-
-              <!-- Content -->
-              <div class="flex-1 min-w-0">
-                <h2 class="font-semibold text-gray-900 group-hover:text-[rgba(13,94,130,1)] transition-colors line-clamp-2">
+                </p>
+                <h2 class="mt-0.5 font-semibold text-gray-900 transition-colors group-hover:text-[rgba(13,94,130,1)] line-clamp-2">
                   {{ ep.title || 'Chapel' }}
                 </h2>
-                <div class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600">
-                  <span v-if="speakerDisplayName(ep.speaker)" class="flex items-center gap-2">
-                    <img
-                      v-if="speakerImageUrl(ep.speaker)"
-                      :src="speakerImageUrl(ep.speaker)"
-                      :alt="speakerDisplayName(ep.speaker) || 'Speaker'"
-                      class="h-8 w-8 rounded-full border border-gray-200 object-cover"
-                    >
-                    <UIcon v-else name="i-heroicons-user" class="w-4 h-4 text-gray-400" />
-                    <span class="font-medium text-gray-700">{{ speakerDisplayName(ep.speaker) }}</span>
-                    <span v-if="speakerDisplayTitle(ep.speaker)" class="text-gray-500">- {{ speakerDisplayTitle(ep.speaker) }}</span>
+                <p v-if="ep.speakerName" class="mt-0.5 text-sm text-gray-600 line-clamp-2">
+                  {{ ep.speakerName }}
+                  <span v-if="ep.speakerTitle" class="text-gray-500">
+                    · {{ ep.speakerTitle }}
                   </span>
-                  <span v-if="ep.campus" class="inline-flex items-center px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 text-xs font-medium">
-                    {{ ep.campus }}
-                  </span>
-                </div>
+                </p>
               </div>
+            </div>
 
-              <!-- Actions -->
-              <div class="flex items-center gap-2 flex-shrink-0">
-                <UButton
-                  variant="soft"
-                  color="primary"
-                  size="sm"
-                  @click="playEpisode(ep)"
-                  leading-icon="i-heroicons-play"
-                >
-                  Play Audio
-                </UButton>
+            <div class="mt-auto grid grid-cols-1 gap-2 pt-4">
+              <UButton
+                variant="soft"
+                color="primary"
+                size="sm"
+                block
+                leading-icon="i-heroicons-play"
+                @click="playEpisode(ep)"
+              >
+                Play Audio
+              </UButton>
+              <div class="grid grid-cols-2 gap-2">
                 <UButton
                   variant="soft"
                   color="neutral"
                   size="sm"
                   :disabled="!getEpisodeVimeoId(ep)"
-                  @click="playEpisodeVideo(ep)"
                   leading-icon="i-heroicons-film"
+                  @click="playEpisodeVideo(ep)"
                 >
-                  Sermon Only
+                  Sermon
                 </UButton>
                 <UButton
                   variant="soft"
                   color="neutral"
                   size="sm"
                   :disabled="!getEpisodeVimeoFullId(ep)"
-                  @click="playEpisodeFullVideo(ep)"
                   leading-icon="i-heroicons-film"
+                  @click="playEpisodeFullVideo(ep)"
                 >
                   Full Service
                 </UButton>
@@ -225,6 +223,8 @@
 </template>
 
 <script setup lang="ts">
+import { toBrowserMediaUrl } from '@shared/mediaUrls'
+
 interface ChapelEpisode {
   id: number
   date?: string
@@ -285,7 +285,7 @@ const config = useRuntimeConfig()
 const payloadBaseUrl = String(config.public.connectApi || '').replace(/\/$/, '')
 
 const page = ref(1)
-const limit = 20
+const limit = 18
 const searchQuery = ref('')
 const debouncedSearch = ref('')
 
@@ -397,6 +397,14 @@ const { data: weeklySpeakerData } = await useFetch<CurrentWeekResponse>('/api/ch
 })
 
 const episodes = computed(() => data.value?.docs ?? [])
+const episodeCards = computed(() =>
+  episodes.value.map((ep) => ({
+    ...ep,
+    imageUrl: speakerImageUrl(ep.speaker),
+    speakerName: speakerDisplayName(ep.speaker),
+    speakerTitle: speakerDisplayTitle(ep.speaker),
+  })),
+)
 const totalPages = computed(() => data.value?.totalPages ?? 1)
 const weeklySpeaker = computed(() => {
   const entries = weeklySpeakerData.value?.entries
@@ -432,8 +440,8 @@ function playEpisode(ep: ChapelEpisode) {
     id: ep.id,
     audio,
     title: ep.title || 'Chapel',
-    artist: ep.speaker?.name || 'Asbury Seminary Chapel',
-    artwork: '/estes-icon.png',
+    artist: speakerDisplayName(ep.speaker) || 'Asbury Seminary Chapel',
+    artwork: speakerImageUrl(ep.speaker) || '/estes-icon.png',
     album: 'Chapel'
   })
 }
@@ -477,11 +485,11 @@ function formatDate(dateStr?: string): string {
 function getImageUrl(image?: { url?: string } | string | null): string {
   const raw = typeof image === 'string' ? image : image?.url ? String(image.url) : ''
   if (!raw) return ''
+  const proxied = toBrowserMediaUrl(raw)
+  if (proxied?.startsWith('/')) return proxied
   if (raw.startsWith('/')) return raw
-  const speakerFile = raw.match(/\/api\/speaker-photos\/file\/([^/?#]+)/i)
-  if (speakerFile?.[1]) return `/api/speaker-photos/file/${speakerFile[1]}`
   if (raw.startsWith('http')) return raw
-  return `${payloadBaseUrl}${raw}`
+  return `${payloadBaseUrl}${raw.startsWith('/') ? raw : `/${raw}`}`
 }
 
 function speakerDisplayName(speaker?: WeeklySpeaker | ChapelEpisode['speaker'] | null): string {

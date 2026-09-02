@@ -22,6 +22,13 @@ function normalizeFileField(file: any): any {
   return out
 }
 
+function isImageMediaDoc(doc: any): boolean {
+  const mime = String(doc?.mimeType || doc?.file?.mimeType || '').toLowerCase()
+  if (mime.startsWith('image/')) return true
+  const name = String(doc?.filename || doc?.file?.filename || doc?.file?.name || '')
+  return /\.(avif|gif|jpe?g|png|svg|webp)$/i.test(name)
+}
+
 function normalizeMediaDoc(doc: any) {
   if (!doc || typeof doc !== 'object') return doc
   const next = { ...doc }
@@ -65,10 +72,11 @@ export default defineEventHandler(async (event) => {
   try {
     const data: any = await $fetch(url, { headers })
     if (Array.isArray(data?.docs)) {
-      return {
-        ...data,
-        docs: data.docs.map((doc: any) => normalizeMediaDoc(doc)),
-      }
+      const kind = String(Array.isArray(query.kind) ? query.kind[0] : query.kind || '').toLowerCase()
+      const docs = data.docs
+        .map((doc: any) => normalizeMediaDoc(doc))
+        .filter((doc: any) => (kind === 'image' || kind === 'images' ? isImageMediaDoc(doc) : true))
+      return { ...data, docs }
     }
     return normalizeMediaDoc(data)
   } catch (err: any) {
