@@ -1,4 +1,5 @@
-import { createError, defineEventHandler } from 'h3'
+import { createError, defineEventHandler, setHeader } from 'h3'
+import { resolveConnectApiUrl, toBrowserMediaUrl } from '../utils/connectApi'
 
 type SliderItem = {
   id: number | string
@@ -30,26 +31,34 @@ function isWithinDateRange(item: SliderItem, now = new Date()): boolean {
   return true
 }
 
-export default defineEventHandler(async () => {
-  const config = useRuntimeConfig()
-  const configuredBaseUrl = config.public.connectApi || ''
+function withBrowserImage(item: SliderItem): SliderItem {
+  const image = item.image
+  if (!image || typeof image !== 'object') return item
+  const url = toBrowserMediaUrl(image.url || image.file?.url)
+  if (!url) return item
+  return { ...item, image: { ...image, url } }
+}
+
+export default defineEventHandler(async (event) => {
+  const baseUrl = resolveConnectApiUrl()
+  if (!baseUrl) {
+    throw createError({ statusCode: 500, statusMessage: 'Missing CONNECT_API' })
+  }
   const params = new URLSearchParams()
   params.set('sort', 'sortOrder,-updatedAt')
   params.set('limit', '50')
   params.set('depth', '1')
 
   try {
-    const candidateBaseUrls = [configuredBaseUrl, 'http://localhost:3003'].filter(Boolean)
-    for (const baseUrl of candidateBaseUrls) {
-      const res: any = await $fetch(`${baseUrl}/api/connect-home-slider-items?${params.toString()}`, {
-        headers: { 'Content-Type': 'application/json' },
-      })
-      const docs: SliderItem[] = Array.isArray(res?.docs) ? res.docs : []
-      const filtered = docs.filter((item) => item?.active !== false && isWithinDateRange(item))
-      if (filtered.length > 0) return { docs: filtered }
-      if (baseUrl === candidateBaseUrls[candidateBaseUrls.length - 1]) return { docs: filtered }
-    }
-    return { docs: [] }
+    const res: any = await $fetch(`${baseUrl}/api/connect-home-slider-items?${params.toString()}`, {
+      headers: { 'Content-Type': 'application/json' },
+    })
+    const docs: SliderItem[] = Array.isArray(res?.docs) ? res.docs : []
+    const filtered = docs
+      .filter((item) => item?.active !== false && isWithinDateRange(item))
+      .map(withBrowserImage)
+    setHeader(event, 'Cache-Control', 'public, s-maxage=60, stale-while-revalidate=600')
+    return { docs: filtered }
   } catch (error: any) {
     throw createError({
       statusCode: error?.statusCode || 500,

@@ -144,6 +144,18 @@ export default defineNuxtConfig({
           'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
         },
       },
+      '/api/home-slider': {
+        cors: true,
+        headers: {
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=600',
+        },
+      },
+      '/api/connect-pages-media/file/**': {
+        cors: true,
+        headers: {
+          'Cache-Control': 'public, max-age=86400, s-maxage=2592000, stale-while-revalidate=86400',
+        },
+      },
       '/api/**': { cors: true, headers: { 'Access-Control-Allow-Methods': 'GET,HEAD,PUT,PATCH,POST,DELETE' } },
     }
   },

@@ -37,18 +37,17 @@
           :to="item.href || '/'"
           :target="item.openInNewTab ? '_blank' : undefined"
           :rel="item.openInNewTab ? 'noopener noreferrer' : undefined"
-          class="block bg-gray-50"
+          class="block overflow-hidden bg-gray-50"
+          :style="slideBoxStyle(item)"
         >
           <img
-            :src="getImageUrl(item.image)"
-            :alt="item.title || 'Connect highlight'"
+            v-bind="slideImg(item)"
             class="h-auto w-full"
           >
         </NuxtLink>
-        <div v-else class="block bg-gray-50">
+        <div v-else class="block overflow-hidden bg-gray-50" :style="slideBoxStyle(item)">
           <img
-            :src="getImageUrl(item.image)"
-            :alt="item.title || 'Connect highlight'"
+            v-bind="slideImg(item)"
             class="h-auto w-full"
           >
         </div>
@@ -98,6 +97,7 @@
 import { hasFacultyHubAccess } from '@shared/facultyHubAccess'
 import { hasStaffHubAccess } from '@shared/staffHubAccess'
 import { normalizeConnectUserRoles } from '@shared/connectUserAccess'
+import { toBrowserMediaUrl } from '@shared/mediaUrls'
 import { authorIdFromPost, partitionTimelinePosts } from '~/utils/timelineFeed'
 
 interface Author {
@@ -190,8 +190,6 @@ const { data: sliderData } = await useFetch<{ docs?: HomeSlide[] }>('/api/home-s
 })
 
 const { fetchUsers } = useUsers()
-const config = useRuntimeConfig()
-const payloadBaseUrl = String(config.public.connectApi || '').replace(/\/$/, '')
 
 // Get current authenticated user's PayloadCMS ID
 const { currentUserId, user: meUser } = useMe()
@@ -226,8 +224,29 @@ function getImageUrl(image: any) {
       ? (image.url || image.file?.url || image._normalizedUrl || null)
       : null
   if (!raw) return '/estes-icon.png'
-  if (String(raw).startsWith('http')) return raw
-  return `${payloadBaseUrl}${raw}`
+  return toBrowserMediaUrl(raw) || String(raw)
+}
+
+function slideBoxStyle(item: HomeSlide) {
+  const width = Number(item.image?.width)
+  const height = Number(item.image?.height)
+  if (!width || !height) return undefined
+  return { aspectRatio: `${width} / ${height}` }
+}
+
+function slideImg(item: HomeSlide) {
+  const isFirst = String(item.id) === String(slides.value[0]?.id)
+  const width = Number(item.image?.width) || undefined
+  const height = Number(item.image?.height) || undefined
+  return {
+    src: getImageUrl(item.image),
+    alt: item.title || 'Connect highlight',
+    width,
+    height,
+    fetchpriority: isFirst ? 'high' : 'low',
+    loading: (isFirst ? 'eager' : 'lazy') as 'eager' | 'lazy',
+    decoding: 'async' as const,
+  }
 }
 
 const handlePostUpdated = (updatedPost: PostWithUser | Post) => {
