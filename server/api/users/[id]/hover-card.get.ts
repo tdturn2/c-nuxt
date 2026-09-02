@@ -1,4 +1,5 @@
 // GET hover card data for a user: name, roles, title, degree, from (for post author cards)
+import { canPublishStudentProfile } from '@shared/studentProfileAccess'
 import { defineEventHandler, createError, getRouterParam } from 'h3'
 
 export default defineEventHandler(async (event) => {
@@ -24,19 +25,22 @@ export default defineEventHandler(async (event) => {
       avatarConnectUserMedia?: { url?: string } | null
       roles?: string[]
       employeeTitle?: string | null
+      studentOptIn?: boolean
     }
 
     let from: string | null = null
     let degree: string | null = null
 
-    const surveyRes = await $fetch<{ answers?: Record<string, unknown> }>(
-      `${payloadBaseUrl}/api/user-survey-responses/by-user/${id}`
-    ).catch(() => null)
+    if (canPublishStudentProfile({ roles: user.roles, studentOptIn: user.studentOptIn })) {
+      const surveyRes = await $fetch<{ answers?: Record<string, unknown> }>(
+        `${payloadBaseUrl}/api/user-survey-responses/by-user/${id}`
+      ).catch(() => null)
 
-    if (surveyRes?.answers && typeof surveyRes.answers === 'object') {
-      const a = surveyRes.answers
-      if (a['from'] != null && String(a['from']).trim()) from = String(a['from']).trim()
-      if (a['current-degree'] != null && String(a['current-degree']).trim()) degree = String(a['current-degree']).trim()
+      if (surveyRes?.answers && typeof surveyRes.answers === 'object') {
+        const a = surveyRes.answers
+        if (a['from'] != null && String(a['from']).trim()) from = String(a['from']).trim()
+        if (a['current-degree'] != null && String(a['current-degree']).trim()) degree = String(a['current-degree']).trim()
+      }
     }
 
     let avatarUrl: string | null = null

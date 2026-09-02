@@ -31,6 +31,7 @@ export default defineEventHandler(async (event) => {
       expertise?: Array<{ id: string; item: string }> | null
       education?: Array<{ id: string; item: string }> | null
       alumniOptIn?: boolean
+      studentOptIn?: boolean
       alumniDegrees?: Array<{
         id?: string
         degree?: string | null
@@ -74,6 +75,7 @@ export default defineEventHandler(async (event) => {
     if (body.expertise !== undefined) updateData.expertise = body.expertise
     if (body.education !== undefined) updateData.education = body.education
     if (body.alumniOptIn !== undefined) updateData.alumniOptIn = Boolean(body.alumniOptIn)
+    if (body.studentOptIn !== undefined) updateData.studentOptIn = Boolean(body.studentOptIn)
     if (body.alumniDegrees !== undefined) {
       updateData.alumniDegrees = Array.isArray(body.alumniDegrees)
         ? body.alumniDegrees

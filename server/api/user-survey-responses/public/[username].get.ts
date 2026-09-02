@@ -1,4 +1,5 @@
 // GET a user's survey responses for public profile (by username)
+import { canPublishStudentProfile } from '@shared/studentProfileAccess'
 import { defineEventHandler, createError } from 'h3'
 
 export default defineEventHandler(async (event) => {
@@ -16,10 +17,15 @@ export default defineEventHandler(async (event) => {
   try {
     // Resolve username to user (email + id)
     const email = `${username}@asburyseminary.edu`
-    const userResponse = await $fetch(`${payloadBaseUrl}/api/connect-users?where[email][equals]=${encodeURIComponent(email)}&limit=1`) as { docs: Array<{ id: number; email: string }> }
+    const userResponse = await $fetch(`${payloadBaseUrl}/api/connect-users?where[email][equals]=${encodeURIComponent(email)}&limit=1`) as {
+      docs: Array<{ id: number; email: string; roles?: string[]; studentOptIn?: boolean }>
+    }
     const user = userResponse?.docs?.[0]
     if (!user) {
       return null
+    }
+    if (!canPublishStudentProfile(user)) {
+      return { answers: {}, updatedAt: '' }
     }
 
     // Payload public endpoint: GET /api/user-survey-responses/by-user/:userId (no auth)

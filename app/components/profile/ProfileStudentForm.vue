@@ -14,6 +14,29 @@
     </div>
 
     <form v-else class="space-y-6" @submit.prevent="handleSubmit">
+      <div class="rounded-md border border-gray-200 bg-gray-50 p-4">
+        <p class="text-sm font-medium text-gray-900">
+          {{ studentOptIn ? 'Shared with Connect users' : 'Your student profile is private' }}
+        </p>
+        <p class="mt-2 text-sm text-gray-600">
+          Asbury Seminary treats student information as an education record under FERPA. Checking this box is optional.
+          It lets other signed-in Connect users see your photo, name, and the student profile details you enter here
+          (directory listing and your Connect profile). You can uncheck this box at any time to stop sharing. Your
+          answers are still saved for you.
+        </p>
+        <div class="mt-3 flex items-start gap-2">
+          <input
+            id="studentOptIn"
+            v-model="studentOptIn"
+            type="checkbox"
+            class="mt-0.5 rounded border-gray-300"
+          >
+          <label for="studentOptIn" class="text-sm text-gray-800">
+            I agree to share my student profile on Connect
+          </label>
+        </div>
+      </div>
+
       <div
         v-for="q in questions"
         :key="q.id"
@@ -68,7 +91,7 @@
         No survey questions are available right now.
       </div>
 
-      <div v-if="questions.length > 0" class="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
+      <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
         <button
           type="submit"
           :disabled="saving || !hasChanges"
@@ -90,6 +113,8 @@ interface SurveyQuestion {
   options?: Array<{ label: string; value: string }>
 }
 
+const { user: meUser, refresh } = useMe()
+
 const loading = ref(true)
 const saving = ref(false)
 const error = ref<string | null>(null)
@@ -98,8 +123,10 @@ const authError = ref<string | null>(null)
 const questions = ref<SurveyQuestion[]>([])
 const answers = ref<Record<string, string>>({})
 const initialAnswers = ref<Record<string, string>>({})
+const studentOptIn = ref(false)
+const initialStudentOptIn = ref(false)
 
-const hasChanges = computed(() => {
+const answersChanged = computed(() => {
   const keys = new Set([...Object.keys(answers.value), ...Object.keys(initialAnswers.value)])
   for (const k of keys) {
     const a = String(answers.value[k] ?? '')
@@ -108,6 +135,14 @@ const hasChanges = computed(() => {
   }
   return false
 })
+
+const hasChanges = computed(() => answersChanged.value || studentOptIn.value !== initialStudentOptIn.value)
+
+watch(meUser, (user) => {
+  if (!user) return
+  studentOptIn.value = Boolean(user.studentOptIn)
+  initialStudentOptIn.value = Boolean(user.studentOptIn)
+}, { immediate: true })
 
 const loadQuestions = async () => {
   try {
@@ -155,32 +190,49 @@ const loadMyResponses = async () => {
 }
 
 const handleSubmit = async () => {
-  if (saving.value) return
+  if (saving.value || !hasChanges.value) return
   try {
     saving.value = true
     error.value = null
-    const payload: Record<string, string> = {}
-    const keys = new Set([...Object.keys(answers.value), ...Object.keys(initialAnswers.value)])
-    for (const k of keys) {
-      const current = String(answers.value[k] ?? '').trim()
-      const initial = String(initialAnswers.value[k] ?? '').trim()
-      if (current !== initial) {
-        payload[k] = current
+
+    if (studentOptIn.value !== initialStudentOptIn.value) {
+      const updated = await $fetch<{ studentOptIn?: boolean }>('/api/employees/profile', {
+        method: 'PATCH',
+        body: { studentOptIn: studentOptIn.value },
+      })
+      studentOptIn.value = Boolean(updated?.studentOptIn)
+      initialStudentOptIn.value = studentOptIn.value
+      refresh()
+    }
+
+    if (answersChanged.value) {
+      const payload: Record<string, string> = {}
+      const keys = new Set([...Object.keys(answers.value), ...Object.keys(initialAnswers.value)])
+      for (const k of keys) {
+        const current = String(answers.value[k] ?? '').trim()
+        const initial = String(initialAnswers.value[k] ?? '').trim()
+        if (current !== initial) {
+          payload[k] = current
+        }
+      }
+      if (Object.keys(payload).length) {
+        const res = await $fetch<{ id: number; answers: Record<string, unknown>; updatedAt: string }>('/api/user-survey-responses/submit', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: { answers: payload },
+        })
+        const raw = res?.answers ?? {}
+        const normalized: Record<string, string> = {}
+        for (const [k, v] of Object.entries(raw)) {
+          normalized[k] = v != null ? String(v) : ''
+        }
+        initialAnswers.value = normalized
+        answers.value = { ...normalized }
+      } else {
+        initialAnswers.value = { ...answers.value }
       }
     }
-    const res = await $fetch<{ id: number; answers: Record<string, unknown>; updatedAt: string }>('/api/user-survey-responses/submit', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: { answers: payload },
-    })
-    const raw = res?.answers ?? {}
-    const normalized: Record<string, string> = {}
-    for (const [k, v] of Object.entries(raw)) {
-      normalized[k] = v != null ? String(v) : ''
-    }
-    initialAnswers.value = normalized
-    answers.value = { ...normalized }
   } catch (e: any) {
     if (e.statusCode === 401) {
       authError.value = e.data?.message || 'You must be signed in to save your student profile.'
@@ -190,7 +242,7 @@ const handleSubmit = async () => {
       return
     }
     console.error('Error submitting survey:', e)
-    error.value = e.data?.message || 'Failed to save'
+    error.value = e.data?.error || e.data?.message || 'Failed to save'
   } finally {
     saving.value = false
   }

@@ -33,6 +33,7 @@ export default defineEventHandler(async (event) => {
       avatar?: { url: string } | null
       avatarConnectUserMedia?: { url: string } | null
       alumniOptIn?: boolean
+      studentOptIn?: boolean
       alumniDegrees?: Array<{ degree?: string; graduationYear?: number | string }>
       alumniContact?: {
         email?: string | null

@@ -1,4 +1,5 @@
 // GET students: connect-users with role student.
+import { canPublishStudentProfile } from '@shared/studentProfileAccess'
 import { defineEventHandler, createError } from 'h3'
 import { normalizeUserAvatar, resolveConnectApiUrl } from '../../utils/connectApi'
 
@@ -13,7 +14,13 @@ export default defineEventHandler(async () => {
 
     const allDocs = response?.docs ?? []
     const roles = (r: unknown): string[] => (Array.isArray(r) ? r.map(String) : [])
-    const docs = allDocs.filter((user: any) => roles(user?.roles).includes('student'))
+    const docs = allDocs.filter((user: any) => {
+      const userRoles = roles(user?.roles)
+      return userRoles.includes('student') && canPublishStudentProfile({
+        roles: userRoles,
+        studentOptIn: user?.studentOptIn,
+      })
+    })
 
     const students = docs.map((user: any) => ({
       id: user.id,

@@ -100,6 +100,7 @@ const user = ref<{
   department?: string | null
   section?: string | null
   alumniOptIn?: boolean
+  studentOptIn?: boolean
   alumniDegrees?: Array<{ degree?: string | null; graduationYear?: number | null }> | null
   alumniContact?: {
     email?: string | null
@@ -222,6 +223,7 @@ const STUDENT_PROFILE_FIELDS: { slug: string; label: string }[] = [
 ]
 
 const studentProfileEntries = computed(() => {
+  if (!user.value?.studentOptIn) return []
   const answers = studentProfile.value?.answers
   if (!answers || typeof answers !== 'object') return []
   return STUDENT_PROFILE_FIELDS.filter(

@@ -1,7 +1,11 @@
 <template>
   <div class="container mx-auto max-w-4xl py-8 px-4">
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h1 class="text-2xl font-bold text-gray-900 mb-6">Update Profile</h1>
+      <h1 class="text-2xl font-bold text-gray-900">Update Profile</h1>
+      <p class="mt-2 mb-6 text-sm text-gray-700">
+        We welcome you to fill out your profile. Sharing a bit about yourself helps foster community
+        within the seminary. It is optional, but encouraged.
+      </p>
 
       <div v-if="authLoading" class="text-center py-8">
         <div class="text-gray-500">Loading profile...</div>
