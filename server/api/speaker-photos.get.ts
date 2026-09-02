@@ -1,37 +1,31 @@
 import { defineEventHandler, getQuery, createError, getHeader } from 'h3'
 import { authenticateWithPayloadCMS } from '../utils/payloadAuth'
+import { resolveConnectApiUrl, toBrowserMediaUrl } from '../utils/connectApi'
 
-function payloadOrigin(raw: string): string {
-  let b = raw.trim().replace(/\/+$/, '')
-  if (b.endsWith('/api')) b = b.slice(0, -4).replace(/\/+$/, '')
-  return b
-}
-
-function toAbsoluteUrl(payloadBaseUrl: string, value: unknown): unknown {
-  if (!payloadBaseUrl) return value
+function toSameOriginUrl(value: unknown): unknown {
   if (typeof value !== 'string') return value
-  const v = value.trim()
-  if (!v || v.startsWith('http')) return v
-  return v.startsWith('/') ? `${payloadBaseUrl}${v}` : `${payloadBaseUrl}/${v}`
+  return toBrowserMediaUrl(value) ?? value
 }
 
-function normalizeFileField(payloadBaseUrl: string, file: any): any {
+function normalizeFileField(file: any): any {
   if (!file || typeof file !== 'object') return file
   const out = { ...file }
-  if (typeof out.url === 'string') out.url = toAbsoluteUrl(payloadBaseUrl, out.url) as string
+  if (typeof out.url === 'string') out.url = toSameOriginUrl(out.url) as string
   return out
 }
 
-function normalizeMediaDoc(payloadBaseUrl: string, doc: any) {
+function normalizeMediaDoc(doc: any) {
   if (!doc || typeof doc !== 'object') return doc
   const next = { ...doc }
-  if (next.file != null) next.file = normalizeFileField(payloadBaseUrl, next.file)
-  const url =
+  if (next.file != null) next.file = normalizeFileField(next.file)
+  const rawUrl =
     typeof next.file?.url === 'string'
       ? next.file.url
       : typeof next.url === 'string'
-        ? (toAbsoluteUrl(payloadBaseUrl, next.url) as string)
+        ? next.url
         : null
+  const url = typeof rawUrl === 'string' ? (toSameOriginUrl(rawUrl) as string) : null
+  if (typeof next.url === 'string') next.url = toSameOriginUrl(next.url) as string
   return { ...next, _normalizedUrl: url }
 }
 
@@ -41,19 +35,15 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
   }
 
-  const config = useRuntimeConfig()
-  const payloadBaseUrl =
-    (config.connectApi || config.public.connectApi || '').trim() ||
-    (import.meta.dev ? 'http://localhost:3003' : '')
-
+  const payloadBaseUrl = resolveConnectApiUrl()
   if (!payloadBaseUrl) {
     throw createError({ statusCode: 500, statusMessage: 'Missing CONNECT_API' })
   }
 
-  const origin = payloadOrigin(payloadBaseUrl)
   const query = getQuery(event)
   const searchParams = new URLSearchParams(query as Record<string, string>)
-  const url = `${origin}/api/speaker-photos?${searchParams.toString()}`
+  if (!searchParams.has('limit')) searchParams.set('limit', '1000')
+  const url = `${payloadBaseUrl}/api/speaker-photos?${searchParams.toString()}`
 
   const headers: Record<string, string> = {}
   const cookie = getHeader(event, 'cookie')
@@ -65,10 +55,10 @@ export default defineEventHandler(async (event) => {
     if (Array.isArray(data?.docs)) {
       return {
         ...data,
-        docs: data.docs.map((doc: any) => normalizeMediaDoc(origin, doc)),
+        docs: data.docs.map((doc: any) => normalizeMediaDoc(doc)),
       }
     }
-    return normalizeMediaDoc(origin, data)
+    return normalizeMediaDoc(data)
   } catch (err: any) {
     const statusCode = err?.response?.status || err?.statusCode || 502
     throw createError({

@@ -23,6 +23,42 @@
         </div>
 
         <template v-else>
+          <div
+            v-if="canManageAdmin && !me?.impersonation?.active"
+            class="mb-6 rounded-lg border border-gray-200 bg-white p-5 shadow-sm"
+          >
+            <h2 class="text-lg font-semibold text-gray-900">Preview as</h2>
+            <p class="mt-1 text-sm text-gray-600">
+              Stay signed in as yourself and temporarily view Connect with a student, faculty, or staff role.
+            </p>
+            <div class="mt-4 flex flex-wrap gap-2">
+              <UButton
+                color="neutral"
+                variant="outline"
+                :loading="impersonationPending"
+                @click="startRolePreview('student')"
+              >
+                Student
+              </UButton>
+              <UButton
+                color="neutral"
+                variant="outline"
+                :loading="impersonationPending"
+                @click="startRolePreview('faculty')"
+              >
+                Faculty
+              </UButton>
+              <UButton
+                color="neutral"
+                variant="outline"
+                :loading="impersonationPending"
+                @click="startRolePreview('staff')"
+              >
+                Staff
+              </UButton>
+            </div>
+          </div>
+
           <div class="grid gap-4 sm:grid-cols-2">
             <NuxtLink
               v-for="section in visibleSections"
@@ -56,6 +92,8 @@
 </template>
 
 <script setup lang="ts">
+const { startRolePreview, pending: impersonationPending } = useImpersonation()
+
 const { data: me, pending: mePending } = await useFetch<any>('/api/users/me', {
   key: 'dashboard-index-me',
 })
@@ -114,6 +152,12 @@ const sections = [
     description: 'Manage Connect pages, content, contacts, and media links.',
     to: '/dashboard/docs',
     icon: 'i-lucide-file-text',
+  },
+  {
+    title: 'Media',
+    description: 'Browse, upload, and delete files stored in Connect S3.',
+    to: '/dashboard/media',
+    icon: 'i-lucide-folder-open',
   },
   {
     title: 'Degree Builder',

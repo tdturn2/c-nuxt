@@ -2,6 +2,7 @@
 import { defineEventHandler, createError } from 'h3'
 import { authenticateWithConnectApi } from '../../utils/payloadAuth'
 import { normalizeUserAvatar, resolveConnectApiUrl } from '../../utils/connectApi'
+import { applyImpersonationToUser } from '../../utils/impersonation'
 
 export default defineEventHandler(async (event) => {
   const { email } = await authenticateWithConnectApi(event)
@@ -34,7 +35,7 @@ export default defineEventHandler(async (event) => {
     }
 
     user.avatar = normalizeUserAvatar(user)
-    return user
+    return applyImpersonationToUser(event, user, email)
   } catch (err: any) {
     if (err.statusCode) throw err
     throw createError({

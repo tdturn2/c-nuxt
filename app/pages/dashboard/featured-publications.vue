@@ -6,7 +6,7 @@
         <div class="mb-6">
           <h1 class="text-2xl font-bold text-gray-900">Featured Publications</h1>
           <p class="mt-1 text-sm text-gray-600">
-            Choose which book publications appear in the Home tab marquee.
+            Choose which book publications appear in the homepage right column.
           </p>
         </div>
 
@@ -49,7 +49,7 @@
             <section class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
               <div class="border-b border-gray-100 px-4 py-3">
                 <h2 class="text-base font-semibold text-gray-900">Homepage featured</h2>
-                <p class="mt-1 text-xs text-gray-500">Order controls the sequence in the Home tab marquee.</p>
+                <p class="mt-1 text-xs text-gray-500">Order controls the sequence in the homepage right column.</p>
               </div>
               <div v-if="loading" class="px-4 py-6 text-sm text-gray-500">Loading featured publications...</div>
               <div v-else-if="!featuredRows.length" class="px-4 py-6 text-sm text-gray-500">

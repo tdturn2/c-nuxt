@@ -29,6 +29,9 @@ export function toBrowserMediaUrl(urlRaw: unknown): string | null {
   const pagesMedia = input.match(/\/api\/connect-pages-media\/file\/([^/?#]+)/i)
   if (pagesMedia?.[1]) return `/api/connect-pages-media/file/${pagesMedia[1]}`
 
+  const speakerPhotos = input.match(/\/api\/speaker-photos\/file\/([^/?#]+)/i)
+  if (speakerPhotos?.[1]) return `/api/speaker-photos/file/${speakerPhotos[1]}`
+
   const comicsMedia = input.match(/\/api\/connect-keeners-comics\/file\/([^/?#]+)/i)
   if (comicsMedia?.[1]) return `/api/connect-keeners-comics/file/${comicsMedia[1]}`
 

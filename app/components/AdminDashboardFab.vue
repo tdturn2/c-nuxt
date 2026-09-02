@@ -45,6 +45,6 @@ const isConnectAdmin = computed(() => {
 })
 
 const showFab = computed(() =>
-  isConnectAdmin.value && !route.path.startsWith('/dashboard'),
+  isConnectAdmin.value && !route.path.startsWith('/dashboard') && !me.value?.impersonation?.active,
 )
 </script>

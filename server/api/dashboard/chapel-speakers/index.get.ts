@@ -8,7 +8,8 @@ import {
 export default defineEventHandler(async (event) => {
   const auth = await requireDashboardStaff(event)
   const params = new URLSearchParams()
-  params.set('sort', '-updatedAt')
+  params.set('sort', 'name')
+  params.set('limit', '1000')
   params.set('pagination', 'false')
   params.set('depth', '1')
 

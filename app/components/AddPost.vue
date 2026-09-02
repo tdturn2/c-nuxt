@@ -22,10 +22,13 @@
       </div>
 
       <div>
-        <!-- <label for="content" class="block text-sm font-medium text-gray-700 mb-2">
-          What's on your mind?
-        </label> -->
-        <div class="relative">
+        <div v-if="richEditor">
+          <DashboardRichTextEditor
+            v-model="contentTipTap"
+            placeholder="Share your thoughts..."
+          />
+        </div>
+        <div v-else class="relative">
           <textarea
             ref="contentTextareaRef"
             id="content"
@@ -49,22 +52,7 @@
         </div>
       </div>
 
-      <div>
-        <label for="audience" class="block text-sm font-medium text-gray-700 mb-2">
-          Target audience
-        </label>
-        <select
-          id="audience"
-          v-model="selectedAudience"
-          class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[rgba(13,94,130,1)] focus:border-transparent"
-        >
-          <option value="general">General</option>
-          <option value="students">Students</option>
-          <option value="employees">Employees</option>
-          <option value="staff">Staff</option>
-          <option value="faculty">Faculty</option>
-        </select>
-      </div>
+      <PostAudienceSelect v-model="selectedAudiences" />
 
       <div class="rounded-md border border-gray-200 bg-gray-50 p-3 space-y-3">
         <label v-if="allowPostAs" class="flex items-start gap-2">
@@ -203,7 +191,7 @@
         </button>
         <button
           type="submit"
-          :disabled="submitting"
+          :disabled="submitting || !canSubmit"
           class="px-4 py-2 text-sm font-medium text-white bg-[rgba(13,94,130,1)] rounded-md hover:bg-[rgba(10,69,92,1)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[rgba(13,94,130,1)] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <span v-if="submitting">Posting...</span>
@@ -249,6 +237,14 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, nextTick, watch } from 'vue'
+import {
+  cloneTipTapDoc,
+  extractUrlsFromTipTap,
+  INITIAL_TIPTAP_DOC,
+  tipTapDocHasMeaningfulText,
+  tipTapToLexical,
+} from '~/utils/tiptap/lexicalTipTap'
+import { selectedAudiencesFromPost, serializePostAudience } from '~/utils/postAudience'
 
 const { status } = useAuth()
 const { searchUsers, createLexicalContentWithMentions } = useMentions()
@@ -263,6 +259,8 @@ const props = defineProps<{
   defaultAudience?: 'general' | 'students' | 'employees' | 'staff' | 'faculty'
   /** Show searchable “post as” author picker (dashboard staff/admin). */
   allowPostAs?: boolean
+  /** Use the pages-style rich text editor instead of a plain textarea. */
+  richEditor?: boolean
 }>()
 
 type AuthorOption = { id: string; label: string }
@@ -270,7 +268,8 @@ type AuthorOption = { id: string; label: string }
 const form = ref({
   content: '',
 })
-const selectedAudience = ref<'general' | 'students' | 'employees' | 'staff' | 'faculty'>(props.defaultAudience ?? 'general')
+const contentTipTap = ref<any>(cloneTipTapDoc(INITIAL_TIPTAP_DOC))
+const selectedAudiences = ref(selectedAudiencesFromPost(props.defaultAudience ? [props.defaultAudience] : []))
 const selectedAuthorOption = ref<AuthorOption | undefined>(undefined)
 const authorOptions = ref<AuthorOption[]>([])
 const authorOptionsLoading = ref(false)
@@ -365,6 +364,10 @@ const galleryItems = ref<Array<{ id: number; url: string; alt: string }>>([])
 
 const submitting = ref(false)
 const error = ref<string | null>(null)
+const canSubmit = computed(() => props.richEditor
+  ? tipTapDocHasMeaningfulText(contentTipTap.value)
+  : Boolean(form.value.content.trim())
+)
 
 // Mention autocomplete state
 const contentTextareaRef = ref<HTMLTextAreaElement | null>(null)
@@ -580,7 +583,10 @@ const handleMentionSelect = (user: { id: number; name: string; email: string; av
 }
 
 const handleSubmit = async () => {
-  if (!form.value.content.trim()) {
+  const hasContent = props.richEditor
+    ? tipTapDocHasMeaningfulText(contentTipTap.value)
+    : Boolean(form.value.content.trim())
+  if (!hasContent) {
     error.value = 'Please enter some content'
     return
   }
@@ -595,21 +601,12 @@ const handleSubmit = async () => {
   }
 
   try {
-    // Map selected audience to payload audience array.
-    const audience = (() => {
-      switch (selectedAudience.value) {
-        case 'students': return ['students']
-        case 'employees': return ['employees']
-        case 'staff': return ['staff']
-        case 'faculty': return ['faculty']
-        case 'general':
-        default:
-          return []
-      }
-    })()
+    const audience = serializePostAudience(selectedAudiences.value)
 
-    // Create Lexical content structure with mentions
-    const content = createLexicalContentWithMentions(form.value.content.trim())
+    // Create Lexical content structure with mentions (plain composer) or rich TipTap JSON.
+    const content = props.richEditor
+      ? tipTapToLexical(contentTipTap.value)
+      : createLexicalContentWithMentions(form.value.content.trim())
     let imagesConnectUserMedia: Array<{ image: number }> = []
 
     if (selectedImages.value.length > 0) {
@@ -684,7 +681,8 @@ const resetForm = () => {
   form.value = {
     content: ''
   }
-  selectedAudience.value = props.defaultAudience ?? 'general'
+  contentTipTap.value = cloneTipTapDoc(INITIAL_TIPTAP_DOC)
+  selectedAudiences.value = selectedAudiencesFromPost(props.defaultAudience ? [props.defaultAudience] : [])
   selectedAuthorOption.value = undefined
   addToNotifications.value = false
   pinToTimeline.value = false
@@ -697,11 +695,15 @@ const resetForm = () => {
 }
 
 watch(
-  () => form.value.content,
+  () => props.richEditor
+    ? extractUrlsFromTipTap(contentTipTap.value).join('\n')
+    : form.value.content,
   (content) => {
     if (previewDebounce) clearTimeout(previewDebounce)
     previewDebounce = setTimeout(async () => {
-      const urls = extractUrlsFromText(content || '')
+      const urls = props.richEditor
+        ? extractUrlsFromTipTap(contentTipTap.value)
+        : extractUrlsFromText(content || '')
       const firstUrl = urls[0]
       if (!firstUrl) {
         draftLinkPreview.value = null
@@ -720,6 +722,6 @@ watch(
       draftLinkPreview.value = await fetchPreview(firstUrl)
     }, 350)
   },
-  { immediate: true }
+  { immediate: true, deep: true }
 )
 </script>

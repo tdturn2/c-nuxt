@@ -122,8 +122,8 @@
                 <USelectMenu
                   v-model="selectedSpeakerOption"
                   :items="speakerSelectItems"
-                  value-attribute="id"
-                  label-attribute="label"
+                  label-key="label"
+                  :filter-fields="['label']"
                   searchable
                   search-input-placeholder="Search speakers..."
                   placeholder="Select speaker"
@@ -526,10 +526,12 @@ const selectedMp3Label = computed(() => {
 })
 
 const speakerSelectItems = computed(() => {
-  return speakers.value.map((speaker) => ({
-    id: String(speaker.id),
-    label: speaker.name || `Speaker ${String(speaker.id)}`,
-  }))
+  return speakers.value
+    .map((speaker) => ({
+      id: String(speaker.id),
+      label: speaker.name || `Speaker ${String(speaker.id)}`,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
 })
 
 function speakerIdFromEpisode(ep: ChapelEpisode): string {
@@ -648,7 +650,7 @@ async function loadSpeakers() {
 async function loadMediaAssets() {
   try {
     const res: any = await $fetch('/api/speaker-photos', {
-      query: { limit: 100, sort: '-createdAt', depth: 1 },
+      query: { limit: 1000, pagination: 'false', sort: '-createdAt', depth: 1 },
     })
     mediaAssets.value = Array.isArray(res?.docs) ? res.docs : []
   } catch {

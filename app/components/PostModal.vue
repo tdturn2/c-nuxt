@@ -4,7 +4,7 @@
     :close="false"
     :ui="{
       overlay: 'bg-black/70',
-      content: 'max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-hidden ring-0 shadow-2xl divide-y-0',
+      content: 'max-w-3xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-hidden ring-0 shadow-2xl divide-y-0',
       header: 'hidden p-0 min-h-0',
       body: 'p-0 sm:p-0 overflow-y-auto max-h-[90vh]'
     }"
@@ -23,6 +23,7 @@
           :post="post"
           :user="user"
           :current-user-id="currentUserId"
+          :current-user="meUser"
           :start-in-edit-mode="startInEditMode"
           :start-with-comments-open="startWithCommentsOpen"
           in-modal
@@ -104,7 +105,7 @@ const emit = defineEmits<{
 }>()
 
 // Get current authenticated user's PayloadCMS ID if not provided
-const { currentUserId: meUserId } = useMe()
+const { currentUserId: meUserId, user: meUser } = useMe()
 const currentUserId = computed(() => props.currentUserId ?? meUserId.value)
 
 const isOpen = computed({

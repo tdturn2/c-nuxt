@@ -35,7 +35,7 @@
               sizes="40px"
             />
             <span v-else class="text-gray-600 font-semibold text-sm">
-              {{ displayUser.name.charAt(0).toUpperCase() }}
+              {{ displayUser?.name?.charAt(0)?.toUpperCase() }}
             </span>
           </NuxtLink>
           <div class="flex-1 min-w-0">
@@ -130,14 +130,14 @@
     </div>
 
     <!-- Post Content (display mode) -->
-    <div v-if="!isEditing && (postContent || youtubeEmbeds.length > 0)" class="px-4 pb-2">
+    <div v-if="!isEditing && (formattedContent || youtubeEmbeds.length > 0)" class="px-4 pb-2">
       <div
         class="overflow-hidden transition-[max-height] duration-[400ms] ease-in-out"
         :style="truncatedContentStyle"
       >
         <div
           ref="postContentEl"
-          class="text-gray-900 whitespace-pre-wrap"
+          class="text-gray-900 connect-post-body"
         >
           <div v-html="formattedContent"></div>
         </div>
@@ -195,24 +195,18 @@
 
     <!-- Post Content (edit mode) -->
     <div v-if="isEditing" class="px-4 pb-2.5">
-      <textarea
-        v-model="editText"
-        rows="4"
-        class="w-full px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+      <DashboardRichTextEditor
+        :key="`post-edit-${post.id}`"
+        v-model="editTipTap"
         placeholder="What's on your mind?"
       />
       <div class="mt-3">
-        <label class="block text-xs font-medium text-gray-700 mb-1">Audience</label>
-        <select
-          v-model="selectedAudience"
-          class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        >
-          <option value="general">General</option>
-          <option value="students">Students</option>
-          <option value="employees">Employees</option>
-          <option value="staff">Staff</option>
-          <option value="faculty">Faculty</option>
-        </select>
+        <PostAudienceSelect
+          v-model="selectedAudiences"
+          label="Audience"
+          compact
+          hint="Choose one or more groups. Leave empty for everyone."
+        />
       </div>
       <div class="mt-3">
         <div class="flex items-center gap-2">
@@ -365,7 +359,7 @@
       <div class="flex items-center gap-2 mt-2">
         <button
           @click="saveEdit"
-          :disabled="!editText.trim() || savingEdit"
+          :disabled="!canSaveEdit || savingEdit"
           class="px-4 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {{ savingEdit ? 'Saving...' : 'Save' }}
@@ -424,7 +418,7 @@
         <UPopover :open="showReactionPicker" @update:open="showReactionPicker = $event" :popper="{ placement: 'top' }">
           <template #default="{ open }">
             <UButton
-              :disabled="togglingReaction || !currentUserId"
+              :disabled="!currentUserId"
               variant="ghost"
               color="neutral"
               size="sm"
@@ -449,7 +443,7 @@
                   v-for="(config, type) in reactionConfig"
                   :key="type"
                   @click.stop="handleReactionClick(type as ReactionType)"
-                  :disabled="togglingReaction || !currentUserId"
+                  :disabled="!currentUserId"
                   class="p-2 hover:scale-125 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
                   :title="config.label"
                   :class="userReaction === type ? 'ring-2 ring-blue-500 rounded-full' : ''"
@@ -460,7 +454,7 @@
               <button
                 v-if="userReaction"
                 @click.stop="handleRemoveReaction"
-                :disabled="togglingReaction || !currentUserId"
+                :disabled="!currentUserId"
                 class="px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
                 title="Remove reaction"
               >
@@ -679,6 +673,17 @@
 </template>
 
 <script setup lang="ts">
+import { lexicalToPostHtml } from '~/utils/lexicalToPostHtml'
+import { selectedAudiencesFromPost, serializePostAudience } from '~/utils/postAudience'
+import {
+  cloneTipTapDoc,
+  extractUrlsFromTipTap,
+  INITIAL_TIPTAP_DOC,
+  lexicalToTipTap,
+  tipTapDocHasMeaningfulText,
+  tipTapToLexical,
+} from '~/utils/tiptap/lexicalTipTap'
+
 interface Author {
   id: number
   name: string
@@ -713,7 +718,7 @@ interface Image {
 }
 
 interface Reaction {
-  id: number
+  id: number | string
   user: {
     id: number
     name: string
@@ -757,6 +762,11 @@ const props = defineProps<{
   post: Post
   user: User | null
   currentUserId?: number
+  currentUser?: {
+    id?: number
+    name?: string
+    avatar?: { url: string } | null
+  } | null
   allowInlineEdit?: boolean
   allowInlineComments?: boolean
   startInEditMode?: boolean
@@ -764,9 +774,10 @@ const props = defineProps<{
   inModal?: boolean
 }>()
 
-const { toggleReaction, getReactions, createReaction, deleteReaction, unreact } = useReactions()
+const { getReactions, createReaction, unreact } = useReactions()
+const { reactions, hasLoaded: hasLoadedReactions } = useSharedPostReactions(() => props.post.id)
 const { fetchComments, organizeComments, createComment, extractTextFromContent, updateComment } = useComments()
-const { searchUsers, createLexicalContentWithMentions, extractTextWithMentions } = useMentions()
+const { searchUsers, createLexicalContentWithMentions } = useMentions()
 const { fetchPreview } = useLinkPreview()
 
 const emit = defineEmits<{
@@ -780,8 +791,6 @@ function isBlobOrDataUrl(src: string) {
   return src.startsWith('blob:') || src.startsWith('data:')
 }
 
-const reactions = ref<Reaction[]>([])
-const togglingReaction = ref(false)
 const showReactionPicker = ref(false)
 
 // Comments state
@@ -793,9 +802,10 @@ const submittingComment = ref(false)
 
 // Edit/Delete state
 const isEditing = ref(false)
-const editText = ref('')
+const editTipTap = ref<any>(cloneTipTapDoc(INITIAL_TIPTAP_DOC))
 const savingEdit = ref(false)
-const selectedAudience = ref<'general' | 'students' | 'employees' | 'staff' | 'faculty'>('general')
+const canSaveEdit = computed(() => tipTapDocHasMeaningfulText(editTipTap.value))
+const selectedAudiences = ref(selectedAudiencesFromPost([]))
 const editImageInputRef = ref<HTMLInputElement | null>(null)
 type EditImage = {
   key: string
@@ -921,23 +931,33 @@ const allowInlineComments = computed(() => props.allowInlineComments !== false)
 
 // Fetch reactions for this post
 const loadReactions = async () => {
+  const postId = props.post.id
+  const generation = getReactionLoadGeneration(postId)
   try {
-    //console.log('Loading reactions for post:', props.post.id)
-    const response: any = await getReactions(props.post.id)
-    //console.log('Reactions response for post', props.post.id, ':', response)
-    reactions.value = response?.docs || []
-    //console.log('Set reactions to:', reactions.value)
+    const response: any = await getReactions(postId)
+    if (generation !== getReactionLoadGeneration(postId)) return
+    reactions.value = Array.isArray(response?.docs) ? response.docs : []
   } catch (error) {
+    if (generation !== getReactionLoadGeneration(postId)) return
     console.error('Error loading reactions:', error)
   }
+}
+
+function ensureReactionsLoaded() {
+  if (hasLoadedReactions.value) return
+  void loadReactions()
 }
 
 // Load reactions and comments on mount
 onMounted(() => {
   if (import.meta.client) {
-    loadReactions()
+    ensureReactionsLoaded()
     loadComments() // Load comments on mount so count is available immediately
   }
+})
+
+watch(() => props.post.id, () => {
+  if (import.meta.client) ensureReactionsLoaded()
 })
 
 // Watch for comments section to open and reload comments if needed
@@ -968,18 +988,9 @@ const loadComments = async () => {
 }
 
 // Edit post
-const getAudienceKey = (audience?: string[]): 'general' | 'students' | 'employees' | 'staff' | 'faculty' => {
-  if (!audience || audience.length === 0 || audience.includes('all')) return 'general'
-  if (audience.includes('students')) return 'students'
-  if (audience.includes('employees')) return 'employees'
-  if (audience.includes('staff')) return 'staff'
-  if (audience.includes('faculty')) return 'faculty'
-  return 'general'
-}
-
 const startEdit = () => {
-  editText.value = extractTextWithMentions(props.post.content)
-  selectedAudience.value = getAudienceKey(props.post.audience)
+  editTipTap.value = lexicalToTipTap(props.post.content)
+  selectedAudiences.value = selectedAudiencesFromPost(props.post.audience)
   editImages.value = (props.post.images || [])
     .filter((img) => Boolean(img?.image?.id) && Boolean(img?.image?.url))
     .map((img, index) => ({
@@ -1012,7 +1023,7 @@ const cancelEdit = () => {
     if (img.file) URL.revokeObjectURL(img.previewUrl)
   })
   isEditing.value = false
-  editText.value = ''
+  editTipTap.value = cloneTipTapDoc(INITIAL_TIPTAP_DOC)
   editImages.value = []
 }
 
@@ -1045,11 +1056,6 @@ const removeEditImage = (index: number) => {
   const img = editImages.value[index]
   if (img?.file) URL.revokeObjectURL(img.previewUrl)
   editImages.value.splice(index, 1)
-}
-
-const extractUrlsFromText = (text: string): string[] => {
-  const matches = text.match(/\bhttps?:\/\/[^\s<>"')\]}]+/gi)
-  return matches || []
 }
 
 const getYoutubeEmbedFromUrl = (url: string): string | null => {
@@ -1105,22 +1111,12 @@ const toggleEditGalleryItem = (item: { id: number; url: string; alt: string }) =
 }
 
 const saveEdit = async () => {
-  if (!editText.value.trim() || savingEdit.value) return
+  if (!canSaveEdit.value || savingEdit.value) return
 
   savingEdit.value = true
   try {
-    const content = createLexicalContentWithMentions(editText.value.trim())
-    const audience = (() => {
-      switch (selectedAudience.value) {
-        case 'students': return ['students']
-        case 'employees': return ['employees']
-        case 'staff': return ['staff']
-        case 'faculty': return ['faculty']
-        case 'general':
-        default:
-          return []
-      }
-    })()
+    const content = tipTapToLexical(editTipTap.value)
+    const audience = serializePostAudience(selectedAudiences.value)
 
     const imageMediaIds: number[] = []
     for (const image of editImages.value) {
@@ -1175,7 +1171,7 @@ const saveEdit = async () => {
       }).catch(() => null) as Post | null
 
       isEditing.value = false
-      editText.value = ''
+      editTipTap.value = cloneTipTapDoc(INITIAL_TIPTAP_DOC)
       editImages.value.forEach((img) => {
         if (img.file) URL.revokeObjectURL(img.previewUrl)
       })
@@ -1488,111 +1484,103 @@ const reactionCountsByType = computed(() => {
   return counts
 })
 
-const handleReactionClick = async (reactionType: ReactionType) => {
-  if (!props.currentUserId || togglingReaction.value) {
-    if (!props.currentUserId) {
-      console.warn('Cannot react: No current user ID provided')
-    }
+let reactionOpId = 0
+
+function currentUserReaction(): Reaction | undefined {
+  if (!props.currentUserId) return undefined
+  return reactions.value.find(r => r.user?.id === props.currentUserId)
+}
+
+function applyReactionLocally(reactionType: ReactionType | null) {
+  const userId = props.currentUserId
+  if (!userId) return
+
+  bumpReactionLoadGeneration(props.post.id)
+
+  if (reactionType == null) {
+    reactions.value = reactions.value.filter(r => r.user?.id !== userId)
     return
   }
-  
-  // Close popover immediately
+
+  const existing = reactions.value.find(r => r.user?.id === userId)
+  if (existing) {
+    reactions.value = reactions.value.map(r =>
+      r.user?.id === userId ? { ...r, reactionType } : r,
+    )
+    return
+  }
+
+  reactions.value = [
+    ...reactions.value,
+    {
+      id: `optimistic-${userId}-${props.post.id}`,
+      user: {
+        id: userId,
+        name: props.currentUser?.name || 'You',
+        avatar: props.currentUser?.avatar ?? null,
+      },
+      reactionType,
+      createdAt: new Date().toISOString(),
+    },
+  ]
+}
+
+const handleReactionClick = async (reactionType: ReactionType) => {
+  if (!props.currentUserId) {
+    console.warn('Cannot react: No current user ID provided')
+    return
+  }
+
   showReactionPicker.value = false
-  
-  togglingReaction.value = true
-  
+
+  const current = currentUserReaction()
+  const nextType = current?.reactionType === reactionType ? null : reactionType
+  const snapshot = reactions.value.slice()
+  const opId = ++reactionOpId
+  applyReactionLocally(nextType)
+
   try {
-    // Find current user's reaction
-    const currentUserReaction = reactions.value.find(r => r.user?.id === props.currentUserId)
-    
-    if (currentUserReaction) {
-      if (currentUserReaction.reactionType === reactionType) {
-        // Remove reaction if clicking the same type - use unreact endpoint
-        try {
-          await unreact(props.post.id)
-        } catch (error: any) {
-          // Handle 403/401 errors gracefully - if we can't delete, just reload
-          if (error?.statusCode === 403 || error?.statusCode === 401 || error?.status === 403 || error?.status === 401) {
-            console.warn('Permission denied: Cannot delete reaction')
-            await loadReactions()
-            return
-          }
-          throw error
+    if (nextType == null) {
+      await unreact(props.post.id)
+      return
+    }
+
+    const created: any = await createReaction({
+      post: props.post.id,
+      reactionType: nextType,
+    })
+
+    if (opId !== reactionOpId) return
+
+    if (created && typeof created === 'object' && created.id != null) {
+      reactions.value = reactions.value.map((reaction) => {
+        if (reaction.user?.id !== props.currentUserId) return reaction
+        return {
+          ...reaction,
+          id: created.id,
+          reactionType: created.reactionType || reaction.reactionType,
+          user: created.user
+            ? {
+                id: created.user.id ?? reaction.user.id,
+                name: created.user.name ?? reaction.user.name,
+                avatar: created.user.avatar ?? reaction.user.avatar,
+              }
+            : reaction.user,
+          createdAt: created.createdAt || reaction.createdAt,
         }
-      } else {
-        // Replace reaction with new type
-        // First remove the old one using unreact endpoint
-        try {
-          await unreact(props.post.id)
-        } catch (error: any) {
-          // Handle 403/401 errors gracefully - if we can't delete, try to add new one anyway
-          if (error?.statusCode === 403 || error?.statusCode === 401 || error?.status === 403 || error?.status === 401) {
-            console.warn('Permission denied: Cannot delete old reaction, will try to add new one')
-          } else {
-            throw error
-          }
-        }
-        // Then add the new one
-        await createReaction({
-          post: props.post.id,
-          reactionType
-        })
-      }
-    } else {
-      // Add new reaction
-      await createReaction({
-        post: props.post.id,
-        reactionType
       })
     }
-    
-    // Reload reactions to get updated list
-    await loadReactions()
-    emit('postUpdated', { ...props.post, reactionRefreshAt: Date.now() } as Post)
   } catch (error) {
+    if (opId !== reactionOpId) return
     console.error('Error toggling reaction:', error)
-  } finally {
-    togglingReaction.value = false
+    reactions.value = snapshot
   }
 }
 
 const handleRemoveReaction = async () => {
-  if (!props.currentUserId || togglingReaction.value) {
-    return
-  }
-  
-  // Close popover immediately
-  showReactionPicker.value = false
-  
-  togglingReaction.value = true
-  
-  try {
-    // Find current user's reaction
-    const currentUserReaction = reactions.value.find(r => r.user?.id === props.currentUserId)
-    
-    if (currentUserReaction) {
-      try {
-        // Remove reaction using unreact endpoint (includes email for SSO auth)
-        await unreact(props.post.id)
-        // Reload reactions to get updated list
-        await loadReactions()
-        emit('postUpdated', { ...props.post, reactionRefreshAt: Date.now() } as Post)
-      } catch (error: any) {
-        // Handle 403/401 errors gracefully
-        if (error?.statusCode === 403 || error?.statusCode === 401 || error?.status === 403 || error?.status === 401) {
-          console.warn('Permission denied: Cannot delete reaction. You may not have permission or the reaction may not belong to you.')
-          // Still reload to get current state
-          await loadReactions()
-          emit('postUpdated', { ...props.post, reactionRefreshAt: Date.now() } as Post)
-        } else {
-          throw error
-        }
-      }
-    }
-  } catch (error) {
-    console.error('Error removing reaction:', error)
-  } finally {
-    togglingReaction.value = false
+  const current = currentUserReaction()
+  if (current?.reactionType) {
+    await handleReactionClick(current.reactionType as ReactionType)
   }
 }
 
@@ -1805,40 +1793,7 @@ const youtubeEmbeds = computed(() => {
   }).filter(Boolean) as string[]
 })
 
-const formattedContent = computed(() => {
-  if (!postContent.value) return ''
-
-  const escapeHtml = (value: string) =>
-    value
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;')
-
-  const linkify = (value: string) => {
-    const urlRegex = /\bhttps?:\/\/[^\s<>"')\]}]+/gi
-    let lastIndex = 0
-    let result = ''
-    let match: RegExpExecArray | null
-
-    while ((match = urlRegex.exec(value)) !== null) {
-      const url = match[0]
-      const start = match.index
-      const end = start + url.length
-      result += escapeHtml(value.slice(lastIndex, start))
-      const safeUrl = escapeHtml(url)
-      result += `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="text-asbury-blue hover:underline break-all">${safeUrl}</a>`
-      lastIndex = end
-    }
-
-    result += escapeHtml(value.slice(lastIndex))
-    return result
-  }
-
-  // Linkify URLs, then preserve line breaks.
-  return linkify(postContent.value).replace(/\n/g, '<br>')
-})
+const formattedContent = computed(() => lexicalToPostHtml(props.post.content))
 
 watch(formattedContent, () => {
   nextTick(measurePostContent)
@@ -1861,8 +1816,8 @@ watch(
 )
 
 watch(
-  [isEditing, editText],
-  ([editing, text]) => {
+  [isEditing, editTipTap],
+  ([editing]) => {
     if (editPreviewDebounce) clearTimeout(editPreviewDebounce)
     if (!editing) {
       editDraftLinkPreview.value = null
@@ -1870,7 +1825,7 @@ watch(
       return
     }
     editPreviewDebounce = setTimeout(async () => {
-      const firstUrl = extractUrlsFromText(text || '')[0]
+      const firstUrl = extractUrlsFromTipTap(editTipTap.value)[0]
       if (!firstUrl) {
         editDraftLinkPreview.value = null
         editDraftYoutubeEmbed.value = null
@@ -1886,7 +1841,7 @@ watch(
       editDraftLinkPreview.value = await fetchPreview(firstUrl)
     }, 350)
   },
-  { immediate: true }
+  { immediate: true, deep: true }
 )
 
 const formatDate = (dateString: string) => {
@@ -1936,3 +1891,54 @@ watch(
   { immediate: true }
 )
 </script>
+
+<style>
+.connect-post-body p {
+  margin: 0 0 0.5rem;
+}
+.connect-post-body p:last-child {
+  margin-bottom: 0;
+}
+.connect-post-body h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0.15rem 0 0.4rem;
+}
+.connect-post-body h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0.15rem 0 0.35rem;
+}
+.connect-post-body h3,
+.connect-post-body h4 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0.1rem 0 0.3rem;
+}
+.connect-post-body ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin: 0.35rem 0;
+}
+.connect-post-body ol {
+  list-style: decimal;
+  padding-left: 1.25rem;
+  margin: 0.35rem 0;
+}
+.connect-post-body li p {
+  margin: 0;
+}
+.connect-post-body blockquote {
+  border-left: 3px solid #d1d5db;
+  padding-left: 0.75rem;
+  color: #4b5563;
+  margin: 0.5rem 0;
+}
+.connect-post-body a {
+  color: rgb(13, 94, 130);
+}
+.connect-post-body hr {
+  margin: 0.75rem 0;
+  border-color: #e5e7eb;
+}
+</style>

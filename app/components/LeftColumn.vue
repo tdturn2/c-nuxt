@@ -339,6 +339,14 @@ watch([() => route.path, () => internalPagesData.value?.docs], revealActiveLink,
             />
           </div>
         </div>
+        <!-- Chapel plug hidden for now
+        <div
+          v-if="isHome"
+          class="shrink-0 border-t border-gray-200 px-2 py-2"
+        >
+          <ChapelHomeCard compact />
+        </div>
+        -->
       </div>
 
       <!-- Resize handle -->

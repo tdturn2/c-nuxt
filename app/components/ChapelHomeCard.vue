@@ -1,6 +1,63 @@
 <template>
-  <section class="rounded-xl border border-gray-200 bg-[#f4f6f7] px-4 py-4 sm:px-5">
-    <div class="grid grid-cols-1 items-center gap-4 sm:grid-cols-[minmax(0,1.1fr)_auto_minmax(0,1fr)] sm:gap-5">
+  <section
+    class="rounded-xl border border-gray-200 bg-[#f4f6f7]"
+    :class="compact ? 'px-2.5 py-3' : 'px-4 py-4 sm:px-5'"
+  >
+    <div
+      v-if="compact"
+      class="space-y-3"
+    >
+      <div class="flex min-w-0 items-start gap-2.5">
+        <img
+          :src="estesIcon"
+          alt="Estes Chapel"
+          class="h-10 w-10 shrink-0 object-contain"
+        >
+        <div class="min-w-0">
+          <p class="text-xs leading-4 text-[rgba(13,94,130,1)]">
+            Stream at
+            <a
+              href="https://asbury.to/live"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="font-semibold underline underline-offset-2 hover:text-[rgba(10,69,92,1)]"
+            >asbury.to/live</a>
+            or
+            <a
+              href="https://www.facebook.com/asburyseminary"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="font-semibold underline underline-offset-2 hover:text-[rgba(10,69,92,1)]"
+            >Facebook</a>.
+          </p>
+          <NuxtLink
+            to="/chapel"
+            class="mt-2 inline-flex items-center justify-center rounded-md bg-[rgba(13,94,130,1)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white hover:bg-[rgba(10,69,92,1)]"
+          >
+            Chapel Schedule
+          </NuxtLink>
+        </div>
+      </div>
+
+      <div class="h-px w-full bg-[rgba(13,94,130,1)]" aria-hidden="true" />
+
+      <div class="min-w-0">
+        <NuxtLink
+          to="/chapel/daily-eucharist"
+          class="text-sm font-semibold text-[rgba(13,94,130,1)] hover:underline"
+        >
+          Daily Eucharist
+        </NuxtLink>
+        <p class="mt-0.5 text-xs leading-4 text-[rgba(13,94,130,0.9)]">
+          {{ dailyStatus }}
+        </p>
+      </div>
+    </div>
+
+    <div
+      v-else
+      class="grid grid-cols-1 items-center gap-4 sm:grid-cols-[minmax(0,1.1fr)_auto_minmax(0,1fr)] sm:gap-5"
+    >
       <div class="flex min-w-0 items-start gap-3">
         <img
           :src="estesIcon"
@@ -53,6 +110,10 @@
 
 <script setup lang="ts">
 import estesIcon from '../../assets/estes-icon.png'
+
+defineProps<{
+  compact?: boolean
+}>()
 
 type DailyEucharistEntry = {
   id: string | number

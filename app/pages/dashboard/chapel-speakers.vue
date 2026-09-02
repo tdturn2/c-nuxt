@@ -84,6 +84,7 @@
             </template>
             <template #body>
               <form class="space-y-3" @submit.prevent="saveSpeaker">
+                <div v-if="error" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{{ error }}</div>
                 <USelectMenu
                   v-model="selectedSpeakerId"
                   :items="speakerSelectOptions"
@@ -104,6 +105,12 @@
                   />
                   <input :value="selectedPhotoLabel" type="text" readonly placeholder="No photo selected" class="rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm">
                 </div>
+                <img
+                  v-if="selectedPhotoUrl"
+                  :src="selectedPhotoUrl"
+                  alt=""
+                  class="h-20 w-20 rounded-lg object-cover border border-gray-200"
+                >
                 <details class="rounded-lg border border-gray-200 bg-white [&_summary::-webkit-details-marker]:hidden">
                   <summary class="cursor-pointer list-none px-3 py-2 hover:bg-gray-50">
                     <span class="text-sm font-medium text-gray-900">Speaker photo selector</span>
@@ -253,6 +260,17 @@ const selectedPhotoLabel = computed(() => {
   if (!form.value.photo) return ''
   const match = mediaAssets.value.find((asset: any) => String(resolveAssetId(asset)) === String(form.value.photo))
   return match ? mediaLabel(match) : `Asset #${String(form.value.photo)}`
+})
+
+const selectedPhotoUrl = computed(() => {
+  if (!form.value.photo) return ''
+  const match = mediaAssets.value.find((asset: any) => String(resolveAssetId(asset)) === String(form.value.photo))
+  const raw =
+    (typeof match?._normalizedUrl === 'string' && match._normalizedUrl) ||
+    (typeof match?.url === 'string' && match.url) ||
+    (typeof match?.file?.url === 'string' && match.file.url) ||
+    ''
+  return raw
 })
 
 const filteredSpeakers = computed(() => {
@@ -408,11 +426,12 @@ async function loadConnectUsers() {
 async function loadMediaAssets() {
   try {
     const res: any = await $fetch('/api/speaker-photos', {
-      query: { limit: 100, sort: '-createdAt', depth: 1 },
+      query: { limit: 1000, pagination: 'false', sort: '-createdAt', depth: 1 },
     })
     mediaAssets.value = Array.isArray(res?.docs) ? res.docs : []
-  } catch {
+  } catch (e: any) {
     mediaAssets.value = []
+    error.value = e?.statusMessage || e?.message || 'Failed to load speaker photos.'
   }
 }
 

@@ -1,4 +1,5 @@
 import { createError, defineEventHandler } from 'h3'
+import { toBrowserMediaUrl } from '../../utils/connectApi'
 
 type ChapelEpisode = {
   id: string | number
@@ -46,6 +47,14 @@ function toYmdUtc(date: Date): string {
   return `${y}-${m}-${d}`
 }
 
+function rewriteSpeakerPhoto(speaker: ChapelEpisode['speaker']): ChapelEpisode['speaker'] {
+  if (!speaker || typeof speaker !== 'object') return speaker
+  const raw = speaker.photo?.url
+  const url = toBrowserMediaUrl(raw) || (typeof raw === 'string' ? raw : undefined)
+  if (!url || !speaker.photo) return speaker
+  return { ...speaker, photo: { ...speaker.photo, url } }
+}
+
 export default defineEventHandler(async () => {
   const config = useRuntimeConfig()
   const payloadBaseUrl = (config.public.connectApi || 'http://localhost:3003').replace(/\/+$/, '')
@@ -65,7 +74,8 @@ export default defineEventHandler(async () => {
     // depth 2: speaker + photo (+ shallow connectUser) without huge nested user payloads
     params.set('depth', '2')
     params.set('limit', '200')
-    params.set('sort', 'date')
+    // Newest-first so this week's rows are in the page even if date filters are ignored.
+    params.set('sort', '-date')
     params.set('where[date][greater_than_equal]', toYmdUtc(thisWeekTuesday))
     // Use exclusive Friday upper bound so Thursday rows with stored times are included.
     params.set('where[date][less_than]', toYmdUtc(thisWeekFriday))
@@ -97,7 +107,7 @@ export default defineEventHandler(async () => {
           title: ep.title != null && String(ep.title).trim() ? String(ep.title).trim() : undefined,
           description: ep.description != null && String(ep.description).trim() ? String(ep.description).trim() : null,
           weekday: wd,
-          speaker: ep.speaker || null,
+          speaker: rewriteSpeakerPhoto(ep.speaker || null),
         }
       })
       .filter(Boolean)

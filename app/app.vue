@@ -4,12 +4,17 @@
       class="flex flex-col relative z-10"
       :class="isHome ? 'h-screen overflow-hidden' : 'min-h-screen'"
     >
-      <Header v-if="!isSignIn" class="flex-shrink-0" />
+      <div v-if="!isSignIn" class="sticky top-0 z-50 flex-shrink-0">
+        <Header />
+        <ImpersonationBanner />
+      </div>
       <main
-        class="flex-1 relative z-10"
-        :class="isHome ? 'min-h-0 overflow-hidden' : ''"
+        class="flex-1 relative z-10 min-h-0"
+        :class="isHome ? 'overflow-hidden flex flex-col' : ''"
       >
-        <NuxtPage />
+        <div :class="isHome ? 'flex-1 min-h-0' : ''">
+          <NuxtPage />
+        </div>
       </main>
       <Footer v-if="!isSignIn" class="flex-shrink-0" />
       <NuxtRouteAnnouncer />

@@ -65,6 +65,7 @@ const allItems = [
   { label: 'Posts', to: '/dashboard/posts', icon: 'i-lucide-newspaper' },
   { label: 'Users & Groups', to: '/dashboard/users', icon: 'i-lucide-users-round' },
   { label: 'Docs / Pages', to: '/dashboard/docs', icon: 'i-lucide-file-text' },
+  { label: 'Media', to: '/dashboard/media', icon: 'i-lucide-folder-open' },
   { label: 'Degree Builder', to: '/dashboard/degrees', icon: 'i-lucide-graduation-cap' },
   { label: 'Forms Builder', to: '/dashboard/forms', icon: 'i-lucide-square-pen' },
   { label: 'Home Slider', to: '/dashboard/home-slider', icon: 'i-lucide-images' },

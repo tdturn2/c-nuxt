@@ -477,6 +477,9 @@ function formatDate(dateStr?: string): string {
 function getImageUrl(image?: { url?: string } | string | null): string {
   const raw = typeof image === 'string' ? image : image?.url ? String(image.url) : ''
   if (!raw) return ''
+  if (raw.startsWith('/')) return raw
+  const speakerFile = raw.match(/\/api\/speaker-photos\/file\/([^/?#]+)/i)
+  if (speakerFile?.[1]) return `/api/speaker-photos/file/${speakerFile[1]}`
   if (raw.startsWith('http')) return raw
   return `${payloadBaseUrl}${raw}`
 }

@@ -145,6 +145,9 @@ const dailyEntries = computed(() => (Array.isArray(dailyData.value?.entries) ? d
 function speakerPhotoUrl(speaker?: WeekSpeaker | null): string {
   const raw = String(speaker?.photo?.url || '').trim()
   if (!raw) return ''
+  if (raw.startsWith('/')) return raw
+  const speakerFile = raw.match(/\/api\/speaker-photos\/file\/([^/?#]+)/i)
+  if (speakerFile?.[1]) return `/api/speaker-photos/file/${speakerFile[1]}`
   if (raw.startsWith('http://') || raw.startsWith('https://')) return raw
   return payloadBaseUrl ? `${payloadBaseUrl}${raw.startsWith('/') ? raw : `/${raw}`}` : raw
 }

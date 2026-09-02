@@ -1,5 +1,5 @@
 <template>
-  <header class="border-b border-white/10 bg-gradient-to-r from-[rgba(13,94,130,1)] to-[rgba(10,69,92,1)] sticky top-0 z-50">
+  <header class="border-b border-white/10 bg-gradient-to-r from-[rgba(13,94,130,1)] to-[rgba(10,69,92,1)]">
     <div class="w-full flex items-center gap-2 sm:gap-3 min-h-[60px] px-3 md:px-4">
       <div class="ml-6 flex shrink-0 items-center">
         <NuxtLink to="/" class="flex items-center" noPrefetch>
@@ -149,6 +149,7 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
 import type { DropdownMenuItem } from '@nuxt/ui'
+import { isConnectAdminUser, type ConnectUserAccessLike } from '@shared/connectUserAccess'
 import PostModal from './PostModal.vue'
 import connectLogoWide from '../../assets/connect-logo.svg'
 
@@ -184,7 +185,11 @@ const {
 const { fetchUser } = useUsers()
 const { data: session, getCsrfToken } = useAuth()
 const { user: meUser } = useMe()
+const { startRolePreview, pending: impersonationPending } = useImpersonation()
 const isSignedIn = computed(() => Boolean(session.value?.user?.email))
+const showRolePreviewMenu = computed(
+  () => isConnectAdminUser(meUser.value as ConnectUserAccessLike | null) && !meUser.value?.impersonation?.active,
+)
 
 const handleSignOut = async () => {
   try {
@@ -357,6 +362,32 @@ const accountDropdownItems = computed<DropdownMenuItem[][]>(() => {
     { label: 'Update Profile', icon: 'i-heroicons-user-circle', to: '/profile/avatar' },
     { label: 'Faculty Publications', icon: 'i-heroicons-book-open', to: '/profile/faculty-pub' }
   ],
+  ...(showRolePreviewMenu.value
+    ? [[
+        {
+          label: 'Preview as',
+          icon: 'i-heroicons-eye',
+          disabled: impersonationPending.value,
+          children: [
+            {
+              label: 'Student',
+              icon: 'i-heroicons-academic-cap',
+              onSelect: () => startRolePreview('student'),
+            },
+            {
+              label: 'Faculty',
+              icon: 'i-heroicons-book-open',
+              onSelect: () => startRolePreview('faculty'),
+            },
+            {
+              label: 'Staff',
+              icon: 'i-heroicons-briefcase',
+              onSelect: () => startRolePreview('staff'),
+            },
+          ],
+        },
+      ]]
+    : []),
   [
     {
       label: 'Sign Out',

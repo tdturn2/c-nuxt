@@ -1,6 +1,7 @@
 import type { H3Event } from 'h3'
 import { resolveConnectApiUrl } from './connectApi'
 import { authenticateWithConnectApi, getConnectApiProxyHeaders } from './payloadAuth'
+import { applyImpersonationToUser } from './impersonation'
 
 export async function loadConnectUserDocForEvent(event: H3Event): Promise<any | null> {
   const payloadBaseUrl = resolveConnectApiUrl()
@@ -15,5 +16,6 @@ export async function loadConnectUserDocForEvent(event: H3Event): Promise<any | 
     { headers },
   ).catch(() => null)
 
-  return Array.isArray(res?.docs) ? res.docs[0] ?? null : null
+  const doc = Array.isArray(res?.docs) ? res.docs[0] ?? null : null
+  return applyImpersonationToUser(event, doc, auth.email)
 }

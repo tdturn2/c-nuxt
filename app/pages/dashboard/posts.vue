@@ -72,7 +72,7 @@
                     <p class="line-clamp-2 whitespace-pre-line">{{ postText(post) || '—' }}</p>
                   </td>
                   <td class="whitespace-nowrap px-4 py-3 text-gray-700">{{ post.author?.name || post.author?.email || '—' }}</td>
-                  <td class="whitespace-nowrap px-4 py-3 text-gray-700">{{ audienceLabel(post.audience) }}</td>
+                  <td class="px-4 py-3 text-gray-700">{{ audienceLabel(post.audience) }}</td>
                   <td class="whitespace-nowrap px-4 py-3 text-gray-700">{{ notificationLabel(post) }}</td>
                   <td class="whitespace-nowrap px-4 py-3 text-gray-600">{{ formatDate(post.createdAt) }}</td>
                   <td class="whitespace-nowrap px-4 py-3 text-right">
@@ -99,10 +99,16 @@
       v-model:open="createOpen"
       title="Create a post"
       description="Create a new post for the homepage timeline."
-      :ui="{ content: 'max-w-2xl', body: 'p-6' }"
+      :ui="{ content: 'max-w-3xl', body: 'p-6' }"
     >
       <template #body>
-        <AddPost allow-post-as @post-created="handlePostCreated" @cancel="createOpen = false" />
+        <AddPost
+          v-if="createOpen"
+          allow-post-as
+          rich-editor
+          @post-created="handlePostCreated"
+          @cancel="createOpen = false"
+        />
       </template>
     </UModal>
 
@@ -110,29 +116,21 @@
       v-model:open="editOpen"
       title="Edit post"
       description="Update this post's content, audience, and notification settings."
-      :ui="{ content: 'max-w-2xl', body: 'p-6' }"
+      :ui="{ content: 'max-w-3xl', body: 'p-6' }"
     >
       <template #body>
         <form class="space-y-4" @submit.prevent="savePost">
           <div>
-            <label for="dashboard-post-content" class="mb-2 block text-sm font-medium text-gray-700">Content</label>
-            <textarea
-              id="dashboard-post-content"
-              v-model="editForm.content"
-              rows="8"
-              required
-              class="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[rgba(13,94,130,1)]"
+            <label class="mb-2 block text-sm font-medium text-gray-700">Content</label>
+            <DashboardRichTextEditor
+              v-if="editOpen"
+              :key="`edit-post-${editingId ?? 'none'}-${editEditorMountKey}`"
+              v-model="editForm.contentTipTap"
+              placeholder="Write a post…"
             />
           </div>
           <div>
-            <label for="dashboard-post-audience" class="mb-2 block text-sm font-medium text-gray-700">Target audience</label>
-            <select id="dashboard-post-audience" v-model="editForm.audience" class="w-full rounded-md border border-gray-300 px-3 py-2">
-              <option value="general">General</option>
-              <option value="students">Students</option>
-              <option value="employees">Employees</option>
-              <option value="staff">Staff</option>
-              <option value="faculty">Faculty</option>
-            </select>
+            <PostAudienceSelect v-model="editForm.audiences" />
           </div>
 
           <div class="rounded-md border border-gray-200 bg-gray-50 p-3 space-y-3">
@@ -166,7 +164,7 @@
 
           <div class="flex justify-end gap-3">
             <button type="button" class="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" @click="editOpen = false">Cancel</button>
-            <button type="submit" :disabled="saving" class="rounded-md bg-[rgba(13,94,130,1)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
+            <button type="submit" :disabled="saving || !canSaveEdit" class="rounded-md bg-[rgba(13,94,130,1)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
               {{ saving ? 'Saving...' : 'Save post' }}
             </button>
           </div>
@@ -177,7 +175,14 @@
 </template>
 
 <script setup lang="ts">
-const { createLexicalContentWithMentions } = useMentions()
+import {
+  cloneTipTapDoc,
+  INITIAL_TIPTAP_DOC,
+  lexicalToTipTap,
+  tipTapDocHasMeaningfulText,
+  tipTapToLexical,
+} from '~/utils/tiptap/lexicalTipTap'
+import { postAudienceLabel, selectedAudiencesFromPost, serializePostAudience } from '~/utils/postAudience'
 
 const { data: me, pending: mePending } = await useFetch<any>('/api/users/me', {
   key: 'dashboard-posts-me',
@@ -206,14 +211,17 @@ const success = ref('')
 const editingId = ref<number | string | null>(null)
 const pinningId = ref<number | string | null>(null)
 const notificationTtlDays = NOTIFICATION_UPDATE_TTL_DAYS
+const editEditorMountKey = ref(0)
 const editForm = reactive({
-  content: '',
-  audience: 'general',
+  contentTipTap: cloneTipTapDoc(INITIAL_TIPTAP_DOC),
+  audiences: [] as string[],
   pinned: false,
   addToNotifications: false,
   /** Categories preserved across edit other than `priority` and `pinned`. */
   otherCategories: [] as string[],
 })
+
+const canSaveEdit = computed(() => tipTapDocHasMeaningfulText(editForm.contentTipTap))
 
 watch(canManageDashboard, (allowed) => {
   if (allowed && !postsData.value) refreshPosts()
@@ -240,8 +248,7 @@ function postText(post: any): string {
 }
 
 function audienceLabel(audience: unknown): string {
-  if (!Array.isArray(audience) || !audience.length || audience.includes('all')) return 'General'
-  return audience.map((value) => String(value)).join(', ')
+  return postAudienceLabel(audience)
 }
 
 function formatDate(value: unknown): string {
@@ -283,9 +290,9 @@ function openEdit(post: any) {
   error.value = ''
   success.value = ''
   editingId.value = post.id
-  editForm.content = postText(post)
-  const firstAudience = Array.isArray(post.audience) ? post.audience[0] : ''
-  editForm.audience = !firstAudience || firstAudience === 'all' ? 'general' : String(firstAudience)
+  editForm.contentTipTap = lexicalToTipTap(post.content)
+  editEditorMountKey.value += 1
+  editForm.audiences = selectedAudiencesFromPost(post.audience)
 
   const categories = postCategories(post)
   editForm.otherCategories = categories.filter((c) => c !== 'priority' && c !== 'pinned')
@@ -302,7 +309,7 @@ async function handlePostCreated() {
 }
 
 async function savePost() {
-  if (!editingId.value || !editForm.content.trim()) return
+  if (!editingId.value || !tipTapDocHasMeaningfulText(editForm.contentTipTap)) return
   saving.value = true
   error.value = ''
   success.value = ''
@@ -310,8 +317,8 @@ async function savePost() {
     await $fetch(`/api/posts/${editingId.value}`, {
       method: 'PATCH',
       body: {
-        content: createLexicalContentWithMentions(editForm.content),
-        audience: [editForm.audience === 'general' ? 'all' : editForm.audience],
+        content: tipTapToLexical(editForm.contentTipTap),
+        audience: serializePostAudience(editForm.audiences),
         categories: buildEditCategories(),
       },
     })

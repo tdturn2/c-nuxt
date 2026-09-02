@@ -33,3 +33,30 @@ export function hasConnectGroupSlug(
   const normalized = slug.trim().toLowerCase()
   return normalizeConnectGroupSlugs(user).includes(normalized)
 }
+
+/** Matches dashboard admin-group detection (slug or name). */
+export function isAdminGroupTag(value: string): boolean {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (!normalized) return false
+  return (
+    normalized === 'admin' ||
+    normalized.includes('admin ') ||
+    normalized.includes(' admin') ||
+    normalized.includes('connect-admin') ||
+    normalized.includes('connect admin')
+  )
+}
+
+export function isConnectAdminUser(user: ConnectUserAccessLike | null | undefined): boolean {
+  if (!user) return false
+  if (normalizeConnectUserRoles(user).includes('admin')) return true
+  const groups = Array.isArray(user.groups) ? user.groups : []
+  return groups.some((group) => {
+    if (typeof group === 'string' || typeof group === 'number') {
+      return isAdminGroupTag(String(group))
+    }
+    const slug = String(group?.slug || '').trim().toLowerCase()
+    const name = String(group?.name || '').trim().toLowerCase()
+    return isAdminGroupTag(slug) || isAdminGroupTag(name) || isAdminGroupTag(`${slug} ${name}`.trim())
+  })
+}

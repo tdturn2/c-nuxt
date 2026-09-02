@@ -1,5 +1,6 @@
 import { defineEventHandler, createError } from 'h3'
 import { authenticateWithPayloadCMS } from '../../utils/payloadAuth'
+import { applyImpersonationToUser } from '../../utils/impersonation'
 
 export default defineEventHandler(async (event) => {
   const { email: sessionEmail } = await authenticateWithPayloadCMS(event)
@@ -27,6 +28,10 @@ export default defineEventHandler(async (event) => {
   })
 
   const doc = Array.isArray(res?.docs) ? res.docs[0] : null
-  return { doc }
+  const overlaid = applyImpersonationToUser(event, doc, sessionEmail)
+  return {
+    doc: overlaid,
+    impersonation: overlaid?.impersonation ?? { active: false },
+  }
 })
 

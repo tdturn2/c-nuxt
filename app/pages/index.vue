@@ -1,13 +1,14 @@
 <template>
-  <div class="h-full flex bg-gray-50 min-h-0">
+  <div class="flex h-full min-h-0 bg-gray-50">
     <LeftColumn />
     <RightColumn>
       <div class="mx-auto flex w-full max-w-[1200px]">
         <div class="min-w-0 flex-1">
           <Timeline api-url="/api/posts" />
         </div>
-        <aside class="hidden w-72 flex-shrink-0 border-l border-gray-200/80 xl:block">
-          <div class="flex flex-col items-center space-y-8 px-6 pt-[5.25rem]">
+        <aside class="hidden w-72 shrink-0 border-l border-gray-200/80 xl:block">
+          <div class="flex flex-col items-center space-y-8 px-6 pt-6">
+            <FeaturedPublicationsCard />
             <KeenersComicsCard />
             <DiningServicesCard />
             <NuxtLink to="/media/elementary" class="w-full max-w-[180px]">
