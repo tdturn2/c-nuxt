@@ -3,7 +3,15 @@
     <LeftColumn />
     <main class="flex-1 min-w-0 overflow-y-auto">
       <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 class="text-2xl font-bold text-gray-900 mb-6">Student Directory</h1>
+        <h1 class="text-2xl font-bold text-gray-900">Student Directory</h1>
+        <p class="mt-2 mb-6 max-w-3xl text-sm text-gray-600">
+          This directory lists current students who have chosen to share their profile on Connect.
+          To add or update your listing,
+          <NuxtLink
+            to="/profile/avatar"
+            class="font-medium text-[rgba(13,94,130,1)] hover:underline"
+          >update your student profile</NuxtLink>.
+        </p>
 
         <template v-if="loading">
           <p class="sr-only">Loading student directory…</p>
