@@ -37,12 +37,10 @@ export default defineEventHandler(async (event) => {
     const offeringQuery: Record<string, string> = {
       depth: '0',
       limit: '1',
+      'where[fullClassId][equals]': sectionKey,
     }
     if (termCode) {
-      offeringQuery['where[and][0][fullClassId][equals]'] = sectionKey
-      offeringQuery['where[and][1][term][equals]'] = termCode
-    } else {
-      offeringQuery['where[fullClassId][equals]'] = sectionKey
+      offeringQuery['where[term][equals]'] = termCode
     }
 
     const offeringLookup = await $fetch<{ docs?: Array<{ id: number; term?: string | null }> }>(

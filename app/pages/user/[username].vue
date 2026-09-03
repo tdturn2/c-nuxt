@@ -44,7 +44,7 @@
         </div>
       </div>
 
-      <div v-if="showPublicationsTab" class="mt-8 border-t border-gray-200 pt-6">
+      <div v-if="showProfileTabs" class="mt-8 border-t border-gray-200 pt-6">
         <div class="flex flex-wrap gap-2">
           <button
             type="button"
@@ -57,6 +57,29 @@
             Overview
           </button>
           <button
+            v-if="expertiseItems.length"
+            type="button"
+            class="px-3 py-1.5 text-sm rounded-md border transition-colors"
+            :class="activeTab === 'expertise'
+              ? 'bg-[rgba(13,94,130,1)] text-white border-[rgba(13,94,130,1)]'
+              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
+            @click="activeTab = 'expertise'"
+          >
+            Expertise
+          </button>
+          <button
+            v-if="educationItems.length"
+            type="button"
+            class="px-3 py-1.5 text-sm rounded-md border transition-colors"
+            :class="activeTab === 'education'
+              ? 'bg-[rgba(13,94,130,1)] text-white border-[rgba(13,94,130,1)]'
+              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
+            @click="activeTab = 'education'"
+          >
+            Education
+          </button>
+          <button
+            v-if="showPublicationsTab"
             type="button"
             class="px-3 py-1.5 text-sm rounded-md border transition-colors"
             :class="activeTab === 'publications'
@@ -69,13 +92,17 @@
         </div>
       </div>
 
-      <template v-if="!showPublicationsTab || activeTab === 'overview'">
-        <div v-if="hasBio" class="mt-8 border-t border-gray-200 pt-6">
+      <template v-if="!showProfileTabs || activeTab === 'overview'">
+        <div v-if="aboutParagraphs.length" class="mt-8 border-t border-gray-200 pt-6">
           <h2 class="text-lg font-semibold text-gray-900 mb-3">About</h2>
-          <p class="text-gray-700 whitespace-pre-wrap">{{ user.bio }}</p>
+          <div class="space-y-3 text-gray-700">
+            <p v-for="(paragraph, index) in aboutParagraphs" :key="index" class="whitespace-pre-wrap">
+              {{ paragraph }}
+            </p>
+          </div>
         </div>
 
-        <div v-if="employeeProfileEntries.length > 0" class="mt-8 border-t border-gray-200 pt-6">
+        <div v-if="!isFaculty && employeeProfileEntries.length > 0" class="mt-8 border-t border-gray-200 pt-6">
           <h2 class="text-lg font-semibold text-gray-900 mb-3">Asbury Seminary Employee Profile</h2>
           <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
             <template v-for="entry in employeeProfileEntries" :key="entry.key">
@@ -110,6 +137,18 @@
           </dl>
         </div>
       </template>
+
+      <div v-else-if="activeTab === 'expertise'" class="mt-6">
+        <ul class="list-disc space-y-2 pl-5 text-gray-700">
+          <li v-for="item in expertiseItems" :key="item.id">{{ item.item }}</li>
+        </ul>
+      </div>
+
+      <div v-else-if="activeTab === 'education'" class="mt-6">
+        <ul class="list-disc space-y-2 pl-5 text-gray-700">
+          <li v-for="item in educationItems" :key="item.id">{{ item.item }}</li>
+        </ul>
+      </div>
 
       <div v-else-if="activeTab === 'publications'" class="mt-6 space-y-4">
         <div
@@ -157,12 +196,15 @@ const username = computed(() => route.params.username as string)
 
 const loading = ref(true)
 const error = ref<string | null>(null)
-const activeTab = ref<'overview' | 'publications'>('overview')
+const activeTab = ref<'overview' | 'expertise' | 'education' | 'publications'>('overview')
 const user = ref<{
   id: number
   name: string
   email: string
   bio: string | null
+  facultyBio?: unknown
+  expertise?: Array<{ id?: string; item?: string | null }> | null
+  education?: Array<{ id?: string; item?: string | null }> | null
   avatar?: { url: string } | null
   roles?: string[] | null
   employeeTitle?: string | null
@@ -248,8 +290,6 @@ const headerAffiliation = computed(() => {
   return parts.join(' · ')
 })
 
-const hasBio = computed(() => Boolean(user.value?.bio?.trim()))
-
 const profilePublications = computed(() => {
   const pubs = Array.isArray(user.value?.publications) ? user.value.publications : []
   return [...pubs].sort((a, b) => {
@@ -264,9 +304,70 @@ const isFaculty = computed(() => {
   return roles.some((role) => String(role).toLowerCase() === 'faculty')
 })
 
+const expertiseItems = computed(() => {
+  if (!isFaculty.value) return []
+  const rows = Array.isArray(user.value?.expertise) ? user.value.expertise : []
+  return rows
+    .map((row, index) => ({
+      id: String(row.id || `expertise-${index}`),
+      item: String(row.item || '').trim(),
+    }))
+    .filter((row) => row.item.length > 0)
+})
+
+const educationItems = computed(() => {
+  if (!isFaculty.value) return []
+  const rows = Array.isArray(user.value?.education) ? user.value.education : []
+  return rows
+    .map((row, index) => ({
+      id: String(row.id || `education-${index}`),
+      item: String(row.item || '').trim(),
+    }))
+    .filter((row) => row.item.length > 0)
+})
+
 const showPublicationsTab = computed(() =>
   isFaculty.value && profilePublications.value.some((pub) => String(pub.type || '').toLowerCase() === 'book'),
 )
+
+const showProfileTabs = computed(() =>
+  isFaculty.value && (expertiseItems.value.length > 0 || educationItems.value.length > 0 || showPublicationsTab.value),
+)
+
+function lexicalParagraphs(value: unknown): string[] {
+  if (value == null) return []
+  if (typeof value === 'string') {
+    return value
+      .split(/\n\s*\n/)
+      .map((part) => part.trim())
+      .filter(Boolean)
+  }
+  if (typeof value !== 'object' || !('root' in (value as object))) return []
+  const root = (value as { root?: { children?: any[] } }).root
+  const children = Array.isArray(root?.children) ? root.children : []
+  const extractText = (nodes: any[]): string =>
+    nodes
+      .map((child) => {
+        if (child?.type === 'text' && typeof child?.text === 'string') return child.text
+        if (Array.isArray(child?.children)) return extractText(child.children)
+        return ''
+      })
+      .join('')
+      .trim()
+  return children
+    .map((node) => extractText(Array.isArray(node?.children) ? node.children : [node]))
+    .map((text) => text.trim())
+    .filter(Boolean)
+}
+
+const aboutParagraphs = computed(() => {
+  if (isFaculty.value) {
+    const fromFacultyBio = lexicalParagraphs(user.value?.facultyBio)
+    if (fromFacultyBio.length) return fromFacultyBio
+  }
+  const plain = user.value?.bio?.trim()
+  return plain ? [plain] : []
+})
 
 function formatPublicationDate(dateStr: string): string {
   const d = new Date(dateStr.length <= 10 ? `${dateStr}T12:00:00` : dateStr)
@@ -436,7 +537,11 @@ const loadUser = async () => {
 
     user.value = userData
     studentProfile.value = surveyData as { answers: Record<string, unknown>; updatedAt: string } | null
-    if (!showPublicationsTab.value && activeTab.value === 'publications') {
+    const allowedTabs = new Set<string>(['overview'])
+    if (expertiseItems.value.length) allowedTabs.add('expertise')
+    if (educationItems.value.length) allowedTabs.add('education')
+    if (showPublicationsTab.value) allowedTabs.add('publications')
+    if (!allowedTabs.has(activeTab.value)) {
       activeTab.value = 'overview'
     }
   } catch (err: any) {

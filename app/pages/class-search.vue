@@ -151,7 +151,14 @@
                     />
                   </UTooltip>
                 </div>
-                <p class="mt-1 text-sm text-gray-600">{{ formatInstructor(c.instructor) }}</p>
+                <p class="mt-1 text-sm text-gray-600">
+                  <FacultyHoverCard
+                    v-if="lookupFaculty(c.instructor)"
+                    :faculty="lookupFaculty(c.instructor)!"
+                    :display-name="formatInstructor(c.instructor)"
+                  />
+                  <span v-else>{{ formatInstructor(c.instructor) }}</span>
+                </p>
                 <p class="mt-0.5 text-xs text-gray-500">{{ c.delivery_method }} · {{ c.location }}</p>
                 <div class="mt-2">
                   <button
@@ -251,7 +258,14 @@
                     </UTooltip>
                   </div>
                 </td>
-                <td class="px-4 py-3 text-sm text-gray-600">{{ formatInstructor(c.instructor) }}</td>
+                <td class="px-4 py-3 text-sm text-gray-600">
+                  <FacultyHoverCard
+                    v-if="lookupFaculty(c.instructor)"
+                    :faculty="lookupFaculty(c.instructor)!"
+                    :display-name="formatInstructor(c.instructor)"
+                  />
+                  <span v-else>{{ formatInstructor(c.instructor) }}</span>
+                </td>
                 <td class="px-4 py-3 text-sm text-gray-600">{{ c.delivery_method }}</td>
                 <td class="px-4 py-3 text-sm text-gray-600">{{ c.location }}</td>
                 <td class="px-4 py-3 text-sm text-gray-600">{{ c.class_credits }}</td>
@@ -351,6 +365,7 @@
         @remove="removePlannerItem"
         @update-note="updatePlannerNote"
       />
+
     </main>
   </div>
 </template>
@@ -387,6 +402,8 @@ const expandedId = ref<string | null>(null)
 function toggleExpand(id: string) {
   expandedId.value = expandedId.value === id ? null : id
 }
+
+
 
 /** "Last, First" → "First Last" */
 function formatInstructor(raw: string): string {
@@ -425,6 +442,29 @@ const {
   removeItem,
   updateNote,
 } = useClassPlanner()
+type FacultyInfo = { id: number; name: string; username: string | null; employeeTitle: string | null; avatarUrl: string | null }
+const { data: facultyNameMap } = useFetch<Record<string, FacultyInfo>>(
+  '/api/faculty/name-map',
+  { key: 'faculty-name-map', lazy: true },
+)
+
+function lookupFaculty(rawInstructor: string): FacultyInfo | null {
+  const map = facultyNameMap.value
+  if (!map || !rawInstructor?.trim()) return null
+  const key = rawInstructor.trim().toLowerCase()
+  // Exact match
+  if (map[key]) return map[key]
+  // First-name prefix match: "Long, Fredrick" matches "long, fred"
+  const [last, first] = key.split(',').map(s => s.trim())
+  if (last && first) {
+    for (const [k, v] of Object.entries(map)) {
+      const [mLast, mFirst] = k.split(',').map(s => s.trim())
+      if (mLast === last && (first.startsWith(mFirst) || mFirst.startsWith(first))) return v
+    }
+  }
+  return null
+}
+
 // Heavy aggregate (many upstream term fetches); only used for optional row badges — do not block the class table.
 const { data: offeringPatternsData } = useFetch<{ courses?: Record<string, OfferingPattern> }>(
   '/api/course-offering-patterns',
