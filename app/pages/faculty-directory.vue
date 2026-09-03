@@ -57,8 +57,6 @@
                 <div class="min-w-0 w-full">
                   <h2 class="font-semibold text-gray-900 truncate hover:text-[rgba(13,94,130,1)]">{{ person.name }}</h2>
                   <p v-if="person.employeeTitle" class="text-sm text-gray-600 truncate">{{ person.employeeTitle }}</p>
-                  <p v-if="person.department" class="text-xs text-gray-500 mt-0.5">{{ departmentLabel(person.department) }}</p>
-                  <p v-if="person.section" class="text-xs text-gray-500">{{ sectionLabel(person.section) }}</p>
                 </div>
                 <dl class="mt-3 pt-3 border-t border-gray-100 space-y-1 w-full text-left">
                   <div v-if="person.email" class="flex items-center gap-2 min-w-0">
@@ -86,8 +84,6 @@ type FacultyRow = {
   name: string
   email: string | null
   employeeTitle: string | null
-  department: string | null
-  section: string | null
   phone: string | null
   avatar: { url: string } | null
 }
@@ -105,26 +101,6 @@ const error = computed(() => {
   if (!e) return null
   return e.data?.message || e.statusMessage || 'Failed to load directory'
 })
-
-const DEPARTMENT_LABELS: Record<string, string> = {
-  '1': 'Academic Affairs',
-  '2': 'EMT',
-  '3': 'Finance and Administration',
-  '4': 'Office of the President',
-  '5': 'Formation',
-  '6': 'Advancement'
-}
-
-function departmentLabel(id: string | null): string {
-  if (!id) return ''
-  return DEPARTMENT_LABELS[id] ?? id
-}
-
-function sectionLabel(slug: string | null): string {
-  if (!slug) return ''
-  if (slug === 'lits') return 'LITS'
-  return slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-}
 
 /** Username from email (e.g. terry.turner@asburyseminary.edu → terry.turner); fallback to id */
 function userProfilePath(person: { id: number; email: string | null }): string {

@@ -30,6 +30,8 @@ export type ConnectPageNode = {
   title?: string | null
   slug?: string | null
   content?: unknown
+  layout?: string | null
+  customHtml?: string | null
   navCategory?: string | null
   parent?: number | string | { id?: number | string } | null
   parentId: string | null
@@ -202,6 +204,7 @@ export function hasRenderableConnectPageContent(content: unknown): boolean {
 export function connectPageHasUsableDetail(doc: unknown): boolean {
   if (!doc || typeof doc !== 'object') return false
   const page = doc as ConnectPageNode & { contacts?: unknown; contactsHeading?: unknown }
+  if (String(page.layout || '').toLowerCase() === 'html' && String(page.customHtml || '').trim()) return true
   if (hasRenderableConnectPageContent(page.content)) return true
   if (Array.isArray(page.contacts) && page.contacts.length > 0) return true
   if (typeof page.contactsHeading === 'string' && page.contactsHeading.trim()) return true

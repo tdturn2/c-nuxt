@@ -2,7 +2,10 @@
   <div class="flex min-h-0 bg-gray-50">
     <LeftColumn />
     <main class="flex-1 min-w-0 overflow-y-auto">
-      <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div
+        class="w-full mx-auto px-4 sm:px-6 lg:px-8 py-8"
+        :class="isHtmlLayout ? 'max-w-none' : 'max-w-7xl'"
+      >
         <div v-if="isTreeLoading" class="py-12 text-center text-gray-500">
           Loading...
         </div>
@@ -30,6 +33,21 @@
         <div v-else-if="!page" class="py-12 text-center text-gray-500">
           Page not found.
         </div>
+        <article v-else-if="isHtmlLayout">
+          <div v-if="canEditPage && currentPageId" class="mb-3 flex justify-end">
+            <button
+              type="button"
+              class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-[rgba(13,94,130,0.08)] hover:text-[rgba(13,94,130,1)]"
+              aria-label="Edit page"
+              title="Edit page"
+              @click="openPageEditor()"
+            >
+              <UIcon name="i-lucide-pencil" class="h-4 w-4" />
+            </button>
+          </div>
+          <div v-if="htmlLayoutMarkup" v-html="htmlLayoutMarkup" />
+          <p v-else class="text-sm text-gray-500">This page has no custom HTML yet.</p>
+        </article>
         <article v-else>
           <nav
             v-if="pageBreadcrumbs.length"
@@ -443,6 +461,15 @@ const effectivePage = computed(() => {
   const detail = pageDetail.value
   if (detail && typeof detail === 'object') return detail
   return page.value
+})
+
+const isHtmlLayout = computed(() =>
+  String((effectivePage.value as { layout?: string } | null)?.layout || '').toLowerCase() === 'html',
+)
+
+const htmlLayoutMarkup = computed(() => {
+  const html = String((effectivePage.value as { customHtml?: string } | null)?.customHtml || '').trim()
+  return html ? `<div class="connect-html-page">${html}</div>` : ''
 })
 
 const pageBreadcrumbs = computed(() => {

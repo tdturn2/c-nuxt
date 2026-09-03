@@ -2,189 +2,199 @@
   <div class="flex min-h-0 bg-gray-50">
     <LeftColumn />
     <main class="flex-1 min-w-0 overflow-y-auto">
-      <div class="w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <div v-if="loading" class="text-center py-12">
-      <div class="text-gray-500">Loading profile...</div>
-    </div>
-
-    <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-md p-6">
-      <div class="text-red-800">{{ error }}</div>
-    </div>
-
-    <div v-else-if="user" class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
-      <div class="flex flex-col items-center text-center">
-        <div class="mb-4 flex h-28 w-28 items-center justify-center overflow-hidden rounded-full bg-gray-200">
-          <img
-            v-if="user.avatar?.url"
-            :src="user.avatar.url"
-            :alt="user.name"
-            class="h-full w-full object-cover"
-          >
-          <span v-else class="text-4xl font-semibold text-gray-500">
-            {{ user.name?.charAt(0).toUpperCase() }}
-          </span>
+      <div class="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div v-if="loading" class="rounded-xl border border-gray-200 bg-white px-6 py-14 text-center text-sm text-gray-500 shadow-sm">
+          Loading profile…
         </div>
 
-        <h1 class="text-3xl font-bold tracking-tight text-gray-900">{{ user.name }}</h1>
-        <p v-if="user.employeeTitle" class="mt-1 text-gray-600">{{ user.employeeTitle }}</p>
-        <p v-if="headerAffiliation" class="mt-1 text-sm text-gray-500">{{ headerAffiliation }}</p>
-
-        <div v-if="alumniSocialLinks.length" class="mt-4 flex items-center justify-center gap-2">
-          <a
-            v-for="link in alumniSocialLinks"
-            :key="link.key"
-            :href="link.href"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-700 transition-colors hover:bg-[rgba(13,94,130,0.12)] hover:text-[rgba(13,94,130,1)]"
-            :aria-label="link.label"
-          >
-            <UIcon :name="link.icon" class="h-5 w-5" />
-          </a>
+        <div v-else-if="error" class="rounded-xl border border-red-200 bg-red-50 p-6 text-red-800">
+          {{ error }}
         </div>
-      </div>
 
-      <div v-if="showProfileTabs" class="mt-8 border-t border-gray-200 pt-6">
-        <div class="flex flex-wrap gap-2">
-          <button
-            type="button"
-            class="px-3 py-1.5 text-sm rounded-md border transition-colors"
-            :class="activeTab === 'overview'
-              ? 'bg-[rgba(13,94,130,1)] text-white border-[rgba(13,94,130,1)]'
-              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
-            @click="activeTab = 'overview'"
-          >
-            Overview
-          </button>
-          <button
-            v-if="expertiseItems.length"
-            type="button"
-            class="px-3 py-1.5 text-sm rounded-md border transition-colors"
-            :class="activeTab === 'expertise'
-              ? 'bg-[rgba(13,94,130,1)] text-white border-[rgba(13,94,130,1)]'
-              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
-            @click="activeTab = 'expertise'"
-          >
-            Expertise
-          </button>
-          <button
-            v-if="educationItems.length"
-            type="button"
-            class="px-3 py-1.5 text-sm rounded-md border transition-colors"
-            :class="activeTab === 'education'
-              ? 'bg-[rgba(13,94,130,1)] text-white border-[rgba(13,94,130,1)]'
-              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
-            @click="activeTab = 'education'"
-          >
-            Education
-          </button>
-          <button
-            v-if="showPublicationsTab"
-            type="button"
-            class="px-3 py-1.5 text-sm rounded-md border transition-colors"
-            :class="activeTab === 'publications'
-              ? 'bg-[rgba(13,94,130,1)] text-white border-[rgba(13,94,130,1)]'
-              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
-            @click="activeTab = 'publications'"
-          >
-            Publications
-          </button>
-        </div>
-      </div>
-
-      <template v-if="!showProfileTabs || activeTab === 'overview'">
-        <div v-if="aboutParagraphs.length" class="mt-8 border-t border-gray-200 pt-6">
-          <h2 class="text-lg font-semibold text-gray-900 mb-3">About</h2>
-          <div class="space-y-3 text-gray-700">
-            <p v-for="(paragraph, index) in aboutParagraphs" :key="index" class="whitespace-pre-wrap">
-              {{ paragraph }}
+        <div v-else-if="user" class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div class="bg-[rgba(13,94,130,1)] px-5 py-4 text-white sm:px-6">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/80">
+              {{ profileEyebrow }}
             </p>
+            <h1 class="mt-0.5 truncate text-lg font-bold leading-tight sm:text-xl">{{ user.name }}</h1>
+          </div>
+
+          <div class="px-5 py-6 sm:px-6">
+            <div class="flex items-start gap-4 sm:gap-5">
+              <div class="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 ring-4 ring-[rgba(13,94,130,0.12)] sm:h-28 sm:w-28">
+                <img
+                  v-if="user.avatar?.url"
+                  :src="user.avatar.url"
+                  :alt="user.name"
+                  class="h-full w-full object-cover"
+                >
+                <span v-else class="text-3xl font-semibold text-gray-500 sm:text-4xl">
+                  {{ user.name?.charAt(0).toUpperCase() }}
+                </span>
+              </div>
+              <div class="min-w-0 pt-1">
+                <h2 class="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">{{ user.name }}</h2>
+                <p v-if="headerAffiliation" class="mt-1 text-sm font-medium text-[rgba(13,94,130,1)]">
+                  {{ headerAffiliation }}
+                </p>
+                <p v-if="user.employeeTitle" class="mt-1 text-sm leading-snug text-gray-600">
+                  {{ user.employeeTitle }}
+                </p>
+                <div v-if="alumniSocialLinks.length" class="mt-3 flex items-center gap-2">
+                  <a
+                    v-for="link in alumniSocialLinks"
+                    :key="link.key"
+                    :href="link.href"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-700 transition-colors hover:bg-[rgba(13,94,130,0.12)] hover:text-[rgba(13,94,130,1)]"
+                    :aria-label="link.label"
+                  >
+                    <UIcon :name="link.icon" class="h-4 w-4" />
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="showProfileTabs" class="mt-6 flex flex-wrap gap-x-5 gap-y-1 border-b border-gray-200">
+              <button
+                type="button"
+                class="-mb-px border-b-2 pb-2.5 text-sm font-medium transition-colors"
+                :class="tabClass('overview')"
+                @click="activeTab = 'overview'"
+              >
+                Overview
+              </button>
+              <button
+                v-if="expertiseItems.length"
+                type="button"
+                class="-mb-px border-b-2 pb-2.5 text-sm font-medium transition-colors"
+                :class="tabClass('expertise')"
+                @click="activeTab = 'expertise'"
+              >
+                Expertise
+              </button>
+              <button
+                v-if="educationItems.length"
+                type="button"
+                class="-mb-px border-b-2 pb-2.5 text-sm font-medium transition-colors"
+                :class="tabClass('education')"
+                @click="activeTab = 'education'"
+              >
+                Education
+              </button>
+              <button
+                v-if="showPublicationsTab"
+                type="button"
+                class="-mb-px border-b-2 pb-2.5 text-sm font-medium transition-colors"
+                :class="tabClass('publications')"
+                @click="activeTab = 'publications'"
+              >
+                Publications
+              </button>
+            </div>
+
+            <template v-if="!showProfileTabs || activeTab === 'overview'">
+              <div v-if="aboutParagraphs.length" class="mt-5 space-y-3 text-[15px] leading-relaxed text-gray-700">
+                <p v-for="(paragraph, index) in aboutParagraphs" :key="index" class="whitespace-pre-wrap">
+                  {{ paragraph }}
+                </p>
+              </div>
+              <p v-else-if="isFaculty && !hasSecondaryOverview" class="mt-5 text-sm text-gray-500">
+                No bio available.
+              </p>
+
+              <div v-if="!isFaculty && employeeProfileEntries.length > 0" class="mt-6">
+                <h3 class="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Employee</h3>
+                <dl class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div v-for="entry in employeeProfileEntries" :key="entry.key">
+                    <dt class="text-xs font-medium text-gray-500">{{ entry.label }}</dt>
+                    <dd class="mt-0.5 text-sm text-gray-900">{{ entry.value }}</dd>
+                  </div>
+                </dl>
+              </div>
+
+              <div v-if="alumniDegreeEntries.length > 0 || alumniContactEntries.length > 0" class="mt-6">
+                <h3 class="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Alumni</h3>
+                <dl class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div v-for="entry in alumniDegreeEntries" :key="entry.key">
+                    <dt class="text-xs font-medium text-gray-500">{{ entry.label }}</dt>
+                    <dd class="mt-0.5 text-sm text-gray-900">{{ entry.value }}</dd>
+                  </div>
+                  <div v-for="entry in alumniContactEntries" :key="entry.key">
+                    <dt class="text-xs font-medium text-gray-500">{{ entry.label }}</dt>
+                    <dd class="mt-0.5 text-sm text-gray-900">{{ entry.value }}</dd>
+                  </div>
+                </dl>
+              </div>
+
+              <div v-if="studentProfileEntries.length > 0" class="mt-6">
+                <h3 class="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Student</h3>
+                <dl class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div v-for="entry in studentProfileEntries" :key="entry.slug">
+                    <dt class="text-xs font-medium text-gray-500">{{ entry.label }}</dt>
+                    <dd class="mt-0.5 text-sm text-gray-900">{{ entry.value }}</dd>
+                  </div>
+                </dl>
+              </div>
+            </template>
+
+            <ul v-else-if="activeTab === 'expertise'" class="mt-5 space-y-2.5">
+              <li
+                v-for="item in expertiseItems"
+                :key="item.id"
+                class="rounded-lg bg-gray-50 px-3.5 py-2.5 text-sm text-gray-800"
+              >
+                {{ item.item }}
+              </li>
+            </ul>
+
+            <ul v-else-if="activeTab === 'education'" class="mt-5 space-y-2.5">
+              <li
+                v-for="item in educationItems"
+                :key="item.id"
+                class="rounded-lg bg-gray-50 px-3.5 py-2.5 text-sm text-gray-800"
+              >
+                {{ item.item }}
+              </li>
+            </ul>
+
+            <div v-else-if="activeTab === 'publications'" class="mt-5 space-y-3">
+              <div
+                v-for="publication in profilePublications"
+                :key="String(publication.id)"
+                class="flex gap-4 rounded-lg bg-gray-50 p-4"
+              >
+                <div v-if="publication.image?.url" class="shrink-0">
+                  <img
+                    :src="publication.image.url || ''"
+                    :alt="publication.title || 'Publication cover'"
+                    class="h-32 w-24 rounded object-cover"
+                  >
+                </div>
+                <div class="min-w-0 flex-1">
+                  <h3 class="text-base font-semibold text-gray-900">{{ publication.title }}</h3>
+                  <p class="mt-0.5 text-sm text-gray-500">
+                    {{ publicationTypeLabel(publication.type) }}
+                    <span v-if="publication.releaseDate"> · {{ formatPublicationDate(String(publication.releaseDate)) }}</span>
+                  </p>
+                  <p v-if="publicationPlainText(publication.description)" class="mt-2 text-sm text-gray-700 whitespace-pre-wrap">
+                    {{ publicationPlainText(publication.description) }}
+                  </p>
+                  <a
+                    v-if="publication.link"
+                    :href="publication.link || undefined"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="mt-2 inline-block text-sm text-[rgba(13,94,130,1)] hover:underline"
+                  >
+                    View publication →
+                  </a>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-
-        <div v-if="!isFaculty && employeeProfileEntries.length > 0" class="mt-8 border-t border-gray-200 pt-6">
-          <h2 class="text-lg font-semibold text-gray-900 mb-3">Asbury Seminary Employee Profile</h2>
-          <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
-            <template v-for="entry in employeeProfileEntries" :key="entry.key">
-              <dt class="text-sm font-medium text-gray-500">{{ entry.label }}</dt>
-              <dd class="text-gray-900 text-sm">{{ entry.value }}</dd>
-            </template>
-          </dl>
-        </div>
-
-        <div v-if="alumniDegreeEntries.length > 0 || alumniContactEntries.length > 0" class="mt-8 border-t border-gray-200 pt-6">
-          <h2 class="text-lg font-semibold text-gray-900 mb-3">Alumni Profile</h2>
-          <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
-            <template v-for="entry in alumniDegreeEntries" :key="entry.key">
-              <dt class="text-sm font-medium text-gray-500">{{ entry.label }}</dt>
-              <dd class="text-gray-900 text-sm">{{ entry.value }}</dd>
-            </template>
-            <template v-for="entry in alumniContactEntries" :key="entry.key">
-              <dt class="text-sm font-medium text-gray-500">{{ entry.label }}</dt>
-              <dd class="text-gray-900 text-sm">{{ entry.value }}</dd>
-            </template>
-          </dl>
-        </div>
-
-        <!-- Student Profile: only these slugs, in this order, with these labels -->
-        <div v-if="studentProfileEntries.length > 0" class="mt-8 border-t border-gray-200 pt-6">
-          <h2 class="text-lg font-semibold text-gray-900 mb-3">Student Profile</h2>
-          <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
-            <template v-for="entry in studentProfileEntries" :key="entry.slug">
-              <dt class="text-sm font-medium text-gray-500">{{ entry.label }}</dt>
-              <dd class="text-gray-900 text-sm">{{ entry.value }}</dd>
-            </template>
-          </dl>
-        </div>
-      </template>
-
-      <div v-else-if="activeTab === 'expertise'" class="mt-6">
-        <ul class="list-disc space-y-2 pl-5 text-gray-700">
-          <li v-for="item in expertiseItems" :key="item.id">{{ item.item }}</li>
-        </ul>
-      </div>
-
-      <div v-else-if="activeTab === 'education'" class="mt-6">
-        <ul class="list-disc space-y-2 pl-5 text-gray-700">
-          <li v-for="item in educationItems" :key="item.id">{{ item.item }}</li>
-        </ul>
-      </div>
-
-      <div v-else-if="activeTab === 'publications'" class="mt-6 space-y-4">
-        <div
-          v-for="publication in profilePublications"
-          :key="String(publication.id)"
-          class="flex gap-4 rounded-lg border border-gray-200 p-4"
-        >
-          <div v-if="publication.image?.url" class="shrink-0">
-            <img
-              :src="publication.image.url || ''"
-              :alt="publication.title || 'Publication cover'"
-              class="h-32 w-24 rounded object-cover"
-            >
-          </div>
-          <div class="min-w-0 flex-1">
-            <h3 class="text-lg font-semibold text-gray-900">{{ publication.title }}</h3>
-            <p class="mt-0.5 text-sm text-gray-500">
-              {{ publicationTypeLabel(publication.type) }}
-              <span v-if="publication.releaseDate"> · {{ formatPublicationDate(String(publication.releaseDate)) }}</span>
-            </p>
-            <p v-if="publicationPlainText(publication.description)" class="mt-2 text-sm text-gray-700 whitespace-pre-wrap">
-              {{ publicationPlainText(publication.description) }}
-            </p>
-            <a
-              v-if="publication.link"
-              :href="publication.link || undefined"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="mt-2 inline-block text-sm text-[rgba(13,94,130,1)] hover:underline"
-            >
-              View publication →
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
       </div>
     </main>
   </div>
@@ -303,6 +313,28 @@ const isFaculty = computed(() => {
   const roles = Array.isArray(user.value?.roles) ? user.value.roles : []
   return roles.some((role) => String(role).toLowerCase() === 'faculty')
 })
+
+const profileEyebrow = computed(() => {
+  if (isFaculty.value) return 'Faculty profile'
+  const roles = Array.isArray(user.value?.roles) ? user.value.roles.map((role) => String(role).toLowerCase()) : []
+  if (roles.includes('student')) return 'Student profile'
+  if (roles.includes('alumni')) return 'Alumni profile'
+  if (roles.includes('staff') || roles.includes('employee')) return 'Employee profile'
+  return 'Profile'
+})
+
+const hasSecondaryOverview = computed(() =>
+  (!isFaculty.value && employeeProfileEntries.value.length > 0)
+  || alumniDegreeEntries.value.length > 0
+  || alumniContactEntries.value.length > 0
+  || studentProfileEntries.value.length > 0,
+)
+
+function tabClass(tab: typeof activeTab.value) {
+  return activeTab.value === tab
+    ? 'border-[rgba(13,94,130,1)] text-[rgba(13,94,130,1)]'
+    : 'border-transparent text-gray-500 hover:text-gray-800'
+}
 
 const expertiseItems = computed(() => {
   if (!isFaculty.value) return []

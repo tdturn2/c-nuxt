@@ -295,6 +295,11 @@ const gridMenuItems = ref<NavigationMenuItem[]>([
         target: '_blank'
       },
       {
+        label: 'Class Search',
+        icon: 'i-heroicons-magnifying-glass',
+        to: '/class-search',
+      },
+      {
         label: 'Library',
         icon: 'i-heroicons-book-open',
         to: 'http://guides.asburyseminary.edu/home',

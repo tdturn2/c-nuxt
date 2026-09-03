@@ -53,105 +53,120 @@
   <UModal
     v-model:open="modalOpen"
     :ui="{
-      content: 'max-w-lg max-h-[85vh] flex flex-col',
-      body: 'overflow-y-auto min-h-0 flex-1',
-      header: 'shrink-0',
+      overlay: 'bg-black/50',
+      content: 'max-w-2xl w-[calc(100vw-1.5rem)] max-h-[85vh] overflow-hidden ring-0 shadow-2xl divide-y-0',
+      header: 'hidden p-0 min-h-0',
+      body: 'p-0 sm:p-0 overflow-y-auto max-h-[85vh]',
     }"
   >
-    <template #header>
-      <div class="flex w-full items-center justify-between gap-3">
-        <h2 class="text-lg font-semibold text-gray-900">Faculty Profile</h2>
-        <button
-          type="button"
-          class="rounded p-1 text-gray-400 hover:text-gray-600"
-          @click="modalOpen = false"
-        >
-          <UIcon name="i-heroicons-x-mark" class="h-5 w-5" />
-        </button>
-      </div>
-    </template>
-
-    <template #body>
-      <div v-if="profileLoading" class="flex items-center justify-center py-12">
-        <span class="text-gray-500 text-sm">Loading profile…</span>
-      </div>
-
-      <div v-else-if="profileError" class="py-2 text-red-700 text-sm">{{ profileError }}</div>
-
-      <div v-else-if="profile" class="space-y-6">
-        <div class="flex flex-col items-center text-center">
-          <div class="mb-3 flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-gray-300">
-            <img
-              v-if="profile.avatar?.url"
-              :src="profile.avatar.url"
-              :alt="profile.name"
-              class="h-full w-full object-cover"
-            >
-            <span v-else class="text-3xl font-semibold text-gray-600">
-              {{ profile.name?.charAt(0)?.toUpperCase() }}
-            </span>
+    <template #body="{ close }">
+      <div class="bg-white">
+        <div class="sticky top-0 z-10 flex items-start justify-between gap-3 bg-[rgba(13,94,130,1)] px-5 py-4 text-white sm:px-6">
+          <div class="min-w-0">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/80">Faculty profile</p>
+            <h2 class="truncate text-lg font-bold leading-tight sm:text-xl">
+              {{ profile?.name || faculty.name }}
+            </h2>
           </div>
-          <h3 class="text-xl font-bold text-gray-900">{{ profile.name }}</h3>
-          <p v-if="profile.section" class="mt-0.5 text-sm text-gray-600">{{ sectionLabel(profile.section) }}</p>
-          <p v-if="profile.employeeTitle" class="mt-0.5 text-sm text-gray-500">{{ profile.employeeTitle }}</p>
-        </div>
-
-        <div v-if="showTabs" class="flex flex-wrap gap-2">
           <button
             type="button"
-            class="rounded-md border px-3 py-1.5 text-sm transition-colors"
-            :class="tab === 'overview'
-              ? 'border-[rgba(13,94,130,1)] bg-[rgba(13,94,130,1)] text-white'
-              : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'"
-            @click="tab = 'overview'"
+            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-white hover:bg-white/15"
+            aria-label="Close"
+            @click="close()"
           >
-            Overview
-          </button>
-          <button
-            v-if="expertiseItems.length"
-            type="button"
-            class="rounded-md border px-3 py-1.5 text-sm transition-colors"
-            :class="tab === 'expertise'
-              ? 'border-[rgba(13,94,130,1)] bg-[rgba(13,94,130,1)] text-white'
-              : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'"
-            @click="tab = 'expertise'"
-          >
-            Expertise
-          </button>
-          <button
-            v-if="educationItems.length"
-            type="button"
-            class="rounded-md border px-3 py-1.5 text-sm transition-colors"
-            :class="tab === 'education'
-              ? 'border-[rgba(13,94,130,1)] bg-[rgba(13,94,130,1)] text-white'
-              : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'"
-            @click="tab = 'education'"
-          >
-            Education
+            <UIcon name="i-lucide-x" class="h-5 w-5" />
           </button>
         </div>
 
-        <div v-if="!showTabs || tab === 'overview'" class="space-y-3">
-          <div v-if="aboutParagraphs.length">
-            <h4 class="mb-1 text-sm font-semibold text-gray-900">About</h4>
-            <div class="space-y-2 text-sm text-gray-700">
+        <div v-if="profileLoading" class="px-6 py-14 text-center text-sm text-gray-500">Loading profile…</div>
+        <div v-else-if="profileError" class="px-6 py-10 text-center text-sm text-red-700">{{ profileError }}</div>
+
+        <div v-else-if="profile" class="px-5 pb-6 pt-5 sm:px-6">
+          <div class="flex items-start gap-4 sm:gap-5">
+            <div class="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 ring-4 ring-[rgba(13,94,130,0.12)] sm:h-24 sm:w-24">
+              <img
+                v-if="profile.avatar?.url"
+                :src="profile.avatar.url"
+                :alt="profile.name"
+                class="h-full w-full object-cover"
+              >
+              <span v-else class="text-3xl font-semibold text-gray-500">
+                {{ profile.name?.charAt(0)?.toUpperCase() }}
+              </span>
+            </div>
+            <div class="min-w-0 pt-1">
+              <h3 class="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">{{ profile.name }}</h3>
+              <p v-if="profile.section" class="mt-1 text-sm font-medium text-[rgba(13,94,130,1)]">
+                {{ sectionLabel(profile.section) }}
+              </p>
+              <p v-if="profile.employeeTitle" class="mt-1 text-sm leading-snug text-gray-600">
+                {{ profile.employeeTitle }}
+              </p>
+            </div>
+          </div>
+
+          <div v-if="showTabs" class="mt-6 flex gap-5 border-b border-gray-200">
+            <button
+              type="button"
+              class="-mb-px border-b-2 pb-2.5 text-sm font-medium transition-colors"
+              :class="tab === 'overview'
+                ? 'border-[rgba(13,94,130,1)] text-[rgba(13,94,130,1)]'
+                : 'border-transparent text-gray-500 hover:text-gray-800'"
+              @click="tab = 'overview'"
+            >
+              Overview
+            </button>
+            <button
+              v-if="expertiseItems.length"
+              type="button"
+              class="-mb-px border-b-2 pb-2.5 text-sm font-medium transition-colors"
+              :class="tab === 'expertise'
+                ? 'border-[rgba(13,94,130,1)] text-[rgba(13,94,130,1)]'
+                : 'border-transparent text-gray-500 hover:text-gray-800'"
+              @click="tab = 'expertise'"
+            >
+              Expertise
+            </button>
+            <button
+              v-if="educationItems.length"
+              type="button"
+              class="-mb-px border-b-2 pb-2.5 text-sm font-medium transition-colors"
+              :class="tab === 'education'
+                ? 'border-[rgba(13,94,130,1)] text-[rgba(13,94,130,1)]'
+                : 'border-transparent text-gray-500 hover:text-gray-800'"
+              @click="tab = 'education'"
+            >
+              Education
+            </button>
+          </div>
+
+          <div v-if="!showTabs || tab === 'overview'" class="mt-5">
+            <div v-if="aboutParagraphs.length" class="space-y-3 text-[15px] leading-relaxed text-gray-700">
               <p v-for="(paragraph, index) in aboutParagraphs" :key="index" class="whitespace-pre-wrap">
                 {{ paragraph }}
               </p>
             </div>
+            <p v-else class="text-sm text-gray-500">No bio available.</p>
           </div>
-          <p v-else class="text-sm text-gray-500">No bio available.</p>
-        </div>
 
-        <div v-else-if="tab === 'expertise'">
-          <ul class="list-disc space-y-2 pl-5 text-sm text-gray-700">
-            <li v-for="item in expertiseItems" :key="item.id">{{ item.item }}</li>
+          <ul v-else-if="tab === 'expertise'" class="mt-5 space-y-2.5">
+            <li
+              v-for="item in expertiseItems"
+              :key="item.id"
+              class="rounded-lg bg-gray-50 px-3.5 py-2.5 text-sm text-gray-800"
+            >
+              {{ item.item }}
+            </li>
           </ul>
-        </div>
 
-        <div v-else-if="tab === 'education'">
-          <ul class="list-disc space-y-2 pl-5 text-sm text-gray-700">
-            <li v-for="item in educationItems" :key="item.id">{{ item.item }}</li>
+          <ul v-else-if="tab === 'education'" class="mt-5 space-y-2.5">
+            <li
+              v-for="item in educationItems"
+              :key="item.id"
+              class="rounded-lg bg-gray-50 px-3.5 py-2.5 text-sm text-gray-800"
+            >
+              {{ item.item }}
+            </li>
           </ul>
         </div>
       </div>

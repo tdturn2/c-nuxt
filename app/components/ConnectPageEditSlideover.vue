@@ -2,7 +2,7 @@
   <USlideover
     v-model:open="editorOpen"
     :modal="false"
-    :ui="{ content: 'max-w-3xl w-full', body: 'overflow-y-auto min-h-0' }"
+    :ui="{ content: form.layout === 'html' ? 'max-w-4xl w-full' : 'max-w-3xl w-full', body: 'overflow-y-auto min-h-0' }"
     @update:open="(v) => !v && resetEditor()"
   >
     <template #header>
@@ -103,10 +103,26 @@
                 Choose None to keep this page out of the Departments sidebar. It remains reachable by URL.
               </p>
             </div>
+            <div class="sm:col-span-2">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Page layout</label>
+              <select
+                v-model="form.layout"
+                class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-[rgba(13,94,130,1)] focus:outline-none focus:ring-1 focus:ring-[rgba(13,94,130,1)]"
+              >
+                <option value="standard">Standard (title, contacts, rich text)</option>
+                <option value="html">Custom HTML (header and footer only)</option>
+              </select>
+              <p class="mt-1 text-xs text-gray-500">
+                Custom HTML keeps the site header and left nav. Paste HTML and CSS for the rest of the page.
+              </p>
+            </div>
           </div>
         </div>
 
-        <details class="rounded-lg border border-gray-200 bg-white shadow-sm [&_summary::-webkit-details-marker]:hidden">
+        <details
+          v-if="form.layout !== 'html'"
+          class="rounded-lg border border-gray-200 bg-white shadow-sm [&_summary::-webkit-details-marker]:hidden"
+        >
           <summary
             class="cursor-pointer list-none px-4 py-3 rounded-lg hover:bg-gray-50/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(13,94,130,0.35)] focus-visible:ring-offset-1"
           >
@@ -374,7 +390,11 @@
         </details>
 
         <!-- `open`: TipTap/ProseMirror must not mount inside a closed <details> (zero-size / no visible update). -->
-        <details open class="rounded-lg border border-gray-200 bg-white shadow-sm [&_summary::-webkit-details-marker]:hidden">
+        <details
+          v-if="form.layout !== 'html'"
+          open
+          class="rounded-lg border border-gray-200 bg-white shadow-sm [&_summary::-webkit-details-marker]:hidden"
+        >
           <summary
             class="cursor-pointer list-none px-4 py-3 rounded-lg hover:bg-gray-50/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(13,94,130,0.35)] focus-visible:ring-offset-1"
           >
@@ -451,6 +471,30 @@
           </div>
         </details>
 
+        <div v-if="form.layout === 'html'" class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm space-y-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Custom HTML</label>
+            <p class="mb-2 text-xs text-gray-500">
+              Paste HTML and optional <code class="text-[11px]">&lt;style&gt;</code> blocks. Scripts and event handlers are stripped on save. CSS is scoped to this page body.
+            </p>
+            <textarea
+              v-model="customHtml"
+              class="min-h-[280px] w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-xs leading-relaxed focus:border-[rgba(13,94,130,1)] focus:outline-none focus:ring-1 focus:ring-[rgba(13,94,130,1)]"
+              placeholder="<style>h1 { color: #0d5e82 }</style>&#10;<h1>Welcome</h1>&#10;<p>Paste your markup here.</p>"
+              spellcheck="false"
+            />
+          </div>
+          <div>
+            <p class="mb-1 text-xs font-semibold text-gray-700">Preview</p>
+            <iframe
+              class="h-[320px] w-full rounded-md border border-gray-200 bg-white"
+              sandbox=""
+              :srcdoc="htmlPreviewDoc"
+              title="Custom HTML preview"
+            />
+          </div>
+        </div>
+
         <div class="flex items-center justify-between">
           <p v-if="saveError" class="text-sm text-red-600">{{ saveError }}</p>
           <div class="flex gap-2 ml-auto">
@@ -511,6 +555,8 @@ type ConnectPage = {
   parent?: number | string | { id?: number | string } | null
   navCategory?: string | null
   content?: any
+  layout?: string | null
+  customHtml?: string | null
   contactsHeading?: string | null
   contacts?: any[] | null
   updatedAt?: string
@@ -856,14 +902,20 @@ watch(editorOpen, (open) => {
 })
 
 const editingId = ref<number | string | null>(null)
-const form = ref<{ title: string; slug: string; parentId: string; sectionId: string; navCategory: string }>({
+const form = ref<{ title: string; slug: string; parentId: string; sectionId: string; navCategory: string; layout: 'standard' | 'html' }>({
   title: '',
   slug: '',
   parentId: '',
   sectionId: '',
   navCategory: '',
+  layout: 'standard',
 })
 const contentTipTap = ref<any>(JSON.parse(JSON.stringify(INITIAL_TIPTAP_DOC)))
+const customHtml = ref('')
+const htmlPreviewDoc = computed(() => {
+  const inner = customHtml.value.trim() || '<p style="color:#6b7280;font-family:system-ui,sans-serif">Nothing to preview yet.</p>'
+  return `<!doctype html><html><head><meta charset="utf-8"><style>body{margin:16px;font-family:system-ui,sans-serif;}</style></head><body><div class="connect-html-page">${inner}</div></body></html>`
+})
 /** Bumps when opening the slide-over so UEditor remounts with the loaded TipTap doc (avoids stale ProseMirror state). */
 const docsEditorMountKey = ref(0)
 /** Nuxt UI `Editor` exposes `editor` (TipTap instance); used to force `setContent` after mount (see watch below). */
@@ -879,8 +931,9 @@ const contactSearch = ref('')
 /** Clear slide-over fields without touching the route (openEdit/openCreate set query after). */
 function clearEditorDraft() {
   editingId.value = null
-  form.value = { title: '', slug: '', parentId: '', sectionId: '', navCategory: '' }
+  form.value = { title: '', slug: '', parentId: '', sectionId: '', navCategory: '', layout: 'standard' }
   contentTipTap.value = JSON.parse(JSON.stringify(INITIAL_TIPTAP_DOC))
+  customHtml.value = ''
   contactsHeading.value = ''
   contactIds.value = []
   contactSearch.value = ''
@@ -1033,7 +1086,7 @@ async function openEdit(p: ConnectPage) {
       ? String(p.parent.id ?? '')
       : String(p.parent)
   const navCategory = parentId ? '' : ((typeof p.navCategory === 'string' ? p.navCategory : '') || '')
-  form.value = { title: (p.title ?? '').toString(), slug: (p.slug ?? '').toString(), parentId, sectionId: '', navCategory }
+  form.value = { title: (p.title ?? '').toString(), slug: (p.slug ?? '').toString(), parentId, sectionId: '', navCategory, layout: 'standard' }
   contactsHeading.value = (p.contactsHeading ?? '').toString()
   contactIds.value = Array.isArray(p.contacts)
     ? p.contacts.map((c: any) => (typeof c === 'object' && c ? String(c.id ?? '') : String(c ?? ''))).filter((v: string) => v.length > 0)
@@ -1046,9 +1099,14 @@ async function openEdit(p: ConnectPage) {
     })
     const lexical = extractLexicalFromConnectPageDoc(full)
     tipTapDoc = lexical ? lexicalToTipTap(lexical) : JSON.parse(JSON.stringify(INITIAL_TIPTAP_DOC))
+    const layout = String(full?.layout || p.layout || 'standard').toLowerCase() === 'html' ? 'html' : 'standard'
+    form.value.layout = layout
+    customHtml.value = typeof full?.customHtml === 'string' ? full.customHtml : (typeof p.customHtml === 'string' ? p.customHtml : '')
   } catch {
     const lexical = extractLexicalFromConnectPageDoc(p)
     tipTapDoc = lexical ? lexicalToTipTap(lexical) : JSON.parse(JSON.stringify(INITIAL_TIPTAP_DOC))
+    form.value.layout = String(p.layout || 'standard').toLowerCase() === 'html' ? 'html' : 'standard'
+    customHtml.value = typeof p.customHtml === 'string' ? p.customHtml : ''
   }
   if (!tipTapDocHasMeaningfulText(tipTapDoc)) {
     const fallback = extractLexicalFromConnectPageDoc(p)
@@ -1886,6 +1944,8 @@ async function savePage() {
           parent,
           navCategory,
           content,
+          layout: form.value.layout,
+          customHtml: customHtml.value,
           contactsHeading: contactsHeadingValue,
           contacts,
         },
@@ -1900,6 +1960,8 @@ async function savePage() {
           navCategory,
           section,
           content,
+          layout: form.value.layout,
+          customHtml: customHtml.value,
           contactsHeading: contactsHeadingValue,
           contacts,
         },

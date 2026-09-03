@@ -19,6 +19,8 @@ type UpdateBody = {
   order?: number
   section?: unknown
   content?: any
+  layout?: string | null
+  customHtml?: string | null
   contactsHeading?: string | null
   contacts?: any
 }
@@ -151,6 +153,8 @@ export async function handleConnectPagesPayloadUpdate(event: H3Event) {
   if (body.order !== undefined) payloadUpdate.order = body.order
   if (body.section !== undefined && isAdminSession) payloadUpdate.section = body.section
   if (body.content !== undefined) payloadUpdate.content = body.content
+  if (body.layout !== undefined) payloadUpdate.layout = body.layout
+  if (body.customHtml !== undefined) payloadUpdate.customHtml = body.customHtml
   if (body.contactsHeading !== undefined) payloadUpdate.contactsHeading = body.contactsHeading
   if (body.contacts !== undefined) payloadUpdate.contacts = toIdList(body.contacts)
 
