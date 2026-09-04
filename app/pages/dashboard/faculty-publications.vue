@@ -6,7 +6,7 @@
         <div class="mb-6 flex items-start justify-between gap-4">
           <div>
             <h1 class="text-2xl font-bold text-gray-900">Faculty Publications</h1>
-            <p class="mt-1 text-sm text-gray-600">Manage publication records for faculty members.</p>
+            <p class="mt-1 text-sm text-gray-600">Browse and edit all publication records, including author.</p>
             <NuxtLink
               v-if="canManageAdmin"
               to="/dashboard/featured-publications"
@@ -18,8 +18,7 @@
           <button
             v-if="canManageAdmin"
             type="button"
-            class="rounded-md bg-[rgba(13,94,130,1)] px-3 py-2 text-sm font-medium text-white hover:bg-[rgba(10,69,92,1)] disabled:opacity-50"
-            :disabled="!selectedFacultyId"
+            class="rounded-md bg-[rgba(13,94,130,1)] px-3 py-2 text-sm font-medium text-white hover:bg-[rgba(10,69,92,1)]"
             @click="openCreateModal"
           >
             Add Publication
@@ -46,15 +45,15 @@
 
           <div class="mb-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <div>
-              <label class="mb-1 block text-sm font-medium text-gray-700">Faculty member</label>
+              <label class="mb-1 block text-sm font-medium text-gray-700">Filter by author</label>
               <USelectMenu
                 v-model="selectedFacultyOption"
-                :items="facultySelectItems"
+                :items="facultyFilterItems"
                 value-attribute="id"
                 label-attribute="label"
                 searchable
                 search-input-placeholder="Search faculty..."
-                placeholder="Select faculty member"
+                placeholder="All authors"
               />
             </div>
             <div>
@@ -74,27 +73,26 @@
             <table class="min-w-full text-sm">
               <thead class="bg-gray-100 text-gray-700">
                 <tr>
-                  <th class="px-4 py-2 text-left font-semibold">Type</th>
-                  <th class="px-4 py-2 text-left font-semibold">Title</th>
-                  <th class="px-4 py-2 text-left font-semibold">Release date</th>
                   <th class="px-4 py-2 text-left font-semibold">Cover</th>
+                  <th class="px-4 py-2 text-left font-semibold">Title</th>
+                  <th class="px-4 py-2 text-left font-semibold">Author</th>
+                  <th class="px-4 py-2 text-left font-semibold">Type</th>
+                  <th class="px-4 py-2 text-left font-semibold">Release date</th>
                   <th class="px-4 py-2 text-right font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-if="loading" class="border-t border-gray-200">
-                  <td colspan="5" class="px-4 py-4 text-gray-500">Loading publications...</td>
-                </tr>
-                <tr v-else-if="!selectedFacultyId" class="border-t border-gray-200">
-                  <td colspan="5" class="px-4 py-4 text-gray-500">Select a faculty member to view publications.</td>
+                  <td colspan="6" class="px-4 py-4 text-gray-500">Loading publications...</td>
                 </tr>
                 <tr v-else-if="!publications.length" class="border-t border-gray-200">
-                  <td colspan="5" class="px-4 py-4 text-gray-500">No publications found for this faculty member.</td>
+                  <td colspan="6" class="px-4 py-4 text-gray-500">No publications found.</td>
                 </tr>
-                <tr v-for="pub in publications" :key="String(pub.id)" class="border-t border-gray-200">
-                  <td class="px-4 py-3 text-gray-700">{{ typeLabel(pub.type) }}</td>
-                  <td class="px-4 py-3 font-medium text-gray-900">{{ pub.title || '—' }}</td>
-                  <td class="px-4 py-3 text-gray-700">{{ formatReleaseDate(pub.releaseDate) }}</td>
+                <tr
+                  v-for="pub in publications"
+                  :key="String(pub.id)"
+                  class="border-t border-gray-200"
+                >
                   <td class="px-4 py-3">
                     <div class="h-16 w-12 overflow-hidden rounded border border-gray-200 bg-gray-100">
                       <img
@@ -105,7 +103,14 @@
                       >
                     </div>
                   </td>
-                  <td class="px-4 py-3 text-right">
+                  <td class="px-4 py-3 font-medium text-gray-900">{{ pub.title || '—' }}</td>
+                  <td class="px-4 py-3 text-gray-700">
+                    <div>{{ pub.ownerName || '—' }}</div>
+                    <div v-if="pub.ownerEmail" class="text-xs text-gray-500">{{ pub.ownerEmail }}</div>
+                  </td>
+                  <td class="px-4 py-3 text-gray-700">{{ typeLabel(pub.type) }}</td>
+                  <td class="px-4 py-3 text-gray-700">{{ formatReleaseDate(pub.releaseDate) }}</td>
+                  <td class="px-4 py-3 text-right whitespace-nowrap">
                     <button type="button" class="text-[rgba(13,94,130,1)] hover:underline" @click="openEditModal(pub)">
                       Edit
                     </button>
@@ -117,10 +122,13 @@
               </tbody>
             </table>
             <div
-              v-if="!loading && selectedFacultyId && totalPages > 1"
+              v-if="!loading && totalDocs > 0"
               class="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600"
             >
-              <p>Page {{ page }} of {{ totalPages }} ({{ totalDocs }} publications)</p>
+              <p>
+                Page {{ page }} of {{ totalPages }}
+                ({{ totalDocs }} publication{{ totalDocs === 1 ? '' : 's' }})
+              </p>
               <div class="flex items-center gap-2">
                 <button
                   type="button"
@@ -149,6 +157,18 @@
       <template #body>
         <h2 class="text-lg font-semibold text-gray-900">{{ editingId ? 'Edit publication' : 'Add publication' }}</h2>
         <form class="mt-4 space-y-4" @submit.prevent="savePublication">
+          <div>
+            <label class="mb-1 block text-sm font-medium text-gray-700">Author</label>
+            <USelectMenu
+              v-model="formAuthorOption"
+              :items="facultySelectItems"
+              value-attribute="id"
+              label-attribute="label"
+              searchable
+              search-input-placeholder="Search faculty..."
+              placeholder="Select author"
+            />
+          </div>
           <div class="grid gap-3 sm:grid-cols-2">
             <div>
               <label class="mb-1 block text-sm font-medium text-gray-700">Type</label>
@@ -184,7 +204,7 @@
               <button
                 type="button"
                 class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                :disabled="uploadingImage || !selectedFacultyId"
+                :disabled="uploadingImage || !formOwnerId"
                 @click="imageInputRef?.click()"
               >
                 {{ uploadingImage ? 'Uploading...' : form.imageId ? 'Change image' : 'Upload image' }}
@@ -203,7 +223,7 @@
             <button
               type="submit"
               class="rounded-md bg-[rgba(13,94,130,1)] px-3 py-2 text-sm font-medium text-white hover:bg-[rgba(10,69,92,1)] disabled:opacity-50"
-              :disabled="saving"
+              :disabled="saving || !formOwnerId"
             >
               {{ saving ? 'Saving...' : editingId ? 'Update publication' : 'Create publication' }}
             </button>
@@ -218,6 +238,8 @@
 </template>
 
 <script setup lang="ts">
+import { toBrowserMediaUrl } from '@shared/mediaUrls'
+
 type FacultyOption = { id: string; label: string }
 type PublicationRow = {
   id: string | number
@@ -228,6 +250,9 @@ type PublicationRow = {
   releaseDate: string | null
   imageId: number | null
   imageUrl: string | null
+  ownerId: string | null
+  ownerName: string | null
+  ownerEmail: string | null
 }
 
 const PUBLICATION_TYPE_OPTIONS = [
@@ -245,10 +270,7 @@ const PUBLICATION_TYPE_OPTIONS = [
   { label: 'Other Media', value: 'other-media' },
 ] as const
 
-const PUBLICATIONS_PER_PAGE = 50
-
-const config = useRuntimeConfig()
-const payloadBaseUrl = String(config.public.connectApi || '').replace(/\/$/, '')
+const PUBLICATIONS_PER_PAGE = 25
 
 const { mePending, isAdmin, canAccessSection } = useDashboardAccess()
 const canManageDashboard = computed(() => canAccessSection('faculty-publications'))
@@ -272,6 +294,8 @@ const success = ref<string | null>(null)
 const modalOpen = ref(false)
 const editingId = ref<string | number | null>(null)
 const imageInputRef = ref<HTMLInputElement | null>(null)
+const formAuthorOption = ref<FacultyOption | undefined>(undefined)
+const formOwnerId = computed(() => formAuthorOption.value?.id || '')
 
 const form = ref({
   type: 'book',
@@ -284,12 +308,10 @@ const form = ref({
 })
 
 const facultySelectItems = computed(() => facultyMembers.value)
-
-function normalizeUrl(url: string): string {
-  if (!url) return url
-  if (url.startsWith('http://') || url.startsWith('https://')) return url
-  return url.startsWith('/') ? `${payloadBaseUrl}${url}` : `${payloadBaseUrl}/${url}`
-}
+const facultyFilterItems = computed(() => [
+  { id: '', label: 'All authors' },
+  ...facultyMembers.value,
+])
 
 function typeLabel(type: string): string {
   return PUBLICATION_TYPE_OPTIONS.find((opt) => opt.value === type)?.label || type || 'Other'
@@ -299,7 +321,11 @@ function formatReleaseDate(date: string | null): string {
   if (!date) return '—'
   const d = date.slice(0, 10)
   try {
-    return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+    return new Date(`${d}T12:00:00`).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
   } catch {
     return d
   }
@@ -336,10 +362,40 @@ function textToLexical(text: string) {
   }
 }
 
+function ensureFacultyOption(id: string | null, name?: string | null, email?: string | null) {
+  if (!id) return undefined
+  const existing = facultyMembers.value.find((f) => f.id === id)
+  if (existing) return existing
+  const option = {
+    id,
+    label: name || email || `User #${id}`,
+  }
+  facultyMembers.value = [...facultyMembers.value, option].sort((a, b) =>
+    a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }),
+  )
+  return option
+}
+
 function mapPublication(doc: any): PublicationRow {
   const image = doc?.image
-  const imageUrl = typeof image === 'object' && image?.url ? normalizeUrl(String(image.url)) : null
+  const imageUrl =
+    typeof image === 'object' && image?.url
+      ? toBrowserMediaUrl(String(image.url)) || String(image.url)
+      : null
   const imageId = typeof image === 'number' ? image : (typeof image?.id === 'number' ? image.id : null)
+  const owner = doc?.owner
+  const ownerId =
+    typeof owner === 'object' && owner?.id != null
+      ? String(owner.id)
+      : owner != null
+        ? String(owner)
+        : null
+  const ownerName =
+    typeof owner === 'object'
+      ? (owner.name || owner.email || null)
+      : null
+  const ownerEmail = typeof owner === 'object' ? (owner.email || null) : null
+  if (ownerId) ensureFacultyOption(ownerId, ownerName, ownerEmail)
   return {
     id: doc.id,
     type: doc.type || 'book',
@@ -349,10 +405,13 @@ function mapPublication(doc: any): PublicationRow {
     releaseDate: doc.releaseDate ? String(doc.releaseDate).slice(0, 10) : null,
     imageId,
     imageUrl,
+    ownerId,
+    ownerName,
+    ownerEmail,
   }
 }
 
-function resetForm() {
+function resetForm(preselectOwnerId?: string) {
   editingId.value = null
   form.value = {
     type: 'book',
@@ -363,6 +422,9 @@ function resetForm() {
     imageId: null,
     imageUrl: null,
   }
+  formAuthorOption.value =
+    facultyMembers.value.find((f) => f.id === (preselectOwnerId || selectedFacultyId.value)) ||
+    undefined
 }
 
 async function loadFaculty() {
@@ -388,7 +450,7 @@ function applyPublicationListMeta(res: any) {
 }
 
 async function loadPublications(targetPage = page.value) {
-  if (!canManageAdmin.value || !selectedFacultyId.value) {
+  if (!canManageAdmin.value) {
     publications.value = []
     return
   }
@@ -399,7 +461,7 @@ async function loadPublications(targetPage = page.value) {
       query: {
         page: targetPage,
         limit: PUBLICATIONS_PER_PAGE,
-        owner: selectedFacultyId.value,
+        ...(selectedFacultyId.value ? { owner: selectedFacultyId.value } : {}),
         ...(searchQuery.value.trim() ? { search: searchQuery.value.trim() } : {}),
       },
     })
@@ -421,7 +483,6 @@ function goToPage(nextPage: number) {
 }
 
 function openCreateModal() {
-  if (!selectedFacultyId.value) return
   resetForm()
   modalOpen.value = true
 }
@@ -437,6 +498,7 @@ function openEditModal(pub: PublicationRow) {
     imageId: pub.imageId,
     imageUrl: pub.imageUrl,
   }
+  formAuthorOption.value = ensureFacultyOption(pub.ownerId, pub.ownerName, pub.ownerEmail)
   modalOpen.value = true
 }
 
@@ -446,18 +508,21 @@ function closeModal() {
 
 async function handleImageChange(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
-  if (!file || !selectedFacultyId.value) return
+  if (!file || !formOwnerId.value) return
   uploadingImage.value = true
   error.value = null
   try {
     const body = new FormData()
     body.append('file', file)
-    const res: any = await $fetch(`/api/dashboard/faculty-publications/${encodeURIComponent(selectedFacultyId.value)}/image`, {
-      method: 'POST',
-      body,
-    })
+    const res: any = await $fetch(
+      `/api/dashboard/faculty-publications/${encodeURIComponent(formOwnerId.value)}/image`,
+      {
+        method: 'POST',
+        body,
+      },
+    )
     form.value.imageId = res?.id ?? null
-    form.value.imageUrl = res?.url ? normalizeUrl(String(res.url)) : null
+    form.value.imageUrl = res?.url ? toBrowserMediaUrl(String(res.url)) || String(res.url) : null
   } catch (e: any) {
     error.value = e?.message || 'Failed to upload image.'
   } finally {
@@ -467,7 +532,10 @@ async function handleImageChange(e: Event) {
 }
 
 async function savePublication() {
-  if (!selectedFacultyId.value) return
+  if (!formOwnerId.value) {
+    error.value = 'Author is required.'
+    return
+  }
   saving.value = true
   error.value = null
   success.value = null
@@ -478,7 +546,7 @@ async function savePublication() {
     link: form.value.link.trim() || null,
     releaseDate: form.value.releaseDate || null,
     image: form.value.imageId,
-    owner: Number(selectedFacultyId.value),
+    owner: Number(formOwnerId.value),
   }
   try {
     if (editingId.value != null) {
@@ -515,7 +583,6 @@ async function deletePublication(id: string | number) {
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 watch(searchQuery, () => {
-  if (!selectedFacultyId.value) return
   if (searchTimer) clearTimeout(searchTimer)
   searchTimer = setTimeout(() => {
     void loadPublications(1)
@@ -527,7 +594,9 @@ watch(selectedFacultyId, () => {
   void loadPublications(1)
 })
 
-watch(canManageAdmin, () => {
-  void loadFaculty()
+watch(canManageAdmin, async (ok) => {
+  if (!ok) return
+  await loadFaculty()
+  await loadPublications(1)
 }, { immediate: true })
 </script>

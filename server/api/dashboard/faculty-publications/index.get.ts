@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
   params.set('sort', '-releaseDate,-updatedAt')
   params.set('depth', '2')
   if (owner) params.set('where[owner][equals]', owner)
-  if (search) params.set('where[title][like]', search)
+  if (search) params.set('where[title][contains]', search)
 
   return await dashboardPayloadFetch(
     `${auth.payloadBaseUrl}/api/connect-user-publications?${params.toString()}`,
