@@ -47,6 +47,7 @@
             <UserDegreePlanBody
               :plan="plans[0]!"
               @edit-course="(item) => onEditCourse(item, plans[0]!)"
+              @deleted="onPlanDeleted"
             />
           </div>
 
@@ -71,6 +72,7 @@
                 <UserDegreePlanBody
                   :plan="planItem"
                   @edit-course="(item) => onEditCourse(item, planItem)"
+                  @deleted="onPlanDeleted"
                 />
               </div>
             </details>
@@ -449,6 +451,10 @@ const plans = computed(() => {
 function planSummaryTitle(p: DegreePlan) {
   const d = p?.degree
   return d?.name ?? p?.title ?? (p as any)?.name ?? 'Degree Plan'
+}
+
+async function onPlanDeleted() {
+  await refreshPlan()
 }
 
 const createModalOpen = ref(false)

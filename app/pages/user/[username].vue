@@ -315,11 +315,14 @@ const isFaculty = computed(() => {
 })
 
 const profileEyebrow = computed(() => {
-  if (isFaculty.value) return 'Faculty profile'
-  const roles = Array.isArray(user.value?.roles) ? user.value.roles.map((role) => String(role).toLowerCase()) : []
+  const roles = Array.isArray(user.value?.roles)
+    ? user.value!.roles.map((role) => String(role).toLowerCase())
+    : []
+  // Priority when someone has multiple roles: faculty > employee > student > alumni
+  if (roles.includes('faculty') || isFaculty.value) return 'Faculty profile'
+  if (roles.includes('staff') || roles.includes('employee')) return 'Employee profile'
   if (roles.includes('student')) return 'Student profile'
   if (roles.includes('alumni')) return 'Alumni profile'
-  if (roles.includes('staff') || roles.includes('employee')) return 'Employee profile'
   return 'Profile'
 })
 

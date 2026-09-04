@@ -164,10 +164,16 @@ const sectionOptions = computed(() => {
 })
 
 const formatSectionLabel = (slug: string) => {
-  if (slug === 'lits') return 'LITS'
+  const key = slug.trim().toLowerCase()
+  if (key === 'lits') return 'LITS'
+  if (key === 'esj') return 'ESJ'
   return slug
     .split('-')
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .map((w) => {
+      if (w.toLowerCase() === 'esj') return 'ESJ'
+      if (w.toLowerCase() === 'lits') return 'LITS'
+      return w.charAt(0).toUpperCase() + w.slice(1)
+    })
     .join(' ')
 }
 

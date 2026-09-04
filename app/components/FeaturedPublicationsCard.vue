@@ -3,7 +3,7 @@
     <UCarousel
       v-slot="{ item }"
       loop
-      :autoplay="{ delay: 5000 }"
+      :autoplay="{ delay: 3800 }"
       :items="featuredBooks"
       :ui="{
         item: 'basis-full ps-0',

@@ -161,6 +161,85 @@
         </table>
       </div>
     </div>
+
+    <div class="rounded-lg border-2 border-red-200 bg-red-50 p-5 shadow-sm">
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div class="min-w-0">
+          <h3 class="flex items-center gap-2 text-base font-semibold text-red-800">
+            <UIcon name="i-lucide-trash-2" class="h-5 w-5 shrink-0" aria-hidden="true" />
+            Delete this degree map
+          </h3>
+          <p class="mt-1.5 text-sm text-red-700/90 max-w-xl">
+            Permanently remove this map and every course line you have entered on it
+            (terms, hours earned, notes, and status). This cannot be undone.
+          </p>
+        </div>
+        <button
+          type="button"
+          class="inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-red-600 bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50"
+          :disabled="deleting"
+          @click="showDeleteConfirm = true"
+        >
+          <UIcon name="i-lucide-trash-2" class="h-4 w-4" aria-hidden="true" />
+          Delete degree map
+        </button>
+      </div>
+    </div>
+
+    <UModal v-model:open="showDeleteConfirm" :ui="{ content: 'max-w-md' }">
+      <template #header>
+        <div class="flex items-start gap-3">
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
+            <UIcon name="i-lucide-triangle-alert" class="h-5 w-5 text-red-600" />
+          </span>
+          <div class="min-w-0">
+            <h2 class="text-base font-semibold text-gray-900">Delete degree map?</h2>
+            <p class="mt-0.5 text-sm text-gray-500">
+              {{ planTitle }}
+            </p>
+          </div>
+        </div>
+      </template>
+
+      <template #body>
+        <div class="space-y-3 text-sm text-gray-700">
+          <p>
+            Are you sure you want to delete this degree map? This action
+            <span class="font-semibold text-red-700">cannot be undone</span>.
+          </p>
+          <ul class="list-disc space-y-1.5 pl-5 text-gray-600">
+            <li>The entire degree map will be removed from your account.</li>
+            <li>All class data on this map will be permanently deleted (completed courses, hours, terms, notes, and status).</li>
+            <li>You can create a new map later, but none of this data will come back.</li>
+          </ul>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex w-full flex-col gap-3">
+          <p v-if="deleteError" class="text-sm text-red-600">{{ deleteError }}</p>
+          <div class="flex w-full justify-end gap-2">
+            <button
+              type="button"
+              class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              :disabled="deleting"
+              @click="showDeleteConfirm = false"
+            >
+              Keep map
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+              :disabled="deleting"
+              @click="confirmDelete"
+            >
+              <UIcon v-if="deleting" name="i-lucide-loader-circle" class="h-4 w-4 animate-spin" />
+              {{ deleting ? 'Deleting…' : 'Yes, delete permanently' }}
+            </button>
+          </div>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
 
@@ -208,9 +287,42 @@ const props = defineProps<{
   plan: DegreePlan
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   'edit-course': [item: DegreeItem]
+  deleted: [plan: DegreePlan]
 }>()
+
+const showDeleteConfirm = ref(false)
+const deleting = ref(false)
+const deleteError = ref<string | null>(null)
+
+watch(showDeleteConfirm, (open) => {
+  if (!open) {
+    deleteError.value = null
+    deleting.value = false
+  }
+})
+
+async function confirmDelete() {
+  const id = props.plan?.id ?? (props.plan as any)?.id
+  if (id == null || !Number.isFinite(Number(id))) {
+    deleteError.value = 'Missing degree map id.'
+    return
+  }
+
+  deleting.value = true
+  deleteError.value = null
+  try {
+    await $fetch(`/api/student-degree-plans/${id}`, { method: 'DELETE' })
+    showDeleteConfirm.value = false
+    emit('deleted', props.plan)
+  } catch (e: any) {
+    console.error('Failed to delete degree map', e)
+    deleteError.value = e?.data?.message || e?.message || 'Could not delete degree map.'
+  } finally {
+    deleting.value = false
+  }
+}
 
 const planTitle = computed(() => {
   const d = props.plan?.degree

@@ -83,8 +83,6 @@
                 <div class="min-w-0 w-full">
                   <h2 class="font-semibold text-gray-900 truncate hover:text-[rgba(13,94,130,1)]">{{ emp.name }}</h2>
                   <p v-if="emp.employeeTitle" class="text-sm text-gray-600 truncate">{{ emp.employeeTitle }}</p>
-                  <p v-if="emp.department" class="text-xs text-gray-500 mt-0.5">{{ departmentLabel(emp.department) }}</p>
-                  <p v-if="emp.section" class="text-xs text-gray-500">{{ sectionLabel(emp.section) }}</p>
                 </div>
                 <dl class="mt-3 pt-3 border-t border-gray-100 space-y-1 w-full text-left">
                   <div v-if="emp.email" class="flex items-center gap-2 min-w-0">
@@ -146,15 +144,16 @@ const DEPARTMENT_LABELS: Record<string, string> = {
   '6': 'Advancement'
 }
 
-function departmentLabel(id: string | null): string {
-  if (!id) return ''
-  return DEPARTMENT_LABELS[id] ?? id
-}
-
 function sectionLabel(slug: string | null): string {
   if (!slug) return ''
-  if (slug === 'lits') return 'LITS'
-  return slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+  const key = slug.trim().toLowerCase()
+  if (key === 'lits') return 'LITS'
+  if (key === 'esj') return 'ESJ'
+  return slug.split('-').map((w) => {
+    if (w.toLowerCase() === 'esj') return 'ESJ'
+    if (w.toLowerCase() === 'lits') return 'LITS'
+    return w.charAt(0).toUpperCase() + w.slice(1)
+  }).join(' ')
 }
 
 /** Username from email (e.g. terry.turner@asburyseminary.edu → terry.turner); fallback to id */
@@ -166,8 +165,14 @@ function userProfilePath(emp: { id: number; email: string | null }): string {
   return `/user/${emp.id}`
 }
 
+const ALL_DEPARTMENTS = { label: 'All departments', value: '' } as const
+const ALL_SECTIONS = { label: 'All sections', value: '' } as const
+
+const selectedDepartment = ref<{ label: string; value: string }>({ ...ALL_DEPARTMENTS })
+const selectedSection = ref<{ label: string; value: string }>({ ...ALL_SECTIONS })
+
 const departmentOptions = computed(() => {
-  const opts: { label: string; value: string }[] = [{ label: 'All departments', value: '' }]
+  const opts: { label: string; value: string }[] = [{ ...ALL_DEPARTMENTS }]
   const seen = new Set<string>()
   for (const emp of employees.value) {
     const id = emp.department?.trim()
@@ -179,10 +184,13 @@ const departmentOptions = computed(() => {
   return opts
 })
 
+/** Sections for the selected department only; all sections when department is "All". */
 const sectionOptions = computed(() => {
-  const opts: { label: string; value: string }[] = [{ label: 'All sections', value: '' }]
+  const opts: { label: string; value: string }[] = [{ ...ALL_SECTIONS }]
+  const dept = selectedDepartment.value?.value ?? ''
   const seen = new Set<string>()
   for (const emp of employees.value) {
+    if (dept && (emp.department ?? '').trim() !== dept) continue
     const slug = emp.section?.trim()
     if (!slug || seen.has(slug)) continue
     seen.add(slug)
@@ -192,8 +200,12 @@ const sectionOptions = computed(() => {
   return opts
 })
 
-const selectedDepartment = ref<{ label: string; value: string }>({ label: 'All departments', value: '' })
-const selectedSection = ref<{ label: string; value: string }>({ label: 'All sections', value: '' })
+watch(selectedDepartment, () => {
+  const sec = selectedSection.value?.value
+  if (!sec) return
+  const stillValid = sectionOptions.value.some((o) => o.value === sec)
+  if (!stillValid) selectedSection.value = { ...ALL_SECTIONS }
+})
 
 const filteredEmployees = computed(() => {
   let list = employees.value
@@ -259,13 +271,21 @@ function applyQueryToFilters() {
   const { department, section, name } = parseQuery(route.query)
   const deptOpt = department
     ? { label: DEPARTMENT_LABELS[department] ?? department, value: department }
-    : { label: 'All departments', value: '' }
+    : { ...ALL_DEPARTMENTS }
   if (selectedDepartment.value.value !== deptOpt.value) {
     selectedDepartment.value = deptOpt
   }
-  const secOpt = section
+  // Section must belong to the selected department (or any dept when "All").
+  let secOpt = section
     ? { label: sectionLabel(section), value: section }
-    : { label: 'All sections', value: '' }
+    : { ...ALL_SECTIONS }
+  if (secOpt.value) {
+    const pool = employees.value.filter((e) =>
+      !deptOpt.value || (e.department ?? '').trim() === deptOpt.value,
+    )
+    const ok = pool.some((e) => (e.section ?? '').trim() === secOpt.value)
+    if (!ok) secOpt = { ...ALL_SECTIONS }
+  }
   if (selectedSection.value.value !== secOpt.value) {
     selectedSection.value = secOpt
   }
