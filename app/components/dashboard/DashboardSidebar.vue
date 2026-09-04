@@ -41,6 +41,7 @@ const allItems: Array<{ label: string; to: string; icon: string; section: Dashbo
   { label: 'Campus Hours', to: '/dashboard/campus-hours', icon: 'i-lucide-clock', section: 'campus-hours' },
   { label: 'Chapel', to: '/dashboard/chapel', icon: 'i-lucide-mic-vocal', section: 'chapel' },
   { label: 'Chapel Speakers', to: '/dashboard/chapel-speakers', icon: 'i-lucide-user-round-pen', section: 'chapel-speakers' },
+  { label: 'Toast Manager', to: '/dashboard/toasts', icon: 'i-lucide-bell-ring', section: 'toasts' },
   { label: 'Jobs Manager', to: '/dashboard/jobs', icon: 'i-lucide-briefcase', section: 'jobs' },
   { label: 'Faculty Publications', to: '/dashboard/faculty-publications', icon: 'i-lucide-book-open', section: 'faculty-publications' },
   { label: 'Featured Publications', to: '/dashboard/featured-publications', icon: 'i-lucide-star', section: 'featured-publications' },

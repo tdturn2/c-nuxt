@@ -1,5 +1,5 @@
 <template>
-  <UApp>
+  <UApp :toaster="{ position: 'top-right', duration: 8000, expand: true }">
     <div
       class="flex flex-col relative z-10"
       :class="isHome ? 'h-screen overflow-hidden' : 'min-h-screen'"

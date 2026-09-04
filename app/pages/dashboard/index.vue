@@ -183,6 +183,13 @@ const sections: Array<{
     section: 'chapel-speakers',
   },
   {
+    title: 'Toast Manager',
+    description: 'Schedule in-app toast announcements (e.g. chapel Tue–Thu).',
+    to: '/dashboard/toasts',
+    icon: 'i-lucide-bell-ring',
+    section: 'toasts',
+  },
+  {
     title: 'Jobs Manager',
     description: 'Review, publish, edit, and remove job board listings.',
     to: '/dashboard/jobs',
