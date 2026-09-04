@@ -141,7 +141,8 @@ export default defineNuxtConfig({
         cors: true,
         headers: {
           'Access-Control-Allow-Methods': 'GET,HEAD,PUT,PATCH,POST,DELETE',
-          'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+          // Static snapshot (regenerated offline); long CDN TTL is safe.
+          'Cache-Control': 'public, s-maxage=604800, stale-while-revalidate=86400',
         },
       },
       '/api/home-slider': {

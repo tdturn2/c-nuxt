@@ -17,6 +17,7 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
+    "generate:course-offering-patterns": "node scripts/generate-course-offering-patterns.mjs --include-fa26",
     "test": "vitest run"
   },
   "dependencies": {
