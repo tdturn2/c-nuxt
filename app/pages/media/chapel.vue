@@ -153,8 +153,12 @@
               </div>
             </div>
 
-            <div class="mt-auto grid grid-cols-1 gap-2 pt-4">
+            <div
+              v-if="hasChapelAudio(ep) || getEpisodeVimeoId(ep) || getEpisodeVimeoFullId(ep)"
+              class="mt-auto grid grid-cols-1 gap-2 pt-4"
+            >
               <UButton
+                v-if="hasChapelAudio(ep)"
                 variant="soft"
                 color="primary"
                 size="sm"
@@ -164,22 +168,26 @@
               >
                 Play Audio
               </UButton>
-              <div class="grid grid-cols-2 gap-2">
+              <div
+                v-if="getEpisodeVimeoId(ep) || getEpisodeVimeoFullId(ep)"
+                class="grid gap-2"
+                :class="getEpisodeVimeoId(ep) && getEpisodeVimeoFullId(ep) ? 'grid-cols-2' : 'grid-cols-1'"
+              >
                 <UButton
+                  v-if="getEpisodeVimeoId(ep)"
                   variant="soft"
                   color="neutral"
                   size="sm"
-                  :disabled="!getEpisodeVimeoId(ep)"
                   leading-icon="i-heroicons-film"
                   @click="playEpisodeVideo(ep)"
                 >
                   Sermon
                 </UButton>
                 <UButton
+                  v-if="getEpisodeVimeoFullId(ep)"
                   variant="soft"
                   color="neutral"
                   size="sm"
-                  :disabled="!getEpisodeVimeoFullId(ep)"
                   leading-icon="i-heroicons-film"
                   @click="playEpisodeFullVideo(ep)"
                 >
@@ -244,9 +252,11 @@ interface ChapelEpisode {
       avatar?: { url?: string } | string | null
     } | string | number | null
   }
-  mp3?: { url?: string }
+  mp3?: { id?: number | string; url?: string } | number | string | null
   mp3Url?: string | null
   legacyMp3?: { filename: string; url: string | null } | null
+  length?: string | null
+  size?: string | null
   vimeo?: string
   vimeo_id?: string
   vimeo_full?: string
@@ -421,11 +431,24 @@ const weeklySpeaker = computed(() => {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+function hasChapelAudio(ep: ChapelEpisode): boolean {
+  if (ep.mp3 != null) {
+    if (typeof ep.mp3 === 'object' && (ep.mp3.url || ep.mp3.id != null)) return true
+    if (typeof ep.mp3 === 'number' && Number.isFinite(ep.mp3)) return true
+    if (typeof ep.mp3 === 'string' && ep.mp3.trim()) return true
+  }
+  // Imported episodes use date-based S3 audio; length/size mark that enclosure as real.
+  if (ep.length != null && String(ep.length).trim() !== '') return true
+  if (ep.size != null && String(ep.size).trim() !== '') return true
+  return false
+}
+
 function getChapelMp3Url(ep: ChapelEpisode): string {
   const linked =
     (typeof ep.mp3 === 'object' && ep.mp3?.url) ||
-    (typeof (ep as { mp3Url?: string }).mp3Url === 'string' ? (ep as { mp3Url?: string }).mp3Url : null)
+    (typeof ep.mp3Url === 'string' ? ep.mp3Url : null)
   if (linked) return String(linked)
+  if (!hasChapelAudio(ep)) return ''
   return chapelMp3PublicUrl(ep.date, ep.campus) || ''
 }
 
