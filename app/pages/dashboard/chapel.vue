@@ -163,11 +163,17 @@
             <input v-model="form.episode.vimeo_id" type="text" placeholder="Sermon Vimeo ID (optional)" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
             <input v-model="form.episode.vimeo_full_id" type="text" placeholder="Full Service Vimeo ID (optional)" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
             <input v-model="form.episode.youtube" type="text" placeholder="YouTube URL (optional)" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
-            <input :value="selectedMp3Label" type="text" readonly placeholder="No MP3 selected" class="rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm sm:col-span-2">
+            <div class="sm:col-span-2 space-y-1">
+              <input :value="selectedMp3Label" type="text" readonly placeholder="No MP3 selected" class="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm">
+              <p v-if="legacyMp3Url && !form.episode.mp3" class="text-xs text-gray-500">
+                Imported episode — using legacy S3 file
+                <a :href="legacyMp3Url" target="_blank" rel="noopener noreferrer" class="ml-1 text-[rgba(13,94,130,1)] underline hover:no-underline">Open MP3</a>
+              </p>
+            </div>
             <details class="rounded-lg border border-gray-200 bg-white sm:col-span-2 [&_summary::-webkit-details-marker]:hidden">
               <summary class="cursor-pointer list-none px-3 py-2 hover:bg-gray-50">
                 <span class="text-sm font-medium text-gray-900">MP3 upload and selector</span>
-                <p class="text-xs text-gray-500">Upload a new MP3 or pick an existing one.</p>
+                <p class="text-xs text-gray-500">Uploads go to ats-chapel/ky as YYYYMMDD.mp3 (renamed from the episode date if needed).</p>
               </summary>
               <div class="border-t border-gray-100 p-3">
                 <div class="grid gap-3 sm:grid-cols-[1fr_auto_auto] mb-3">
@@ -336,6 +342,8 @@
 </template>
 
 <script setup lang="ts">
+import { chapelMp3Label, chapelMp3PublicUrl } from '@shared/chapelMp3'
+
 type DashboardChapelSpeaker = { id: string | number; name: string }
 type ChapelEpisode = {
   id: string | number
@@ -345,7 +353,9 @@ type ChapelEpisode = {
   campus?: string
   active?: boolean
   is_podcast?: boolean
-  mp3?: string | number | { id?: string | number } | null
+  mp3?: string | number | { id?: string | number; url?: string; filename?: string } | null
+  mp3Url?: string | null
+  legacyMp3?: { filename: string; url: string | null } | null
   vimeo?: string | null
   vimeo_id?: string | null
   vimeo_full?: string | null
@@ -462,6 +472,12 @@ function resetForm() {
 
 function formatDate(value?: string) {
   if (!value) return '—'
+  // Prefer the calendar YYYY-MM-DD so UTC midnight does not shift to the previous local day.
+  const dateOnly = String(value).match(/^(\d{4}-\d{2}-\d{2})/)?.[1]
+  if (dateOnly) {
+    const d = new Date(`${dateOnly}T12:00:00Z`)
+    return Number.isNaN(d.getTime()) ? dateOnly : d.toLocaleDateString()
+  }
   const d = new Date(value)
   return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString()
 }
@@ -516,10 +532,17 @@ const filteredMp3Assets = computed(() => {
   })
 })
 
+const legacyMp3Url = computed(() =>
+  chapelMp3PublicUrl(form.value.episode.date, form.value.episode.campus),
+)
+
 const selectedMp3Label = computed(() => {
-  if (!form.value.episode.mp3) return ''
-  const match = mp3Assets.value.find((asset: any) => String(asset.id) === String(form.value.episode.mp3))
-  return match ? mp3Label(match) : `Asset #${String(form.value.episode.mp3)}`
+  if (form.value.episode.mp3) {
+    const match = mp3Assets.value.find((asset: any) => String(asset.id) === String(form.value.episode.mp3))
+    return match ? mp3Label(match) : `Asset #${String(form.value.episode.mp3)}`
+  }
+  // Imported episodes have no library mp3_id; show the date-based S3 object the public page uses.
+  return chapelMp3Label(form.value.episode.date, form.value.episode.campus) || ''
 })
 
 const speakerSelectItems = computed(() => {
@@ -696,17 +719,24 @@ async function uploadMp3Asset() {
     error.value = 'Choose an MP3 file to upload.'
     return
   }
+  const episodeDate = String(form.value.episode.date || '').trim()
+  const alreadyConvention = /^\d{8}\.mp3$/i.test(file.name)
+  if (!alreadyConvention && !episodeDate) {
+    error.value = 'Set the episode date first so the MP3 can be saved as YYYYMMDD.mp3 under ky/.'
+    return
+  }
   uploadingMp3.value = true
   error.value = null
   try {
     const body = new FormData()
     body.append('file', file)
+    if (episodeDate) body.append('date', episodeDate)
     const res: any = await $fetch('/api/chapel-podcast-media/upload', { method: 'POST', body })
     await loadMp3Assets()
     if (res?.id != null) form.value.episode.mp3 = String(res.id)
     if (uploadMp3InputRef.value) uploadMp3InputRef.value.value = ''
   } catch (e: any) {
-    error.value = e?.message || 'Failed to upload MP3.'
+    error.value = e?.data?.message || e?.statusMessage || e?.message || 'Failed to upload MP3.'
   } finally {
     uploadingMp3.value = false
   }

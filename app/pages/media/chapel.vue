@@ -224,6 +224,7 @@
 
 <script setup lang="ts">
 import { chapelSpeakerName, chapelSpeakerPhoto, chapelSpeakerTitle } from '@shared/chapelSpeakerDisplay'
+import { chapelMp3PublicUrl } from '@shared/chapelMp3'
 import { toBrowserMediaUrl } from '@shared/mediaUrls'
 
 interface ChapelEpisode {
@@ -244,6 +245,8 @@ interface ChapelEpisode {
     } | string | number | null
   }
   mp3?: { url?: string }
+  mp3Url?: string | null
+  legacyMp3?: { filename: string; url: string | null } | null
   vimeo?: string
   vimeo_id?: string
   vimeo_full?: string
@@ -418,20 +421,12 @@ const weeklySpeaker = computed(() => {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const CHAPEL_MP3_BASE = 'https://s3.amazonaws.com/ats-chapel'
-
 function getChapelMp3Url(ep: ChapelEpisode): string {
-  const folder = ep.campus?.toLowerCase() === 'fl' ? 'fl' : 'ky'
-  if (!ep.date) return ''
-  try {
-    const d = new Date(ep.date)
-    const y = d.getFullYear()
-    const m = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
-    return `${CHAPEL_MP3_BASE}/${folder}/${y}${m}${day}.mp3`
-  } catch {
-    return ''
-  }
+  const linked =
+    (typeof ep.mp3 === 'object' && ep.mp3?.url) ||
+    (typeof (ep as { mp3Url?: string }).mp3Url === 'string' ? (ep as { mp3Url?: string }).mp3Url : null)
+  if (linked) return String(linked)
+  return chapelMp3PublicUrl(ep.date, ep.campus) || ''
 }
 
 function playEpisode(ep: ChapelEpisode) {
@@ -476,7 +471,9 @@ function playEpisodeFullVideo(ep: ChapelEpisode) {
 function formatDate(dateStr?: string): string {
   if (!dateStr) return '—'
   try {
-    const d = new Date(dateStr)
+    const dateOnly = String(dateStr).match(/^(\d{4}-\d{2}-\d{2})/)?.[1]
+    const d = new Date(`${dateOnly || dateStr}T12:00:00Z`)
+    if (Number.isNaN(d.getTime())) return String(dateStr)
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   } catch {
     return String(dateStr)
