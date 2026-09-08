@@ -57,7 +57,12 @@ export const useClassPlanner = () => {
     }
   }
 
-  async function saveCourse(sectionKey: string, studentNote = '', termCode?: string | null) {
+  async function saveCourse(
+    sectionKey: string,
+    studentNote = '',
+    termCode?: string | null,
+    classList?: Record<string, unknown> | null,
+  ) {
     markPendingPlannerSave(sectionKey)
     try {
       const { item } = await $fetch<{ item: ClassPlannerItem }>('/api/class-planner', {
@@ -67,6 +72,7 @@ export const useClassPlanner = () => {
           sectionKey,
           studentNote,
           ...(termCode ? { termCode: String(termCode).trim().toUpperCase() } : {}),
+          ...(classList && typeof classList === 'object' ? { classList } : {}),
         },
       })
       upsertPlannerItem(item)

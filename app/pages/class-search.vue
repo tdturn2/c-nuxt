@@ -387,6 +387,9 @@ interface ClassRow {
   building?: string
   class_status?: string
   sched_comment?: string
+  start_date?: string
+  end_date?: string
+  term?: string
 }
 type OfferingPattern = {
   offerCountYears: number
@@ -396,8 +399,6 @@ type OfferingPattern = {
   pattern: 'annual' | 'every_other_year' | 'rare' | 'irregular'
   risk: 'low' | 'medium' | 'high'
 }
-type PlannerSaveRow = Pick<ClassRow, 'full_class_id'>
-
 const expandedId = ref<string | null>(null)
 function toggleExpand(id: string) {
   expandedId.value = expandedId.value === id ? null : id
@@ -631,7 +632,7 @@ const plannerBySection = computed(() => {
   return map
 })
 
-function isSaved(course: PlannerSaveRow): boolean {
+function isSaved(course: Pick<ClassRow, 'full_class_id'>): boolean {
   const k = plannerSectionKey(course.full_class_id)
   if (pendingPlannerSaveKeys.value.includes(k)) return true
   return plannerBySection.value.has(k)
@@ -695,15 +696,23 @@ function savedUsersDescription(course: PlannerSaveRow): string {
   return `This course has been saved by ${count} users.`
 }
 
-async function togglePlanner(course: PlannerSaveRow) {
+async function togglePlanner(course: ClassRow) {
   const key = plannerSectionKey(course.full_class_id)
   if (pendingPlannerSaveKeys.value.includes(key)) return
   const existingId = plannerBySection.value.get(key)
-  if (existingId) {
-    await removeItem(existingId)
-    return
+  try {
+    if (existingId) {
+      await removeItem(existingId)
+      return
+    }
+    await saveCourse(key, '', termSlug.value, {
+      ...course,
+      term: termSlug.value,
+    })
+  } catch (e: any) {
+    plannerError.value =
+      e?.data?.statusMessage || e?.statusMessage || e?.data?.message || 'Failed to save to planner'
   }
-  await saveCourse(key, '', termSlug.value)
 }
 
 async function removePlannerItem(id: number) {

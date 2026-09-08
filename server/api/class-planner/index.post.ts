@@ -7,6 +7,8 @@ type SavePlannerBody = {
   /** Class Search term (e.g. FA26). Required for correct offering when the same section id exists in multiple terms. */
   termCode?: string | null
   studentNote?: string | null
+  /** ClassList gateway row — used to create a missing course_offerings row on save. */
+  classList?: Record<string, unknown> | null
 }
 
 export default defineEventHandler(async (event) => {
@@ -53,8 +55,28 @@ export default defineEventHandler(async (event) => {
 
     let offering = Array.isArray(offeringLookup?.docs) ? offeringLookup.docs[0] : null
 
-    // DB may not have a per-term row yet (sync backfill). Fall back to any row with this section id so save still works;
-    // we still persist the Class Search term on the student-course-record below.
+    // Prefer upserting from the Class Search row when this section isn't in the DB for the selected term.
+    // course_offerings.full_class_id is unique globally, so ensure updates the existing row's term/details.
+    if (!offering?.id && body.classList && typeof body.classList === 'object') {
+      const ensured = await $fetch<{ id?: number; term?: string | null }>(
+        `${payloadBaseUrl}/api/course-offerings/ensure`,
+        {
+          method: 'POST',
+          headers,
+          body: {
+            term: termCode || undefined,
+            classList: {
+              ...body.classList,
+              full_class_id: sectionKey,
+              ...(termCode ? { term: termCode } : {}),
+            },
+          },
+        },
+      )
+      if (ensured?.id) offering = ensured
+    }
+
+    // Legacy fallback when no classList snapshot was sent (older clients).
     if (!offering?.id && termCode) {
       const fallback = await $fetch<{ docs?: Array<{ id: number; term?: string | null }> }>(
         `${payloadBaseUrl}/api/course-offerings`,
