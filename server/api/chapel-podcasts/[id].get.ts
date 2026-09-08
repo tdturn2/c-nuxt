@@ -13,6 +13,14 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  // Reserved public paths (feed/archive) must not fall through as episode ids.
+  if (!/^\d+$/.test(String(id))) {
+    throw createError({
+      statusCode: 404,
+      statusMessage: 'Episode not found',
+    })
+  }
+
   try {
     const query = { ...getQuery(event) }
     const payloadServerBearer = String(config.payloadServerBearer || '').trim()
