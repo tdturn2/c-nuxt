@@ -476,7 +476,10 @@ function getEpisodeVimeoFullId(ep: ChapelEpisode): string | undefined {
   const raw = ep.vimeo_full_id ?? ep.vimeo_full
   if (raw == null) return undefined
   const s = String(raw).trim()
-  return s || undefined
+  if (!s) return undefined
+  const sermon = getEpisodeVimeoId(ep)
+  if (sermon && sermon === s) return undefined
+  return s
 }
 
 function playEpisodeVideo(ep: ChapelEpisode) {
