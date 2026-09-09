@@ -728,10 +728,37 @@ async function uploadMp3Asset() {
   uploadingMp3.value = true
   error.value = null
   try {
-    const body = new FormData()
-    body.append('file', file)
-    if (episodeDate) body.append('date', episodeDate)
-    const res: any = await $fetch('/api/chapel-podcast-media/upload', { method: 'POST', body })
+    // Presigned S3 PUT — chapel MP3s are ~50MB+ and exceed Vercel/Nitro body limits (413).
+    const signed: any = await $fetch('/api/chapel-podcast-media/presign', {
+      method: 'POST',
+      body: {
+        filename: file.name,
+        contentType: file.type || 'audio/mpeg',
+        ...(episodeDate ? { date: episodeDate } : {}),
+      },
+    })
+    if (!signed?.uploadUrl || !signed?.filename) {
+      throw new Error('Upload URL was not returned')
+    }
+
+    const putRes = await fetch(signed.uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': signed.contentType || file.type || 'audio/mpeg' },
+      body: file,
+    })
+    if (!putRes.ok) {
+      const detail = await putRes.text().catch(() => '')
+      throw new Error(
+        detail
+          ? `S3 upload failed (${putRes.status}): ${detail.slice(0, 200)}`
+          : `S3 upload failed (${putRes.status})`,
+      )
+    }
+
+    const res: any = await $fetch('/api/chapel-podcast-media/complete', {
+      method: 'POST',
+      body: { filename: signed.filename },
+    })
     await loadMp3Assets()
     if (res?.id != null) form.value.episode.mp3 = String(res.id)
     if (uploadMp3InputRef.value) uploadMp3InputRef.value.value = ''
