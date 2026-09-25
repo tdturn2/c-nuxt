@@ -6,7 +6,7 @@
         <header class="mb-4">
           <h1 class="text-2xl font-bold text-gray-900">Calendar</h1>
           <p class="mt-1 text-sm text-gray-600">
-            Google Calendar today, with support for future unified Connect calendar events.
+            The official Asbury Theological Seminary calendar — seminary-wide dates, deadlines, and events.
           </p>
         </header>
 
@@ -14,7 +14,7 @@
           <iframe
             :src="embedUrl"
             class="h-[75vh] w-full rounded-lg border-0"
-            title="Asbury calendar"
+            title="Official Asbury Theological Seminary calendar"
             loading="lazy"
           />
         </div>

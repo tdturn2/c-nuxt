@@ -3,7 +3,12 @@
     <DashboardSidebar />
     <main class="flex-1 min-w-0 overflow-y-auto">
       <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 class="text-2xl font-bold text-gray-900 mb-6">Degree Builder</h1>
+        <div class="mb-6">
+          <h1 class="text-2xl font-bold text-gray-900">Degree Builder</h1>
+          <p class="mt-1 text-sm text-gray-600">
+            Manage degree maps by catalog year. Newest years are listed first.
+          </p>
+        </div>
 
         <div v-if="mePending" class="py-8 text-gray-500">Checking access...</div>
         <div
@@ -13,20 +18,64 @@
           You don't have access to edit degrees. Access is limited to Connect admins.
         </div>
         <template v-else>
-          <div class="flex items-center gap-3 mb-4">
+          <div class="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+              <UInput
+                v-model="searchQuery"
+                type="search"
+                placeholder="Search name, code, or year…"
+                icon="i-lucide-search"
+                color="neutral"
+                variant="outline"
+                size="sm"
+                class="w-full sm:w-72"
+              />
+              <select
+                v-model="sortKey"
+                aria-label="Sort degrees"
+                class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-[rgba(13,94,130,1)] focus:outline-none focus:ring-1 focus:ring-[rgba(13,94,130,1)]"
+              >
+                <option v-for="opt in SORT_OPTIONS" :key="opt.value" :value="opt.value">
+                  {{ opt.label }}
+                </option>
+              </select>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                class="rounded-md bg-[rgba(13,94,130,1)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgba(10,69,92,1)]"
+                @click="createModalOpen = true"
+              >
+                Create degree
+              </button>
+              <button
+                type="button"
+                class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                @click="openImportModal()"
+              >
+                Import CSV
+              </button>
+            </div>
+          </div>
+
+          <div v-if="catalogYearOptions.length" class="mb-4 flex flex-wrap items-center gap-1.5">
             <button
               type="button"
-              class="rounded-md bg-[rgba(13,94,130,1)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgba(10,69,92,1)]"
-              @click="createModalOpen = true"
+              class="rounded-full px-3 py-1 text-xs font-medium"
+              :class="yearFilter === '' ? 'bg-[rgba(13,94,130,1)] text-white' : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'"
+              @click="yearFilter = ''"
             >
-              Create degree
+              All years
             </button>
             <button
+              v-for="year in catalogYearOptions"
+              :key="year"
               type="button"
-              class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              @click="openImportModal()"
+              class="rounded-full px-3 py-1 text-xs font-medium"
+              :class="yearFilter === String(year) ? 'bg-[rgba(13,94,130,1)] text-white' : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'"
+              @click="yearFilter = yearFilter === String(year) ? '' : String(year)"
             >
-              Import CSV
+              {{ year }}
             </button>
           </div>
 
@@ -34,45 +83,116 @@
           <div v-else-if="degreesListError" class="rounded-lg bg-red-50 border border-red-200 p-4 text-red-800 text-sm mb-6">
             {{ degreesListError }}
           </div>
-          <div v-else class="mb-6 overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">ID</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Name</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Catalog year</th>
-                  <th class="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase"></th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-gray-200">
-                <tr
-                  v-for="d in degreesList"
-                  :key="d.id"
-                  class="hover:bg-gray-50"
-                >
-                  <td class="px-4 py-3 text-sm text-gray-900">{{ d.id }}</td>
-                  <td class="px-4 py-3 text-sm font-medium text-gray-900">
-                    {{ d.name ?? d.title ?? '—' }}
-                  </td>
-                  <td class="px-4 py-3 text-sm text-gray-600">
-                    {{ d.catalogYear ?? d.catalog_year ?? '—' }}
-                  </td>
-                  <td class="px-4 py-3 text-right">
-                    <button
-                      type="button"
-                      class="text-sm font-medium text-[rgba(13,94,130,1)] hover:underline"
-                      :disabled="bundlePending"
-                      @click="loadBundleById(d.id)"
-                    >
-                      Edit
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-            <p v-if="degreesList.length === 0" class="px-4 py-6 text-sm text-gray-500">
-              No degrees yet. Click Create degree to add one.
-            </p>
+          <div v-else class="mb-6 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-600">
+              <p>
+                <span class="font-semibold text-gray-900">{{ filteredDegrees.length }}</span>
+                <span v-if="filteredDegrees.length !== degreesList.length"> of {{ degreesList.length }}</span>
+                {{ filteredDegrees.length === 1 ? 'degree' : 'degrees' }}
+              </p>
+              <button
+                v-if="hasActiveFilters"
+                type="button"
+                class="text-sm font-medium text-[rgba(13,94,130,1)] hover:underline"
+                @click="clearDegreeFilters"
+              >
+                Clear search
+              </button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="min-w-full">
+                <thead class="bg-white">
+                  <tr class="border-b border-gray-200">
+                    <th class="px-4 py-2 text-left">
+                      <button type="button" class="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-700 hover:text-gray-900" @click="toggleSort('name')">
+                        Name
+                        <UIcon v-if="sortKey.startsWith('name')" :name="sortKey === 'name-asc' ? 'i-lucide-arrow-up' : 'i-lucide-arrow-down'" class="h-3.5 w-3.5" />
+                      </button>
+                    </th>
+                    <th class="px-4 py-2 text-left">
+                      <button type="button" class="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-700 hover:text-gray-900" @click="toggleSort('code')">
+                        Code
+                        <UIcon v-if="sortKey.startsWith('code')" :name="sortKey === 'code-asc' ? 'i-lucide-arrow-up' : 'i-lucide-arrow-down'" class="h-3.5 w-3.5" />
+                      </button>
+                    </th>
+                    <th class="px-4 py-2 text-left">
+                      <button type="button" class="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-700 hover:text-gray-900" @click="toggleSort('year')">
+                        Catalog year
+                        <UIcon v-if="sortKey.startsWith('year')" :name="sortKey === 'year-asc' ? 'i-lucide-arrow-up' : 'i-lucide-arrow-down'" class="h-3.5 w-3.5" />
+                      </button>
+                    </th>
+                    <th class="px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-if="degreesList.length === 0">
+                    <td colspan="4" class="px-4 py-8 text-sm text-gray-500">
+                      No degrees yet. Click Create degree to add one.
+                    </td>
+                  </tr>
+                  <tr v-else-if="filteredDegrees.length === 0">
+                    <td colspan="4" class="px-4 py-8 text-sm text-gray-500">
+                      No degrees match this search.
+                      <button type="button" class="ml-1 font-medium text-[rgba(13,94,130,1)] hover:underline" @click="clearDegreeFilters">
+                        Clear search
+                      </button>
+                    </td>
+                  </tr>
+                  <template v-for="group in degreeGroups" :key="group.key">
+                    <tr v-if="groupsByYear" class="bg-gray-50">
+                      <td colspan="4" class="px-2 py-1.5">
+                        <button
+                          type="button"
+                          class="flex w-full items-center gap-2 rounded px-2 py-1 text-left hover:bg-gray-100"
+                          @click="toggleYearGroup(group.key)"
+                        >
+                          <UIcon
+                            :name="isYearCollapsed(group.key) ? 'i-lucide-chevron-right' : 'i-lucide-chevron-down'"
+                            class="h-4 w-4 text-gray-500"
+                          />
+                          <span class="text-sm font-semibold text-gray-900">{{ group.label }}</span>
+                          <span class="rounded-full border border-gray-200 bg-white px-2 py-0.5 text-xs font-medium text-gray-600">
+                            {{ group.degrees.length }}
+                          </span>
+                        </button>
+                      </td>
+                    </tr>
+                    <template v-if="!groupsByYear || !isYearCollapsed(group.key)">
+                      <tr
+                        v-for="d in group.degrees"
+                        :key="d.id"
+                        class="cursor-pointer border-t border-gray-200"
+                        :class="selectedDegreeId === d.id ? 'bg-[rgba(13,94,130,0.08)]' : 'hover:bg-gray-50'"
+                        @click="loadBundleById(d.id)"
+                      >
+                        <td class="px-4 py-3 text-sm font-medium text-gray-900">
+                          {{ degreeName(d) || '—' }}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-700">
+                          <span v-if="degreeCode(d)" class="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs text-gray-800">
+                            {{ degreeCode(d) }}
+                          </span>
+                          <span v-else class="text-gray-400">—</span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-600">
+                          {{ catalogYearLabel(d) }}
+                        </td>
+                        <td class="px-4 py-3 text-right">
+                          <button
+                            type="button"
+                            class="text-sm font-medium text-[rgba(13,94,130,1)] hover:underline"
+                            :disabled="bundlePending && selectedDegreeId === d.id"
+                            @click.stop="loadBundleById(d.id)"
+                          >
+                            {{ bundlePending && selectedDegreeId === d.id ? 'Opening…' : 'Edit' }}
+                          </button>
+                        </td>
+                      </tr>
+                    </template>
+                  </template>
+                </tbody>
+              </table>
+            </div>
           </div>
         </template>
       </div>
@@ -81,7 +201,7 @@
     <!-- Degree edit slideover: table stays visible, edit in panel -->
     <USlideover
       v-model:open="degreeEditSlideoverOpen"
-      :ui="{ content: 'max-w-2xl w-full', body: 'overflow-y-auto' }"
+      :ui="{ content: 'max-w-4xl w-full', body: 'overflow-y-auto' }"
       @update:open="(v: boolean) => !v && onCloseDegreeEdit()"
     >
       <template #header>
@@ -91,6 +211,11 @@
             <h2 v-if="bundle?.degree" class="text-base font-semibold text-gray-900 truncate">
               {{ bundle.degree.name ?? bundle.degree.title ?? `Degree #${selectedDegreeId}` }}
             </h2>
+            <p v-if="bundle?.degree && (bundle.degree.code || bundle.degree.catalogYear)" class="truncate text-sm text-gray-500">
+              <span v-if="bundle.degree.code">{{ bundle.degree.code }}</span>
+              <span v-if="bundle.degree.code && bundle.degree.catalogYear"> · </span>
+              <span v-if="bundle.degree.catalogYear">{{ bundle.degree.catalogYear }}</span>
+            </p>
             <p v-if="bundlePending" class="text-sm text-gray-500">Loading…</p>
           </div>
           <button
@@ -114,8 +239,8 @@
           <!-- Degree header: editable -->
           <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
             <h3 class="text-base font-semibold text-gray-900 mb-3">Degree details</h3>
-            <div class="grid gap-3 sm:grid-cols-2 max-w-xl">
-                <div>
+            <div class="grid gap-3 sm:grid-cols-3">
+                <div class="sm:col-span-3">
                   <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
                   <input
                     v-model="degreeEdit.name"
@@ -125,12 +250,21 @@
                   />
                 </div>
                 <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Code</label>
+                  <input
+                    v-model="degreeEdit.code"
+                    type="text"
+                    class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[rgba(13,94,130,1)] focus:outline-none focus:ring-1 focus:ring-[rgba(13,94,130,1)]"
+                    placeholder="e.g. MDIV"
+                  />
+                </div>
+                <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Catalog year</label>
                   <input
                     v-model="degreeEdit.catalogYear"
                     type="text"
                     class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[rgba(13,94,130,1)] focus:outline-none focus:ring-1 focus:ring-[rgba(13,94,130,1)]"
-                    placeholder="e.g. 2024"
+                    placeholder="e.g. 2026"
                   />
                 </div>
               </div>
@@ -144,6 +278,7 @@
                   {{ degreeSavePending ? 'Saving…' : 'Save degree' }}
                 </button>
               </div>
+              <p v-if="degreeSaveError" class="mt-2 text-sm text-red-600">{{ degreeSaveError }}</p>
             </div>
 
             <!-- Specializations -->
@@ -180,19 +315,37 @@
 
             <!-- Sections -->
             <div class="rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm">
-              <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <div class="flex flex-col gap-3 border-b border-gray-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <h3 class="text-base font-semibold text-gray-900">Sections</h3>
-                <button
-                  type="button"
-                  class="text-sm font-medium text-[rgba(13,94,130,1)] hover:underline"
-                  @click="openAddSectionModal()"
-                >
-                  Add section
-                </button>
+                <div class="flex flex-wrap items-center gap-2">
+                  <UInput
+                    v-model="editorQuery"
+                    type="search"
+                    placeholder="Filter sections or courses…"
+                    icon="i-lucide-search"
+                    color="neutral"
+                    variant="outline"
+                    size="sm"
+                    class="w-56"
+                  />
+                  <button
+                    type="button"
+                    class="text-sm font-medium text-[rgba(13,94,130,1)] hover:underline"
+                    @click="openAddSectionModal()"
+                  >
+                    Add section
+                  </button>
+                </div>
               </div>
+              <p v-if="editorFilterActive" class="border-b border-amber-100 bg-amber-50 px-4 py-2 text-xs text-amber-800">
+                Showing matches only. Clear the filter to drag and reorder.
+              </p>
               <div class="divide-y divide-gray-200">
+                <p v-if="sections.length && !visibleSections.length" class="px-4 py-6 text-sm text-gray-500">
+                  No sections or courses match this filter.
+                </p>
                 <div
-                  v-for="(section, sectionIndex) in sections"
+                  v-for="(section, sectionIndex) in visibleSections"
                   :key="section.id"
                   class="p-4 transition-colors"
                   :class="{ 'opacity-60': draggedSectionId === section.id, 'bg-[rgba(13,94,130,0.06)]': dropTargetSectionId === section.id }"
@@ -203,9 +356,10 @@
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2 min-w-0">
                       <span
-                        class="shrink-0 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 touch-none"
+                        class="shrink-0 touch-none text-gray-400"
+                        :class="editorFilterActive ? 'cursor-not-allowed opacity-40' : 'cursor-grab hover:text-gray-600 active:cursor-grabbing'"
                         aria-label="Drag to reorder"
-                        draggable="true"
+                        :draggable="!editorFilterActive"
                         @dragstart="onSectionDragStart($event, section, sectionIndex)"
                         @dragend="onSectionDragEnd"
                       >
@@ -241,7 +395,7 @@
                       </thead>
                       <tbody class="divide-y divide-gray-200">
                         <tr
-                          v-for="(item, itemIndex) in sectionItems(section)"
+                          v-for="(item, itemIndex) in visibleSectionItems(section)"
                           :key="item.id"
                           class="bg-white transition-colors"
                           :class="{ 'opacity-60': draggedItemId === item.id, 'bg-[rgba(13,94,130,0.06)]': dropTargetItemId === item.id }"
@@ -251,9 +405,10 @@
                         >
                           <td class="w-9 px-1 py-2">
                             <span
-                              class="inline-flex cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 touch-none"
+                              class="inline-flex touch-none text-gray-400"
+                              :class="editorFilterActive ? 'cursor-not-allowed opacity-40' : 'cursor-grab hover:text-gray-600 active:cursor-grabbing'"
                               aria-label="Drag to reorder"
-                              draggable="true"
+                              :draggable="!editorFilterActive"
                               @dragstart="onItemDragStart($event, section, item, itemIndex)"
                               @dragend="onItemDragEnd"
                             >
@@ -452,13 +607,21 @@
         <div class="space-y-3 p-2">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Course</label>
+            <input
+              v-if="!editingItem"
+              v-model="courseSearch"
+              type="search"
+              class="mb-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[rgba(13,94,130,1)] focus:outline-none focus:ring-1 focus:ring-[rgba(13,94,130,1)]"
+              placeholder="Search by code or title…"
+              :disabled="coursesListPending"
+            />
             <select
               v-model="itemForm.courseId"
               class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white"
               :disabled="!!editingItem || coursesListPending"
             >
-              <option :value="null">{{ coursesListPending ? 'Loading courses...' : 'Select course' }}</option>
-              <option v-for="c in coursesList" :key="c.id" :value="c.id">
+              <option :value="null">{{ coursesListPending ? 'Loading courses...' : courseSelectPlaceholder }}</option>
+              <option v-for="c in filteredCourses" :key="c.id" :value="c.id">
                 {{ c.code }} – {{ c.title }} ({{ c.credits ?? '?' }} cr)
               </option>
             </select>
@@ -563,8 +726,8 @@
               :disabled="importPending"
             >
               <option :value="null" disabled>Select a degree…</option>
-              <option v-for="d in degreesList" :key="d.id" :value="d.id">
-                {{ d.name ?? d.title ?? `Degree #${d.id}` }}
+              <option v-for="d in degreesByLatestYear" :key="d.id" :value="d.id">
+                {{ degreeOptionLabel(d) }}
               </option>
             </select>
           </div>
@@ -633,12 +796,25 @@
 
 <script setup lang="ts">
 import {
+  catalogYearLabel,
+  catalogYearNumber,
+  compareDegrees,
+  DEGREE_SORT_OPTIONS,
+  degreeCode,
+  degreeName,
+  degreeOptionLabel,
+  type DegreeListItem,
+  type DegreeSortKey,
+} from '@shared/degreeBuilderList'
+import {
   downloadDegreeMapCsvTemplate,
   parseDegreeMapCsv,
   type DegreeMapCsvRow,
 } from '@shared/degreeMapCsv'
+const SORT_OPTIONS = DEGREE_SORT_OPTIONS
+
 interface DegreeBundle {
-  degree?: { id?: number; name?: string; title?: string; catalogYear?: string }
+  degree?: { id?: number; name?: string; title?: string; code?: string | null; catalogYear?: string | number | null }
   specializations?: Array<{ id: number; name?: string; title?: string; order?: number }>
   sections?: Array<{
     id: number
@@ -692,11 +868,85 @@ watch(
   { immediate: true }
 )
 
-const degreesList = computed(() => {
+const degreesList = computed<DegreeListItem[]>(() => {
   const raw = degreesData.value
   if (!raw?.docs) return []
   return Array.isArray(raw.docs) ? raw.docs : []
 })
+
+const searchQuery = ref('')
+const yearFilter = ref('')
+const sortKey = ref<DegreeSortKey>('year-desc')
+const collapsedYearKeys = ref<string[]>([])
+
+const catalogYearOptions = computed(() => {
+  const years = new Set<number>()
+  for (const degree of degreesList.value) {
+    const year = catalogYearNumber(degree)
+    if (year != null) years.add(year)
+  }
+  return [...years].sort((a, b) => b - a)
+})
+
+const hasActiveFilters = computed(() => searchQuery.value.trim().length > 0 || yearFilter.value !== '')
+
+const filteredDegrees = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  const year = yearFilter.value
+  return degreesList.value
+    .filter((degree) => {
+      if (year && catalogYearLabel(degree) !== year) return false
+      if (!q) return true
+      const haystack = `${degreeName(degree)} ${degreeCode(degree)} ${catalogYearLabel(degree)} ${degree.displayLabel ?? ''}`.toLowerCase()
+      return haystack.includes(q)
+    })
+    .sort((a, b) => compareDegrees(a, b, sortKey.value))
+})
+
+const degreesByLatestYear = computed(() =>
+  [...degreesList.value].sort((a, b) => compareDegrees(a, b, 'year-desc'))
+)
+
+const groupsByYear = computed(() => sortKey.value === 'year-desc' || sortKey.value === 'year-asc')
+
+const degreeGroups = computed(() => {
+  const list = filteredDegrees.value
+  if (!groupsByYear.value) {
+    return [{ key: 'all', label: '', degrees: list }]
+  }
+  const groups: Array<{ key: string; label: string; degrees: DegreeListItem[] }> = []
+  for (const degree of list) {
+    const year = catalogYearNumber(degree)
+    const key = year == null ? 'none' : String(year)
+    const label = year == null ? 'No catalog year' : String(year)
+    const last = groups[groups.length - 1]
+    if (last && last.key === key) last.degrees.push(degree)
+    else groups.push({ key, label, degrees: [degree] })
+  }
+  return groups
+})
+
+function isYearCollapsed(key: string) {
+  return collapsedYearKeys.value.includes(key)
+}
+
+function toggleYearGroup(key: string) {
+  collapsedYearKeys.value = isYearCollapsed(key)
+    ? collapsedYearKeys.value.filter((item) => item !== key)
+    : [...collapsedYearKeys.value, key]
+}
+
+function toggleSort(column: 'year' | 'name' | 'code') {
+  const current = sortKey.value
+  if (column === 'year') sortKey.value = current === 'year-desc' ? 'year-asc' : 'year-desc'
+  else if (column === 'name') sortKey.value = current === 'name-asc' ? 'name-desc' : 'name-asc'
+  else sortKey.value = current === 'code-asc' ? 'code-desc' : 'code-asc'
+}
+
+function clearDegreeFilters() {
+  searchQuery.value = ''
+  yearFilter.value = ''
+}
 
 const degreesListError = computed(() => {
   const e = degreesListErrorRef.value
@@ -713,12 +963,19 @@ const sections = computed(() => {
   return [...list].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
 })
 
+const editorQuery = ref('')
+const editorFilterActive = computed(() => editorQuery.value.trim().length > 0)
+
 // Section drag-and-drop reorder
 const draggedSectionId = ref<number | null>(null)
 const dropTargetSectionId = ref<number | null>(null)
 const draggedSectionIndex = ref<number>(0)
 
 function onSectionDragStart(e: DragEvent, section: { id: number }, index: number) {
+  if (editorFilterActive.value) {
+    e.preventDefault()
+    return
+  }
   draggedSectionId.value = section.id
   draggedSectionIndex.value = index
   e.dataTransfer?.setData('text/plain', String(section.id))
@@ -737,7 +994,7 @@ function onSectionDragOver(e: DragEvent, section: { id: number }) {
 }
 
 async function onSectionDrop(e: DragEvent, _targetSection: { id: number }, targetIndex: number) {
-  if (draggedItemId.value != null) return
+  if (editorFilterActive.value || draggedItemId.value != null) return
   e.preventDefault()
   const fromIndex = draggedSectionIndex.value
   const toIndex = targetIndex
@@ -780,6 +1037,10 @@ const draggedItemSection = ref<{ id: number; items?: any[] } | null>(null)
 const draggedItemIndex = ref<number>(0)
 
 function onItemDragStart(e: DragEvent, section: { id: number; items?: any[] }, item: { id: number }, index: number) {
+  if (editorFilterActive.value) {
+    e.preventDefault()
+    return
+  }
   draggedItemId.value = item.id
   draggedItemSection.value = section
   draggedItemIndex.value = index
@@ -801,7 +1062,7 @@ function onItemDragOver(e: DragEvent, item: { id: number }) {
 }
 
 async function onItemDrop(_e: DragEvent, section: { id: number; items?: any[] }, targetIndex: number) {
-  if (!draggedItemSection.value || draggedItemSection.value.id !== section.id || !section.items) {
+  if (editorFilterActive.value || !draggedItemSection.value || draggedItemSection.value.id !== section.id || !section.items) {
     dropTargetItemId.value = null
     draggedItemId.value = null
     draggedItemSection.value = null
@@ -814,7 +1075,7 @@ async function onItemDrop(_e: DragEvent, section: { id: number; items?: any[] },
     draggedItemSection.value = null
     return
   }
-  const list = [...section.items].filter(Boolean)
+  const list = sectionItems(section)
   const [moved] = list.splice(fromIndex, 1)
   if (!moved) return
   list.splice(targetIndex, 0, moved)
@@ -841,6 +1102,32 @@ async function onItemDrop(_e: DragEvent, section: { id: number; items?: any[] },
 function sectionItems(section: { items?: any[] }) {
   const items = section.items ?? []
   return [...items].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+}
+
+function sectionSearchText(section: { name?: string; title?: string; items?: any[] }) {
+  const items = sectionItems(section)
+  const courseText = items
+    .map((item) => `${item.course?.code ?? item.code ?? ''} ${item.course?.title ?? item.label ?? item.title ?? ''}`)
+    .join(' ')
+  return `${section.name ?? ''} ${section.title ?? ''} ${courseText}`.toLowerCase()
+}
+
+const visibleSections = computed(() => {
+  const q = editorQuery.value.trim().toLowerCase()
+  if (!q) return sections.value
+  return sections.value.filter((section) => sectionSearchText(section).includes(q))
+})
+
+function visibleSectionItems(section: { name?: string; title?: string; items?: any[] }) {
+  const items = sectionItems(section)
+  const q = editorQuery.value.trim().toLowerCase()
+  if (!q) return items
+  const sectionName = `${section.name ?? ''} ${section.title ?? ''}`.toLowerCase()
+  if (sectionName.includes(q)) return items
+  return items.filter((item) => {
+    const text = `${item.course?.code ?? item.code ?? ''} ${item.course?.title ?? item.label ?? item.title ?? ''}`.toLowerCase()
+    return text.includes(q)
+  })
 }
 
 // Create degree modal
@@ -883,8 +1170,9 @@ async function submitCreateDegree() {
 }
 
 // Degree edit form (when bundle loaded)
-const degreeEdit = ref({ name: '', catalogYear: '' })
+const degreeEdit = ref({ name: '', code: '', catalogYear: '' })
 const degreeSavePending = ref(false)
+const degreeSaveError = ref<string | null>(null)
 
 watch(
   () => bundle.value?.degree,
@@ -892,6 +1180,7 @@ watch(
     if (deg) {
       degreeEdit.value = {
         name: (deg.name ?? deg.title ?? '').toString(),
+        code: (deg.code ?? '').toString(),
         catalogYear: (deg.catalogYear ?? (deg as any).catalog_year ?? '').toString(),
       }
     }
@@ -902,19 +1191,27 @@ watch(
 async function saveDegree() {
   if (selectedDegreeId.value == null || !bundle.value?.degree) return
   degreeSavePending.value = true
+  degreeSaveError.value = null
   try {
     await $fetch(`/api/degrees/${selectedDegreeId.value}`, {
       method: 'PATCH',
       body: {
-        name: degreeEdit.value.name || undefined,
-        catalogYear: degreeEdit.value.catalogYear || undefined,
+        name: degreeEdit.value.name.trim(),
+        code: degreeEdit.value.code.trim(),
+        catalogYear: degreeEdit.value.catalogYear.trim(),
       },
     })
     if (bundle.value.degree) {
-      bundle.value.degree = { ...bundle.value.degree, name: degreeEdit.value.name, catalogYear: degreeEdit.value.catalogYear }
+      bundle.value.degree = {
+        ...bundle.value.degree,
+        name: degreeEdit.value.name.trim(),
+        code: degreeEdit.value.code.trim(),
+        catalogYear: degreeEdit.value.catalogYear.trim(),
+      }
     }
+    await fetchDegreesList()
   } catch (err: any) {
-    console.error('Save degree failed', err)
+    degreeSaveError.value = err?.data?.message ?? err?.statusMessage ?? err?.message ?? 'Failed to save degree.'
   } finally {
     degreeSavePending.value = false
   }
@@ -1068,6 +1365,22 @@ async function deleteSection(id: number) {
 const coursesList = ref<CourseOption[]>([])
 const coursesListPending = ref(false)
 const coursesListError = ref<string | null>(null)
+const courseSearch = ref('')
+
+const filteredCourses = computed(() => {
+  const list = [...coursesList.value].sort((a, b) =>
+    String(a.code ?? '').localeCompare(String(b.code ?? ''), undefined, { sensitivity: 'base', numeric: true })
+  )
+  const q = courseSearch.value.trim().toLowerCase()
+  if (!q) return list
+  return list.filter((course) => `${course.code ?? ''} ${course.title ?? ''}`.toLowerCase().includes(q))
+})
+
+const courseSelectPlaceholder = computed(() => {
+  if (!courseSearch.value.trim()) return 'Select course'
+  if (!filteredCourses.value.length) return 'No matching courses'
+  return `${filteredCourses.value.length} matching course${filteredCourses.value.length === 1 ? '' : 's'}`
+})
 const newCoursePending = ref(false)
 const newCourseForm = ref<{ code: string; title: string; credits: string }>({
   code: '',
@@ -1151,6 +1464,7 @@ function openAddItemModal(section: { id: number; items?: any[] }) {
   editingItem.value = null
   const items = sectionItems(section)
   itemForm.value = { courseId: null, order: items.length }
+  courseSearch.value = ''
   newCourseForm.value = { code: '', title: '', credits: '' }
   itemError.value = null
   itemModalOpen.value = true
@@ -1164,6 +1478,7 @@ function openEditItemModal(section: { id: number }, item: { id: number; course?:
     courseId: item.course?.id ?? null,
     order: item.order ?? 0,
   }
+  courseSearch.value = ''
   itemError.value = null
   itemModalOpen.value = true
   loadCoursesList()
@@ -1222,6 +1537,7 @@ function onCloseDegreeEdit() {
   selectedDegreeId.value = null
   bundle.value = null
   bundleError.value = null
+  editorQuery.value = ''
 }
 
 function loadBundleById(id: number) {
@@ -1230,6 +1546,8 @@ function loadBundleById(id: number) {
   bundleError.value = null
   bundle.value = null
   bundlePending.value = true
+  editorQuery.value = ''
+  degreeSaveError.value = null
   degreeEditSlideoverOpen.value = true
   $fetch<DegreeBundle>(`/api/degrees/${id}/bundle`)
     .then((data) => {
