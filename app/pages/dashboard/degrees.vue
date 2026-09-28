@@ -382,6 +382,7 @@
                       </button>
                     </div>
                   </div>
+                  <p v-if="section.description" class="mt-2 whitespace-pre-line text-sm text-gray-600">{{ section.description }}</p>
                   <div v-if="sectionItems(section).length" class="mt-3 overflow-x-auto">
                     <table class="min-w-full text-sm border border-gray-200 rounded-md">
                       <thead class="bg-gray-50">
@@ -427,7 +428,7 @@
                       </tbody>
                     </table>
                   </div>
-                  <p v-else class="mt-2 text-sm text-gray-500">No courses in this section. Click Add course.</p>
+                  <p v-else-if="!section.description" class="mt-2 text-sm text-gray-500">No courses in this section. Click Add course.</p>
                 </div>
               </div>
             </div>
@@ -535,7 +536,7 @@
     </UModal>
 
     <!-- Add/Edit section modal -->
-    <UModal v-model:open="sectionModalOpen" :ui="{ content: 'max-w-md' }">
+    <UModal v-model:open="sectionModalOpen" :ui="{ content: 'max-w-xl' }">
       <template #header>{{ editingSection ? 'Edit section' : 'Add section' }}</template>
       <template #body>
         <div class="space-y-3 p-2">
@@ -547,6 +548,18 @@
               class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
               placeholder="Section name"
             />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <textarea
+              v-model="sectionForm.description"
+              rows="6"
+              class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              placeholder="900 level courses&#10;The remaining 18 elective credit hours may include MC, MD, ME, MH courses, upon approval of the student’s mentor and ARP Dean through academic petition"
+            />
+            <p class="mt-0.5 text-xs text-gray-500">
+              Use this when the section does not list specific courses. Line breaks are kept on the degree map.
+            </p>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Credits required</label>
@@ -821,6 +834,7 @@ interface DegreeBundle {
     name?: string
     title?: string
     creditsRequired?: number
+    description?: string | null
     order?: number
     items?: Array<{
       id: number
@@ -1104,12 +1118,12 @@ function sectionItems(section: { items?: any[] }) {
   return [...items].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
 }
 
-function sectionSearchText(section: { name?: string; title?: string; items?: any[] }) {
+function sectionSearchText(section: { name?: string; title?: string; description?: string | null; items?: any[] }) {
   const items = sectionItems(section)
   const courseText = items
     .map((item) => `${item.course?.code ?? item.code ?? ''} ${item.course?.title ?? item.label ?? item.title ?? ''}`)
     .join(' ')
-  return `${section.name ?? ''} ${section.title ?? ''} ${courseText}`.toLowerCase()
+  return `${section.name ?? ''} ${section.title ?? ''} ${section.description ?? ''} ${courseText}`.toLowerCase()
 }
 
 const visibleSections = computed(() => {
@@ -1286,23 +1300,24 @@ async function deleteSpecialization(id: number) {
 
 // Sections
 const sectionModalOpen = ref(false)
-const editingSection = ref<{ id: number; name?: string; title?: string; creditsRequired?: number; order?: number; specialization?: number | null } | null>(null)
-const sectionForm = ref({ name: '', creditsRequired: null as number | null, order: 0, specializationId: null as number | null })
+const editingSection = ref<{ id: number; name?: string; title?: string; creditsRequired?: number; description?: string | null; order?: number; specialization?: number | null } | null>(null)
+const sectionForm = ref({ name: '', description: '', creditsRequired: null as number | null, order: 0, specializationId: null as number | null })
 const sectionSavePending = ref(false)
 const sectionError = ref<string | null>(null)
 
 function openAddSectionModal() {
   editingSection.value = null
-  sectionForm.value = { name: '', creditsRequired: null, order: sections.value.length, specializationId: null }
+  sectionForm.value = { name: '', description: '', creditsRequired: null, order: sections.value.length, specializationId: null }
   sectionError.value = null
   sectionModalOpen.value = true
 }
 
-function openEditSectionModal(sec: { id: number; name?: string; title?: string; creditsRequired?: number; order?: number; specialization?: number | null }) {
+function openEditSectionModal(sec: { id: number; name?: string; title?: string; creditsRequired?: number; description?: string | null; order?: number; specialization?: number | null }) {
   editingSection.value = sec
   const specId = sec.specialization ?? (sec as any).specializationId ?? null
   sectionForm.value = {
     name: (sec.name ?? sec.title ?? '').toString(),
+    description: (sec.description ?? '').toString(),
     creditsRequired: sec.creditsRequired ?? null,
     order: sec.order ?? 0,
     specializationId: specId != null ? Number(specId) : null,
@@ -1325,6 +1340,7 @@ async function saveSection() {
         method: 'PATCH',
         body: {
           name: sectionForm.value.name.trim(),
+          description: sectionForm.value.description.trim(),
           creditsRequired: sectionForm.value.creditsRequired,
           order: sectionForm.value.order,
           specialization: sectionForm.value.specializationId,
@@ -1336,6 +1352,7 @@ async function saveSection() {
         body: {
           degree: selectedDegreeId.value,
           name: sectionForm.value.name.trim(),
+          description: sectionForm.value.description.trim(),
           creditsRequired: sectionForm.value.creditsRequired ?? undefined,
           order: sectionForm.value.order,
           specialization: sectionForm.value.specializationId ?? null,

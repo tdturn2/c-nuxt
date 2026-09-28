@@ -63,7 +63,10 @@
       <p v-if="section.creditsRequired != null" class="mt-0.5 text-sm text-gray-500">
         {{ section.creditsRequired }} credits required
       </p>
-      <div class="mt-3 overflow-x-auto rounded-lg border border-gray-200">
+      <p v-if="section.description" class="mt-2 whitespace-pre-line text-sm text-gray-700">
+        {{ section.description }}
+      </p>
+      <div v-if="section.items?.length" class="mt-3 overflow-x-auto rounded-lg border border-gray-200">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
@@ -272,6 +275,7 @@ export interface DegreeSection {
   id?: number
   name?: string
   creditsRequired?: number
+  description?: string | null
   order?: number
   items?: DegreeItem[]
 }
