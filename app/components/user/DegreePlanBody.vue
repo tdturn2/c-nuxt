@@ -448,7 +448,10 @@ function courseTitle(item: DegreeItem) {
 function courseDescription(item: DegreeItem) {
   const c = item.course
   const rec = item.record as any
-  return (c && c.description) ?? rec?.description ?? (item as any).description ?? ''
+  const desc = (c && c.description) ?? rec?.description ?? (item as any).description ?? ''
+  const title = courseTitle(item)
+  if (desc && title && String(desc).trim() === String(title).trim()) return ''
+  return desc
 }
 
 function courseCredits(item: DegreeItem) {

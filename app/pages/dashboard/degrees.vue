@@ -235,7 +235,7 @@
         <div v-else-if="bundlePending" class="py-8 text-center text-gray-500">
           Loading degree…
         </div>
-        <div v-else-if="bundle" class="space-y-6 pb-6">
+        <div v-else-if="bundle" ref="degreeEditorBody" class="space-y-6 pb-6">
           <!-- Degree header: editable -->
           <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
             <h3 class="text-base font-semibold text-gray-900 mb-3">Degree details</h3>
@@ -281,16 +281,21 @@
               <p v-if="degreeSaveError" class="mt-2 text-sm text-red-600">{{ degreeSaveError }}</p>
             </div>
 
-            <!-- Specializations -->
+            <!-- Concentrations (specializations) -->
             <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
               <div class="flex items-center justify-between mb-3">
-                <h3 class="text-base font-semibold text-gray-900">Specializations</h3>
+                <div>
+                  <h3 class="text-base font-semibold text-gray-900">Concentrations</h3>
+                  <p class="mt-0.5 text-xs text-gray-500">
+                    Each concentration gets its own section group below for courses and electives.
+                  </p>
+                </div>
                 <button
                   type="button"
                   class="text-sm font-medium text-[rgba(13,94,130,1)] hover:underline"
                   @click="openAddSpecializationModal()"
                 >
-                  Add specialization
+                  Add concentration
                 </button>
               </div>
               <ul v-if="specializations.length" class="space-y-2">
@@ -301,22 +306,32 @@
                 >
                   <span>{{ s.name ?? s.title ?? `#${s.id}` }}</span>
                   <div class="flex gap-2">
-                    <button type="button" class="text-[rgba(13,94,130,1)] hover:underline" @click="openEditSpecializationModal(s)">
+                    <button type="button" class="text-[rgba(13,94,130,1)] hover:underline" @click.stop="openAddSectionModal(s.id)">
+                      Add section
+                    </button>
+                    <button type="button" class="text-[rgba(13,94,130,1)] hover:underline" @click.stop="openEditSpecializationModal(s)">
                       Edit
                     </button>
-                    <button type="button" class="text-red-600 hover:underline" @click="deleteSpecialization(s.id)">
+                    <button
+                      type="button"
+                      class="text-red-600 hover:underline"
+                      @click.stop.prevent="requestDeleteSpecialization(s)"
+                    >
                       Delete
                     </button>
                   </div>
                 </li>
               </ul>
-              <p v-else class="text-sm text-gray-500">No specializations. Add one to get started.</p>
+              <p v-else class="text-sm text-gray-500">No concentrations yet. Add one to create a place for track-specific courses.</p>
             </div>
 
             <!-- Sections -->
             <div class="rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm">
               <div class="flex flex-col gap-3 border-b border-gray-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <h3 class="text-base font-semibold text-gray-900">Sections</h3>
+                <div>
+                  <h3 class="text-base font-semibold text-gray-900">Sections</h3>
+                  <p class="mt-0.5 text-xs text-gray-500">Core sections apply to everyone. Concentration sections only apply to that track.</p>
+                </div>
                 <div class="flex flex-wrap items-center gap-2">
                   <UInput
                     v-model="editorQuery"
@@ -340,18 +355,45 @@
               <p v-if="editorFilterActive" class="border-b border-amber-100 bg-amber-50 px-4 py-2 text-xs text-amber-800">
                 Showing matches only. Clear the filter to drag and reorder.
               </p>
-              <div class="divide-y divide-gray-200">
-                <p v-if="sections.length && !visibleSections.length" class="px-4 py-6 text-sm text-gray-500">
+              <div>
+                <p v-if="!sectionGroups.length" class="px-4 py-6 text-sm text-gray-500">
+                  No sections yet. Add a core section, or add a concentration to create one automatically.
+                </p>
+                <p v-else-if="sections.length && !visibleSections.length" class="px-4 py-6 text-sm text-gray-500">
                   No sections or courses match this filter.
                 </p>
+                <template v-for="group in sectionGroups" :key="group.key">
+                  <div class="flex items-center justify-between gap-3 border-t border-gray-200 bg-gray-50 px-4 py-2">
+                    <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      {{ group.label }}
+                      <span class="ml-1 font-normal normal-case text-gray-400">({{ group.sections.length }})</span>
+                    </div>
+                    <button
+                      type="button"
+                      class="text-xs font-medium text-[rgba(13,94,130,1)] hover:underline"
+                      @click="openAddSectionModal(group.specializationId)"
+                    >
+                      Add section
+                    </button>
+                  </div>
+                  <p v-if="!group.sections.length" class="border-t border-gray-100 px-4 py-4 text-sm text-gray-500">
+                    No sections in this {{ group.specializationId == null ? 'core' : 'concentration' }} group yet.
+                    <button
+                      type="button"
+                      class="ml-1 font-medium text-[rgba(13,94,130,1)] hover:underline"
+                      @click="openAddSectionModal(group.specializationId)"
+                    >
+                      Add section
+                    </button>
+                  </p>
                 <div
-                  v-for="(section, sectionIndex) in visibleSections"
+                  v-for="section in group.sections"
                   :key="section.id"
-                  class="p-4 transition-colors"
+                  class="border-t border-gray-200 p-4 transition-colors"
                   :class="{ 'opacity-60': draggedSectionId === section.id, 'bg-[rgba(13,94,130,0.06)]': dropTargetSectionId === section.id }"
                   @dragover="onSectionDragOver($event, section)"
                   @dragleave="dropTargetSectionId = null"
-                  @drop="onSectionDrop($event, section, sectionIndex)"
+                  @drop="onSectionDrop($event, section, sectionFlatIndex(section))"
                 >
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2 min-w-0">
@@ -360,7 +402,7 @@
                         :class="editorFilterActive ? 'cursor-not-allowed opacity-40' : 'cursor-grab hover:text-gray-600 active:cursor-grabbing'"
                         aria-label="Drag to reorder"
                         :draggable="!editorFilterActive"
-                        @dragstart="onSectionDragStart($event, section, sectionIndex)"
+                        @dragstart="onSectionDragStart($event, section, sectionFlatIndex(section))"
                         @dragend="onSectionDragEnd"
                       >
                         <UIcon name="i-heroicons-bars-3-bottom-right" class="w-5 h-5" />
@@ -371,13 +413,17 @@
                       </span>
                     </div>
                     <div class="flex gap-2">
-                      <button type="button" class="text-sm text-[rgba(13,94,130,1)] hover:underline" @click="openEditSectionModal(section)">
+                      <button type="button" class="text-sm text-[rgba(13,94,130,1)] hover:underline" @click.stop="openEditSectionModal(section)">
                         Edit
                       </button>
-                      <button type="button" class="text-sm text-red-600 hover:underline" @click="deleteSection(section.id)">
+                      <button
+                        type="button"
+                        class="text-sm text-red-600 hover:underline"
+                        @click.stop.prevent="requestDeleteSection(section)"
+                      >
                         Delete
                       </button>
-                      <button type="button" class="text-sm text-[rgba(13,94,130,1)] hover:underline" @click="openAddItemModal(section)">
+                      <button type="button" class="text-sm text-[rgba(13,94,130,1)] hover:underline" @click.stop="openAddItemModal(section)">
                         Add course
                       </button>
                     </div>
@@ -416,11 +462,27 @@
                               <UIcon name="i-heroicons-bars-3-bottom-right" class="w-4 h-4" />
                             </span>
                           </td>
-                          <td class="px-3 py-2 text-gray-900">{{ item.course?.code ?? item.code ?? '—' }}</td>
-                          <td class="px-3 py-2 text-gray-700">{{ item.course?.title ?? item.label ?? item.title ?? '—' }}</td>
+                          <td class="px-3 py-2 text-gray-900">
+                            <span v-if="item.course?.code || item.code">{{ item.course?.code ?? item.code }}</span>
+                            <span
+                              v-else-if="isCustomCourseItem(item)"
+                              class="rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-800"
+                            >
+                              Custom
+                            </span>
+                            <span v-else class="text-gray-400">—</span>
+                          </td>
+                          <td class="px-3 py-2 text-gray-700">{{ item.course?.title ?? item.label ?? item.description ?? item.title ?? '—' }}</td>
                           <td class="px-3 py-2 text-gray-600">{{ item.course?.credits ?? item.credits ?? '—' }}</td>
-                          <td class="px-3 py-2 text-right">
-                            <button type="button" class="text-red-600 hover:underline" @click="deleteSectionItem(item.id)">
+                          <td class="px-3 py-2 text-right space-x-2">
+                            <button type="button" class="text-[rgba(13,94,130,1)] hover:underline" @click.stop="openEditItemModal(section, item)">
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              class="text-red-600 hover:underline"
+                              @click.stop.prevent="requestDeleteSectionItem(item)"
+                            >
                               Delete
                             </button>
                           </td>
@@ -430,6 +492,7 @@
                   </div>
                   <p v-else-if="!section.description" class="mt-2 text-sm text-gray-500">No courses in this section. Click Add course.</p>
                 </div>
+                </template>
               </div>
             </div>
         </div>
@@ -494,7 +557,7 @@
 
     <!-- Add/Edit specialization modal -->
     <UModal v-model:open="specializationModalOpen" :ui="{ content: 'max-w-md' }">
-      <template #header>{{ editingSpecialization ? 'Edit specialization' : 'Add specialization' }}</template>
+      <template #header>{{ editingSpecialization ? 'Edit concentration' : 'Add concentration' }}</template>
       <template #body>
         <div class="space-y-3 p-2">
           <div>
@@ -503,7 +566,7 @@
               v-model="specializationForm.name"
               type="text"
               class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-              placeholder="Specialization name"
+              placeholder="e.g. Pastoral Ministry"
             />
           </div>
           <div>
@@ -515,6 +578,9 @@
               class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
             />
           </div>
+          <p v-if="!editingSpecialization" class="text-xs text-gray-500">
+            A section for this concentration will be created so you can add courses right away.
+          </p>
           <p v-if="specializationError" class="text-sm text-red-600">{{ specializationError }}</p>
         </div>
       </template>
@@ -572,7 +638,7 @@
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Specialization (track)</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Concentration</label>
             <select
               v-model="sectionForm.specializationId"
               class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white"
@@ -582,7 +648,7 @@
                 {{ s.name ?? s.title ?? `#${s.id}` }}
               </option>
             </select>
-            <p class="mt-0.5 text-xs text-gray-500">Core sections: None. Elective sections: choose a track.</p>
+            <p class="mt-0.5 text-xs text-gray-500">Core sections: None. Sections that change with a concentration, including that concentration’s electives, choose the concentration.</p>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Order</label>
@@ -614,40 +680,93 @@
     </UModal>
 
     <!-- Add/Edit section item modal -->
-    <UModal v-model:open="itemModalOpen" :ui="{ content: 'max-w-md' }">
+    <UModal v-model:open="itemModalOpen" :ui="{ content: 'max-w-lg' }">
       <template #header>{{ editingItem ? 'Edit course' : 'Add course to section' }}</template>
       <template #body>
         <div class="space-y-3 p-2">
-          <div>
+          <div class="grid grid-cols-2 gap-1 rounded-md bg-gray-100 p-1">
+            <button
+              type="button"
+              class="rounded px-3 py-1.5 text-sm font-medium"
+              :class="itemKind === 'catalog' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'"
+              @click="itemKind = 'catalog'"
+            >
+              Catalog course
+            </button>
+            <button
+              type="button"
+              class="rounded px-3 py-1.5 text-sm font-medium"
+              :class="itemKind === 'custom' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'"
+              @click="itemKind = 'custom'"
+            >
+              Custom description
+            </button>
+          </div>
+
+          <div v-if="itemKind === 'catalog'">
             <label class="block text-sm font-medium text-gray-700 mb-1">Course</label>
-            <input
-              v-if="!editingItem"
-              v-model="courseSearch"
-              type="search"
-              class="mb-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[rgba(13,94,130,1)] focus:outline-none focus:ring-1 focus:ring-[rgba(13,94,130,1)]"
-              placeholder="Search by code or title…"
-              :disabled="coursesListPending"
-            />
-            <select
+            <USelectMenu
               v-model="itemForm.courseId"
-              class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white"
-              :disabled="!!editingItem || coursesListPending"
+              :items="courseMenuItems"
+              value-key="value"
+              label-key="label"
+              :filter-fields="['label', 'code', 'title']"
+              color="neutral"
+              variant="outline"
+              class="w-full"
+              placeholder="Search by code or title…"
+              :search-input="{ placeholder: 'Search by code or title…' }"
+              :disabled="coursesListPending"
+              :virtualize="{ estimateSize: 36 }"
+              clear
             >
-              <option :value="null">{{ coursesListPending ? 'Loading courses...' : courseSelectPlaceholder }}</option>
-              <option v-for="c in filteredCourses" :key="c.id" :value="c.id">
-                {{ c.code }} – {{ c.title }} ({{ c.credits ?? '?' }} cr)
-              </option>
-            </select>
+              <template #empty="{ searchTerm }">
+                <div class="px-2 py-2 text-sm text-gray-600">
+                  <p>{{ searchTerm ? `No course matches “${searchTerm}”.` : 'No courses found.' }}</p>
+                  <button
+                    type="button"
+                    class="mt-2 font-medium text-[rgba(13,94,130,1)] hover:underline"
+                    @mousedown.prevent="startCustomDescription(searchTerm)"
+                  >
+                    {{ searchTerm ? `Use “${searchTerm}” as a custom description` : 'Use a custom description' }}
+                  </button>
+                </div>
+              </template>
+            </USelectMenu>
             <p v-if="coursesListError" class="mt-1 text-xs text-red-600">{{ coursesListError }}</p>
-            <p
-              v-else-if="!coursesListPending && !coursesList.length && !editingItem"
-              class="mt-1 text-xs text-amber-700"
-            >
-              No courses found in catalog. Add one below.
+            <p v-else class="mt-1 text-xs text-gray-500">
+              For a range or requirement that isn’t one course, switch to a custom description.
             </p>
           </div>
+
+          <div v-else class="space-y-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea
+                v-model="itemForm.label"
+                rows="3"
+                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[rgba(13,94,130,1)] focus:outline-none focus:ring-1 focus:ring-[rgba(13,94,130,1)]"
+                placeholder="e.g. Any course from OT501–OT520"
+              />
+              <p class="mt-1 text-xs text-gray-500">
+                This line is not tied to a catalog course. Students see this text on the degree map.
+              </p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Credits</label>
+              <input
+                v-model="itemForm.credits"
+                type="number"
+                min="0"
+                step="0.5"
+                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[rgba(13,94,130,1)] focus:outline-none focus:ring-1 focus:ring-[rgba(13,94,130,1)]"
+                placeholder="Optional"
+              />
+            </div>
+          </div>
+
           <div
-            v-if="!editingItem && !coursesListPending && !coursesList.length"
+            v-if="itemKind === 'catalog' && !coursesListPending && !coursesList.length"
             class="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-2"
           >
             <p class="text-xs font-medium text-amber-800 uppercase tracking-wide">Create course in catalog</p>
@@ -804,6 +923,34 @@
         </div>
       </template>
     </UModal>
+
+    <UModal v-model:open="deleteConfirmOpen" :ui="{ content: 'max-w-md' }">
+      <template #header>{{ deleteConfirmTitle }}</template>
+      <template #body>
+        <p class="text-sm text-gray-700">{{ deleteConfirmMessage }}</p>
+        <p v-if="deleteConfirmError" class="mt-3 text-sm text-red-600">{{ deleteConfirmError }}</p>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <button
+            type="button"
+            class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+            :disabled="deleteConfirmPending"
+            @click="deleteConfirmOpen = false"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+            :disabled="deleteConfirmPending"
+            @click="runConfirmedDelete"
+          >
+            {{ deleteConfirmPending ? 'Deleting…' : 'Delete' }}
+          </button>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
 
@@ -838,8 +985,10 @@ interface DegreeBundle {
     order?: number
     items?: Array<{
       id: number
+      type?: string
       code?: string
       label?: string
+      description?: string | null
       title?: string
       credits?: number
       order?: number
@@ -1121,7 +1270,7 @@ function sectionItems(section: { items?: any[] }) {
 function sectionSearchText(section: { name?: string; title?: string; description?: string | null; items?: any[] }) {
   const items = sectionItems(section)
   const courseText = items
-    .map((item) => `${item.course?.code ?? item.code ?? ''} ${item.course?.title ?? item.label ?? item.title ?? ''}`)
+    .map((item) => `${item.course?.code ?? item.code ?? ''} ${item.course?.title ?? item.label ?? item.description ?? item.title ?? ''}`)
     .join(' ')
   return `${section.name ?? ''} ${section.title ?? ''} ${section.description ?? ''} ${courseText}`.toLowerCase()
 }
@@ -1132,6 +1281,50 @@ const visibleSections = computed(() => {
   return sections.value.filter((section) => sectionSearchText(section).includes(q))
 })
 
+function sectionSpecId(section: { specialization?: number | { id?: number } | null; specializationId?: number | null }) {
+  const spec = section.specialization ?? section.specializationId ?? null
+  if (spec && typeof spec === 'object') return spec.id ?? null
+  return spec
+}
+
+function sectionFlatIndex(section: { id: number }) {
+  return sections.value.findIndex((item) => item.id === section.id)
+}
+
+const sectionGroups = computed(() => {
+  const core: typeof visibleSections.value = []
+  const bySpec = new Map<number, typeof visibleSections.value>()
+  for (const section of visibleSections.value) {
+    const id = sectionSpecId(section)
+    if (id == null) core.push(section)
+    else {
+      const list = bySpec.get(Number(id)) ?? []
+      list.push(section)
+      bySpec.set(Number(id), list)
+    }
+  }
+  const groups: Array<{
+    key: string
+    label: string
+    specializationId: number | null
+    sections: typeof visibleSections.value
+  }> = []
+  // Always show Core so there is a place to add shared sections.
+  groups.push({ key: 'core', label: 'Core', specializationId: null, sections: core })
+  for (const spec of specializations.value) {
+    const list = bySpec.get(spec.id) ?? []
+    // Hide empty concentration groups while filtering, unless nothing matched at all.
+    if (editorFilterActive.value && !list.length) continue
+    groups.push({
+      key: String(spec.id),
+      label: spec.name ?? spec.title ?? 'Concentration',
+      specializationId: spec.id,
+      sections: list,
+    })
+  }
+  return groups
+})
+
 function visibleSectionItems(section: { name?: string; title?: string; items?: any[] }) {
   const items = sectionItems(section)
   const q = editorQuery.value.trim().toLowerCase()
@@ -1139,7 +1332,7 @@ function visibleSectionItems(section: { name?: string; title?: string; items?: a
   const sectionName = `${section.name ?? ''} ${section.title ?? ''}`.toLowerCase()
   if (sectionName.includes(q)) return items
   return items.filter((item) => {
-    const text = `${item.course?.code ?? item.code ?? ''} ${item.course?.title ?? item.label ?? item.title ?? ''}`.toLowerCase()
+    const text = `${item.course?.code ?? item.code ?? ''} ${item.course?.title ?? item.label ?? item.description ?? item.title ?? ''}`.toLowerCase()
     return text.includes(q)
   })
 }
@@ -1264,20 +1457,34 @@ async function saveSpecialization() {
   if (selectedDegreeId.value == null) return
   specializationSavePending.value = true
   try {
+    const name = specializationForm.value.name.trim()
     if (editingSpecialization.value) {
       await $fetch(`/api/specializations/${editingSpecialization.value.id}`, {
         method: 'PATCH',
-        body: { name: specializationForm.value.name.trim(), order: specializationForm.value.order },
+        body: { name, order: specializationForm.value.order },
       })
     } else {
-      await $fetch('/api/specializations', {
+      const created = await $fetch<{ id?: number }>('/api/specializations', {
         method: 'POST',
         body: {
           degree: selectedDegreeId.value,
-          name: specializationForm.value.name.trim(),
+          name,
           order: specializationForm.value.order,
         },
       })
+      const specializationId = Number(created?.id)
+      if (Number.isFinite(specializationId)) {
+        // Create a starting section under this concentration so courses can be added immediately.
+        await $fetch('/api/degree-sections/create', {
+          method: 'POST',
+          body: {
+            degree: selectedDegreeId.value,
+            name,
+            order: sections.value.length,
+            specialization: specializationId,
+          },
+        })
+      }
     }
     specializationModalOpen.value = false
     await loadBundleById(selectedDegreeId.value)
@@ -1288,13 +1495,103 @@ async function saveSpecialization() {
   }
 }
 
-async function deleteSpecialization(id: number) {
-  if (!confirm('Delete this specialization?')) return
+const deleteConfirmOpen = ref(false)
+const deleteConfirmPending = ref(false)
+const deleteConfirmError = ref<string | null>(null)
+const deleteConfirmTitle = ref('Delete')
+const deleteConfirmMessage = ref('')
+const pendingDelete = ref<
+  | { kind: 'item'; id: number; label: string }
+  | { kind: 'section'; id: number; label: string }
+  | { kind: 'specialization'; id: number; label: string }
+  | null
+>(null)
+
+function openDeleteConfirm(
+  target: NonNullable<typeof pendingDelete.value>,
+  title: string,
+  message: string,
+) {
+  pendingDelete.value = target
+  deleteConfirmTitle.value = title
+  deleteConfirmMessage.value = message
+  deleteConfirmError.value = null
+  deleteConfirmOpen.value = true
+}
+
+function requestDeleteSectionItem(item: {
+  id: number
+  course?: { code?: string; title?: string }
+  code?: string
+  label?: string
+  description?: string | null
+  title?: string
+}) {
+  const label =
+    item.course?.code ||
+    item.code ||
+    item.course?.title ||
+    item.label ||
+    item.description ||
+    item.title ||
+    `course #${item.id}`
+  openDeleteConfirm(
+    { kind: 'item', id: Number(item.id), label: String(label) },
+    'Remove course',
+    `Remove “${label}” from this section?`,
+  )
+}
+
+function requestDeleteSection(section: { id: number; name?: string; title?: string }) {
+  const label = section.name ?? section.title ?? `section #${section.id}`
+  openDeleteConfirm(
+    { kind: 'section', id: Number(section.id), label: String(label) },
+    'Delete section',
+    `Delete “${label}” and its courses?`,
+  )
+}
+
+function requestDeleteSpecialization(spec: { id: number; name?: string; title?: string }) {
+  const label = spec.name ?? spec.title ?? `concentration #${spec.id}`
+  openDeleteConfirm(
+    { kind: 'specialization', id: Number(spec.id), label: String(label) },
+    'Delete concentration',
+    `Delete concentration “${label}”? Sections linked to it will remain until you reassign or delete them.`,
+  )
+}
+
+async function runConfirmedDelete() {
+  const target = pendingDelete.value
+  if (!target) return
+  deleteConfirmPending.value = true
+  deleteConfirmError.value = null
   try {
-    await $fetch(`/api/specializations/${id}`, { method: 'DELETE' })
+    if (target.kind === 'item') {
+      await $fetch(`/api/degree-section-items/${target.id}`, { method: 'DELETE' })
+      if (bundle.value?.sections) {
+        for (const section of bundle.value.sections) {
+          if (!Array.isArray(section.items)) continue
+          section.items = section.items.filter((item: { id?: number }) => Number(item.id) !== target.id)
+        }
+      }
+    } else if (target.kind === 'section') {
+      await $fetch(`/api/degree-sections/${target.id}`, { method: 'DELETE' })
+    } else {
+      await $fetch(`/api/specializations/${target.id}`, { method: 'DELETE' })
+    }
+    deleteConfirmOpen.value = false
+    pendingDelete.value = null
     if (selectedDegreeId.value != null) await loadBundleById(selectedDegreeId.value)
   } catch (err: any) {
-    console.error('Delete specialization failed', err)
+    console.error('Delete failed', err)
+    deleteConfirmError.value =
+      err?.data?.message ??
+      err?.data?.error ??
+      err?.statusMessage ??
+      err?.message ??
+      'Delete failed.'
+  } finally {
+    deleteConfirmPending.value = false
   }
 }
 
@@ -1305,9 +1602,15 @@ const sectionForm = ref({ name: '', description: '', creditsRequired: null as nu
 const sectionSavePending = ref(false)
 const sectionError = ref<string | null>(null)
 
-function openAddSectionModal() {
+function openAddSectionModal(specializationId: number | null = null) {
   editingSection.value = null
-  sectionForm.value = { name: '', description: '', creditsRequired: null, order: sections.value.length, specializationId: null }
+  sectionForm.value = {
+    name: '',
+    description: '',
+    creditsRequired: null,
+    order: sections.value.length,
+    specializationId,
+  }
   sectionError.value = null
   sectionModalOpen.value = true
 }
@@ -1368,36 +1671,23 @@ async function saveSection() {
   }
 }
 
-async function deleteSection(id: number) {
-  if (!confirm('Delete this section and its courses?')) return
-  try {
-    await $fetch(`/api/degree-sections/${id}`, { method: 'DELETE' })
-    if (selectedDegreeId.value != null) await loadBundleById(selectedDegreeId.value)
-  } catch (err: any) {
-    console.error('Delete section failed', err)
-  }
-}
-
 // Section items (courses)
 const coursesList = ref<CourseOption[]>([])
 const coursesListPending = ref(false)
 const coursesListError = ref<string | null>(null)
-const courseSearch = ref('')
 
-const filteredCourses = computed(() => {
-  const list = [...coursesList.value].sort((a, b) =>
-    String(a.code ?? '').localeCompare(String(b.code ?? ''), undefined, { sensitivity: 'base', numeric: true })
-  )
-  const q = courseSearch.value.trim().toLowerCase()
-  if (!q) return list
-  return list.filter((course) => `${course.code ?? ''} ${course.title ?? ''}`.toLowerCase().includes(q))
-})
-
-const courseSelectPlaceholder = computed(() => {
-  if (!courseSearch.value.trim()) return 'Select course'
-  if (!filteredCourses.value.length) return 'No matching courses'
-  return `${filteredCourses.value.length} matching course${filteredCourses.value.length === 1 ? '' : 's'}`
-})
+const courseMenuItems = computed(() =>
+  [...coursesList.value]
+    .sort((a, b) =>
+      String(a.code ?? '').localeCompare(String(b.code ?? ''), undefined, { sensitivity: 'base', numeric: true })
+    )
+    .map((course) => ({
+      value: course.id,
+      label: `${course.code} – ${course.title}${course.credits != null ? ` (${course.credits} cr)` : ''}`,
+      code: course.code,
+      title: course.title,
+    }))
+)
 const newCoursePending = ref(false)
 const newCourseForm = ref<{ code: string; title: string; credits: string }>({
   code: '',
@@ -1406,10 +1696,31 @@ const newCourseForm = ref<{ code: string; title: string; credits: string }>({
 })
 const itemModalOpen = ref(false)
 const itemSection = ref<{ id: number } | null>(null)
+const itemKind = ref<'catalog' | 'custom'>('catalog')
 const editingItem = ref<{ id: number; course?: { id: number }; order?: number } | null>(null)
-const itemForm = ref<{ courseId: number | null; order: number }>({ courseId: null, order: 0 })
+const itemForm = ref<{ courseId: number | null; order: number; label: string; credits: string }>({
+  courseId: null,
+  order: 0,
+  label: '',
+  credits: '',
+})
 const itemSavePending = ref(false)
 const itemError = ref<string | null>(null)
+
+function isCustomCourseItem(item: { type?: string; course?: { id?: number } | null; label?: string; description?: string | null }) {
+  return item.type === 'other_course' || (!item.course?.id && Boolean(item.label || item.description))
+}
+
+function emptyItemForm(order = 0) {
+  return { courseId: null as number | null, order, label: '', credits: '' }
+}
+
+function startCustomDescription(text?: string) {
+  itemKind.value = 'custom'
+  itemForm.value.courseId = null
+  const next = text?.trim()
+  if (next) itemForm.value.label = next
+}
 
 async function loadCoursesList() {
   coursesListPending.value = true
@@ -1479,41 +1790,109 @@ async function createCourseAndSelect() {
 function openAddItemModal(section: { id: number; items?: any[] }) {
   itemSection.value = section
   editingItem.value = null
+  itemKind.value = 'catalog'
   const items = sectionItems(section)
-  itemForm.value = { courseId: null, order: items.length }
-  courseSearch.value = ''
+  itemForm.value = emptyItemForm(items.length)
   newCourseForm.value = { code: '', title: '', credits: '' }
   itemError.value = null
   itemModalOpen.value = true
   loadCoursesList()
 }
 
-function openEditItemModal(section: { id: number }, item: { id: number; course?: { id: number }; order?: number }) {
+function openEditItemModal(
+  section: { id: number },
+  item: {
+    id: number
+    type?: string
+    label?: string
+    description?: string | null
+    credits?: number | null
+    order?: number
+    course?: { id: number }
+  }
+) {
   itemSection.value = section
   editingItem.value = item
+  itemKind.value = isCustomCourseItem(item) ? 'custom' : 'catalog'
   itemForm.value = {
     courseId: item.course?.id ?? null,
     order: item.order ?? 0,
+    label: String(item.label ?? item.description ?? ''),
+    credits: item.credits != null ? String(item.credits) : '',
   }
-  courseSearch.value = ''
   itemError.value = null
   itemModalOpen.value = true
   loadCoursesList()
 }
 
+function parseItemCredits(raw: unknown): number | null | undefined {
+  if (raw == null || raw === '') return null
+  const trimmed = String(raw).trim()
+  if (!trimmed) return null
+  const credits = Number(trimmed)
+  return Number.isFinite(credits) ? credits : undefined
+}
+
 async function saveSectionItem() {
   itemError.value = null
   if (!itemSection.value) return
-  if (!editingItem.value && (itemForm.value.courseId == null || itemForm.value.courseId === 0)) {
+
+  const custom = itemKind.value === 'custom'
+  const label = String(itemForm.value.label ?? '').trim()
+  const credits = custom ? parseItemCredits(itemForm.value.credits) : null
+  if (custom) {
+    if (!label) {
+      itemError.value = 'Enter a description.'
+      return
+    }
+    if (credits === undefined) {
+      itemError.value = 'Credits must be a number.'
+      return
+    }
+  } else if (itemForm.value.courseId == null || itemForm.value.courseId === 0) {
     itemError.value = 'Select a course.'
     return
   }
+
   itemSavePending.value = true
   try {
-    if (editingItem.value) {
+    if (custom) {
+      const body = {
+        type: 'other_course',
+        course: null,
+        label,
+        description: label,
+        credits,
+        order: itemForm.value.order,
+      }
+      if (editingItem.value) {
+        await $fetch(`/api/degree-section-items/${editingItem.value.id}`, {
+          method: 'PATCH',
+          body,
+        })
+      } else {
+        await $fetch('/api/degree-section-items/create', {
+          method: 'POST',
+          body: {
+            degree: selectedDegreeId.value,
+            section: itemSection.value.id,
+            ...body,
+          },
+        })
+      }
+    } else if (editingItem.value) {
+      const courseId = itemForm.value.courseId!
+      const course = coursesList.value.find((c) => c.id === courseId)
       await $fetch(`/api/degree-section-items/${editingItem.value.id}`, {
         method: 'PATCH',
-        body: { order: itemForm.value.order },
+        body: {
+          type: 'single',
+          course: courseId,
+          label: course?.title ?? '',
+          description: null,
+          credits: course?.credits ?? null,
+          order: itemForm.value.order,
+        },
       })
     } else {
       const courseId = itemForm.value.courseId!
@@ -1540,16 +1919,6 @@ async function saveSectionItem() {
   }
 }
 
-async function deleteSectionItem(id: number) {
-  if (!confirm('Remove this course from the section?')) return
-  try {
-    await $fetch(`/api/degree-section-items/${id}`, { method: 'DELETE' })
-    if (selectedDegreeId.value != null) await loadBundleById(selectedDegreeId.value)
-  } catch (err: any) {
-    console.error('Delete section item failed', err)
-  }
-}
-
 function onCloseDegreeEdit() {
   selectedDegreeId.value = null
   bundle.value = null
@@ -1557,18 +1926,48 @@ function onCloseDegreeEdit() {
   editorQuery.value = ''
 }
 
+const degreeEditorBody = ref<HTMLElement | null>(null)
+
+function editorScroller() {
+  const node = degreeEditorBody.value
+  if (!node) return null
+  return (node.closest('[data-slot="body"]') as HTMLElement | null) ?? node.parentElement
+}
+
+function restoreEditorScroll(scrollTop: number) {
+  const apply = () => {
+    const el = editorScroller()
+    if (el) el.scrollTop = scrollTop
+  }
+  nextTick(() => {
+    apply()
+    requestAnimationFrame(apply)
+    window.setTimeout(apply, 0)
+    window.setTimeout(apply, 50)
+    window.setTimeout(apply, 200)
+  })
+}
+
 function loadBundleById(id: number) {
   if (!id || !Number.isFinite(id)) return
+  const keepPlace =
+    degreeEditSlideoverOpen.value &&
+    selectedDegreeId.value === id &&
+    bundle.value != null
+  const scrollTop = keepPlace ? (editorScroller()?.scrollTop ?? 0) : 0
   selectedDegreeId.value = id
   bundleError.value = null
-  bundle.value = null
-  bundlePending.value = true
-  editorQuery.value = ''
-  degreeSaveError.value = null
+  if (!keepPlace) {
+    bundle.value = null
+    bundlePending.value = true
+    editorQuery.value = ''
+    degreeSaveError.value = null
+  }
   degreeEditSlideoverOpen.value = true
   $fetch<DegreeBundle>(`/api/degrees/${id}/bundle`)
     .then((data) => {
       bundle.value = data
+      if (keepPlace) restoreEditorScroll(scrollTop)
     })
     .catch((err: any) => {
       bundleError.value =

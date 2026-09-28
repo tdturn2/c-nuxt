@@ -1,32 +1,21 @@
-// DELETE degree-section-item. Auth: SSO. Forward to Payload DELETE /api/degree-section-items/:id.
-import { defineEventHandler, createError, getRouterParam } from 'h3'
-import { authenticateWithPayloadCMS } from '../../utils/payloadAuth'
+// DELETE degree-section-item. Auth: SSO email (connect-api requireDegreeBuilder).
+import { defineEventHandler, getRouterParam, createError } from 'h3'
+import { degreeBuilderError, withDegreeBuilderAuth } from '../../utils/degreeBuilderProxy'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'ID is required' })
 
-  const { token, email } = await authenticateWithPayloadCMS(event)
-  if (!email) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
-  const config = useRuntimeConfig()
-  const payloadBaseUrl = config.public.connectApi || 'http://localhost:3003'
-  const headers: Record<string, string> = {}
-  if (token) headers['Authorization'] = `Bearer ${token}`
+  const { email, connectApiUrl, headers } = await withDegreeBuilderAuth(event)
 
   try {
-    return await $fetch<any>(`${payloadBaseUrl}/api/degree-section-items/${id}`, {
+    return await $fetch(`${connectApiUrl}/api/degree-section-items/${encodeURIComponent(id)}`, {
       method: 'DELETE',
       headers,
+      body: { email },
       query: { email },
     })
   } catch (err: any) {
-    console.error('Degree-section-items DELETE error:', err)
-    if (err.statusCode) throw err
-    throw createError({
-      statusCode: err.statusCode || 500,
-      statusMessage: err.statusMessage || 'Failed to delete degree section item',
-      data: err.data,
-    })
+    degreeBuilderError(err, 'Failed to delete degree section item')
   }
 })

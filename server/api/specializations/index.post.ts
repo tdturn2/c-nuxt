@@ -1,34 +1,18 @@
-// POST create specialization. Auth: SSO. Forward to Payload POST /api/specializations/create.
-import { defineEventHandler, readBody, createError } from 'h3'
-import { authenticateWithPayloadCMS, getPayloadProxyHeaders } from '../../utils/payloadAuth'
+// POST create specialization. Auth: SSO email (connect-api requireDegreeBuilder).
+import { defineEventHandler, readBody } from 'h3'
+import { degreeBuilderError, withDegreeBuilderAuth } from '../../utils/degreeBuilderProxy'
 
 export default defineEventHandler(async (event) => {
-  const auth = await authenticateWithPayloadCMS(event)
-  const { email } = auth
-  if (!email) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
-  const config = useRuntimeConfig()
-  const payloadBaseUrl =
-    (config.connectApi || config.public.connectApi || '').trim() ||
-    (import.meta.dev ? 'http://localhost:3003' : '')
-  if (!payloadBaseUrl) throw createError({ statusCode: 500, statusMessage: 'Missing Payload base URL' })
-
-  const body = await readBody(event).catch(() => ({})) as Record<string, unknown>
-  const headers = getPayloadProxyHeaders(event, auth)
+  const { email, connectApiUrl, headers } = await withDegreeBuilderAuth(event)
+  const body = (await readBody(event).catch(() => ({}))) as Record<string, unknown>
 
   try {
-    return await $fetch<any>(`${payloadBaseUrl}/api/specializations/create`, {
+    return await $fetch(`${connectApiUrl}/api/specializations/create`, {
       method: 'POST',
       headers,
       body: { ...body, email },
     })
   } catch (err: any) {
-    console.error('Specializations create error:', err)
-    if (err.statusCode) throw err
-    throw createError({
-      statusCode: err.statusCode || 500,
-      statusMessage: err.statusMessage || 'Failed to create specialization',
-      data: err.data,
-    })
+    degreeBuilderError(err, 'Failed to create specialization')
   }
 })

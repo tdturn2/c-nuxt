@@ -1,32 +1,18 @@
-// POST create degree-section-item via Payload custom endpoint. Auth: SSO; email in body.
-import { defineEventHandler, readBody, createError } from 'h3'
-import { authenticateWithPayloadCMS } from '../../utils/payloadAuth'
+// POST create degree-section-item. Auth: SSO email (connect-api requireDegreeBuilder).
+import { defineEventHandler, readBody } from 'h3'
+import { degreeBuilderError, withDegreeBuilderAuth } from '../../utils/degreeBuilderProxy'
 
 export default defineEventHandler(async (event) => {
-  const { token, email } = await authenticateWithPayloadCMS(event)
-  if (!email) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
-  const config = useRuntimeConfig()
-  const payloadBaseUrl = config.public.connectApi || 'http://localhost:3003'
-  const body = await readBody(event).catch(() => ({})) as Record<string, unknown>
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (token) headers['Authorization'] = `Bearer ${token}`
-
-  const payloadBody = { ...body, email }
+  const { email, connectApiUrl, headers } = await withDegreeBuilderAuth(event)
+  const body = (await readBody(event).catch(() => ({}))) as Record<string, unknown>
 
   try {
-    return await $fetch<any>(`${payloadBaseUrl}/api/degree-section-items/create`, {
+    return await $fetch(`${connectApiUrl}/api/degree-section-items/create`, {
       method: 'POST',
       headers,
-      body: payloadBody,
+      body: { ...body, email },
     })
   } catch (err: any) {
-    console.error('Degree-section-items create error:', err)
-    if (err.statusCode) throw err
-    throw createError({
-      statusCode: err.statusCode || 500,
-      statusMessage: err.statusMessage || 'Failed to create degree section item',
-      data: err.data,
-    })
+    degreeBuilderError(err, 'Failed to create degree section item')
   }
 })

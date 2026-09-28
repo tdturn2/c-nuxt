@@ -1,34 +1,21 @@
-// PATCH degree. Auth: SSO. Forward to Payload PATCH /api/degrees/:id.
-import { defineEventHandler, readBody, createError, getRouterParam } from 'h3'
-import { authenticateWithPayloadCMS } from '../../utils/payloadAuth'
+// PATCH degree. Auth: SSO email (connect-api requireDegreeBuilder).
+import { defineEventHandler, readBody, getRouterParam, createError } from 'h3'
+import { degreeBuilderError, withDegreeBuilderAuth } from '../../utils/degreeBuilderProxy'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'Degree ID is required' })
 
-  const { token, email } = await authenticateWithPayloadCMS(event)
-  if (!email) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
-  const config = useRuntimeConfig()
-  const payloadBaseUrl = config.public.connectApi || 'http://localhost:3003'
-  const body = await readBody(event).catch(() => ({}))
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (token) headers['Authorization'] = `Bearer ${token}`
+  const { email, connectApiUrl, headers } = await withDegreeBuilderAuth(event)
+  const body = (await readBody(event).catch(() => ({}))) as Record<string, unknown>
 
   try {
-    const result = await $fetch<any>(`${payloadBaseUrl}/api/degrees/${id}`, {
+    return await $fetch(`${connectApiUrl}/api/degrees/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       headers,
-      body,
+      body: { ...body, email },
     })
-    return result
   } catch (err: any) {
-    console.error('Degrees PATCH error:', err)
-    if (err.statusCode) throw err
-    throw createError({
-      statusCode: err.statusCode || 500,
-      statusMessage: err.statusMessage || 'Failed to update degree',
-      data: err.data,
-    })
+    degreeBuilderError(err, 'Failed to update degree')
   }
 })
