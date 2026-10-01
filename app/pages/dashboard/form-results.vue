@@ -63,6 +63,7 @@
                 <tr>
                   <th class="px-4 py-2 text-left font-medium text-gray-700">Submitted</th>
                   <th class="px-4 py-2 text-left font-medium text-gray-700">Form</th>
+                  <th class="px-4 py-2 text-left font-medium text-gray-700">Submitted by</th>
                   <th class="px-4 py-2 text-left font-medium text-gray-700">Submission ID</th>
                   <th class="px-4 py-2 text-left font-medium text-gray-700">Answers</th>
                 </tr>
@@ -71,6 +72,7 @@
                 <tr v-for="row in submissionRows" :key="row.id">
                   <td class="px-4 py-2 text-gray-700">{{ row.createdAtDisplay }}</td>
                   <td class="px-4 py-2 text-gray-700">{{ row.formSlug || '—' }}</td>
+                  <td class="px-4 py-2 text-gray-700">{{ row.email || '—' }}</td>
                   <td class="px-4 py-2 text-gray-700">{{ row.id }}</td>
                   <td class="px-4 py-2 text-gray-700">
                     <pre class="max-w-[48rem] whitespace-pre-wrap break-words text-[11px] leading-snug">{{ row.answersPreview }}</pre>
@@ -161,7 +163,8 @@ const submissionRows = computed(() => {
     const createdAt = typeof doc?.createdAt === 'string' ? new Date(doc.createdAt) : null
     return {
       id: String(doc?.id ?? ''),
-      formSlug: String(doc?.formSlug ?? '').trim(),
+      formSlug: String(doc?.formSlug ?? doc?.form?.slug ?? '').trim(),
+      email: String(doc?.email ?? '').trim(),
       createdAtDisplay: createdAt && !Number.isNaN(createdAt.getTime())
         ? createdAt.toLocaleString()
         : '—',

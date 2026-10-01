@@ -1,4 +1,5 @@
 import { createError, defineEventHandler } from 'h3'
+import { isClosedHours } from '@shared/campusHours'
 import { resolveConnectApiUrl } from '../../utils/connectApi'
 
 type DailyEucharistEntry = {
@@ -36,6 +37,24 @@ function absoluteUrl(baseUrl: string, raw?: string | null): string | null {
   return `${baseUrl}${raw.startsWith('/') ? raw : `/${raw}`}`
 }
 
+type CampusHoursDay = {
+  date?: string
+  closedAll?: boolean
+  cells?: Record<string, string>
+}
+
+/** Standing Eucharist times from campus hours, skipping blank and closed days. */
+function campusHoursEucharist(days: CampusHoursDay[] | undefined) {
+  if (!Array.isArray(days)) return []
+  return days.flatMap((day) => {
+    const date = typeof day?.date === 'string' ? day.date.slice(0, 10) : ''
+    if (!date || day.closedAll) return []
+    const hours = typeof day.cells?.eucharist === 'string' ? day.cells.eucharist.trim() : ''
+    if (!hours || isClosedHours(hours)) return []
+    return [{ date, hours }]
+  })
+}
+
 export default defineEventHandler(async () => {
   const config = useRuntimeConfig()
   const payloadBaseUrl = resolveConnectApiUrl(config).replace(/\/+$/, '')
@@ -66,12 +85,15 @@ export default defineEventHandler(async () => {
   entriesParams.set('where[date][less_than_equal]', toYmdUtc(weekEndInclusive))
 
   try {
-    const entriesRes = await $fetch<any>(`${payloadBaseUrl}/api/connect-daily-eucharist-entries?${entriesParams.toString()}`, {
-      headers,
-    })
-    const settingsRes = await $fetch<any>(`${payloadBaseUrl}/api/connect-settings?${settingsParams.toString()}`, {
-      headers,
-    }).catch(() => null)
+    const [entriesRes, settingsRes, hoursRes] = await Promise.all([
+      $fetch<any>(`${payloadBaseUrl}/api/connect-daily-eucharist-entries?${entriesParams.toString()}`, {
+        headers,
+      }),
+      $fetch<any>(`${payloadBaseUrl}/api/connect-settings?${settingsParams.toString()}`, {
+        headers,
+      }).catch(() => null),
+      $fetch<{ days?: CampusHoursDay[] }>(`${payloadBaseUrl}/api/campus-hours/week`).catch(() => null),
+    ])
 
     const settingsDoc = Array.isArray(settingsRes?.docs) ? settingsRes.docs[0] || null : null
     const enabledThisWeek = settingsDoc?.dailyEucharist?.enabledThisWeek === true
@@ -95,11 +117,14 @@ export default defineEventHandler(async () => {
       speakerPhotoUrl: absoluteUrl(payloadBaseUrl, entry.speakerPhoto?.url),
     }))
 
+    const campusHours = entries.length ? [] : campusHoursEucharist(hoursRes?.days)
+
     return {
       enabledThisWeek,
       summary,
       weekStart: toYmdUtc(weekStart),
       entries,
+      campusHours,
     }
   } catch (error: any) {
     throw createError({

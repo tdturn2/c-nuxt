@@ -148,6 +148,13 @@ const sections: Array<{
     section: 'forms',
   },
   {
+    title: 'Form Results',
+    description: 'Review incoming form submissions and exported responses.',
+    to: '/dashboard/form-results',
+    icon: 'i-lucide-clipboard-list',
+    section: 'form-results',
+  },
+  {
     title: 'Home Slider',
     description: 'Manage homepage slider images, links, and display order.',
     to: '/dashboard/home-slider',
@@ -209,13 +216,6 @@ const sections: Array<{
     to: '/dashboard/featured-publications',
     icon: 'i-lucide-star',
     section: 'featured-publications',
-  },
-  {
-    title: 'Form Results',
-    description: 'Review incoming form submissions and exported responses.',
-    to: '/dashboard/form-results',
-    icon: 'i-lucide-clipboard-list',
-    section: 'form-results',
   },
 ]
 

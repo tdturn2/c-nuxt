@@ -265,6 +265,8 @@ const { mePending, canAccessSection } = useDashboardAccess()
 const canManageDashboard = computed(() => canAccessSection('users'))
 const config = useRuntimeConfig()
 
+const roleOptions = ['admin', 'faculty', 'staff', 'student', 'alumni'] as const
+
 const users = ref<UserItem[]>([])
 const groups = ref<GroupItem[]>([])
 const avatarAssets = ref<AvatarAsset[]>([])

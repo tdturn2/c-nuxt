@@ -12,22 +12,32 @@
         </p>
       </header>
 
-      <section v-if="weeklySpeaker" class="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
-          <img
-            v-if="speakerImageUrl(weeklySpeaker)"
-            :src="speakerImageUrl(weeklySpeaker)"
-            :alt="speakerDisplayName(weeklySpeaker) || 'Chapel speaker'"
-            class="h-28 w-28 rounded-lg object-cover border border-gray-200"
+      <section v-if="weeklySpeakers.length" class="mb-6">
+        <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-[rgba(13,94,130,1)]">This Week's Speakers</p>
+        <ul class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <li
+            v-for="entry in weeklySpeakers"
+            :key="String(entry.id)"
+            class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
           >
-          <div class="min-w-0 flex-1">
-            <p class="text-xs font-semibold uppercase tracking-wide text-[rgba(13,94,130,1)]">This Week's Speaker</p>
-            <h2 class="mt-1 text-lg font-semibold text-gray-900">{{ speakerDisplayName(weeklySpeaker) || 'Chapel Speaker' }}</h2>
-            <p v-if="speakerDisplayTitle(weeklySpeaker)" class="mt-2 text-sm text-gray-700 whitespace-pre-line">
-              {{ speakerDisplayTitle(weeklySpeaker) }}
-            </p>
-          </div>
-        </div>
+            <div class="flex gap-4">
+              <img
+                v-if="speakerImageUrl(entry.speaker)"
+                :src="speakerImageUrl(entry.speaker)"
+                :alt="speakerDisplayName(entry.speaker) || 'Chapel speaker'"
+                class="h-20 w-20 shrink-0 rounded-lg object-cover border border-gray-200"
+              >
+              <div class="min-w-0">
+                <p class="text-xs font-medium text-gray-500">{{ weekdayDateLabel(entry.date) }}</p>
+                <h2 class="mt-1 text-lg font-semibold text-gray-900">{{ speakerDisplayName(entry.speaker) || 'Chapel Speaker' }}</h2>
+                <p v-if="entry.title" class="mt-1 text-sm font-medium text-[rgba(13,94,130,1)]">{{ entry.title }}</p>
+                <p v-if="speakerDisplayTitle(entry.speaker)" class="mt-2 text-sm text-gray-700 whitespace-pre-line">
+                  {{ speakerDisplayTitle(entry.speaker) }}
+                </p>
+              </div>
+            </div>
+          </li>
+        </ul>
       </section>
 
       <!-- Search -->
@@ -275,10 +285,15 @@ interface WeeklySpeaker {
     avatar?: { url?: string } | string | null
   } | string | number | null
 }
+interface CurrentWeekEntry {
+  id: number | string
+  date: string
+  title?: string
+  speaker?: WeeklySpeaker | null
+}
+
 interface CurrentWeekResponse {
-  entries?: Array<{
-    speaker?: WeeklySpeaker | null
-  }>
+  entries?: CurrentWeekEntry[]
 }
 
 type SpeakerOption = { id: number; name: string; label: string }
@@ -420,14 +435,17 @@ const episodeCards = computed(() =>
   })),
 )
 const totalPages = computed(() => data.value?.totalPages ?? 1)
-const weeklySpeaker = computed(() => {
+const weeklySpeakers = computed(() => {
   const entries = weeklySpeakerData.value?.entries
-  if (!Array.isArray(entries) || entries.length === 0) return null
-  for (const entry of entries) {
-    if (entry?.speaker?.id && entry.speaker.name) return entry.speaker
-  }
-  return null
+  if (!Array.isArray(entries)) return []
+  return entries.filter((entry) => speakerDisplayName(entry.speaker))
 })
+
+function weekdayDateLabel(dateStr: string): string {
+  const d = new Date(`${dateStr}T12:00:00Z`)
+  if (Number.isNaN(d.getTime())) return dateStr
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' })
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

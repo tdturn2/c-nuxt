@@ -9,9 +9,18 @@
             <h1 class="text-2xl font-bold text-gray-900">Forms Builder</h1>
             <p class="mt-1 text-sm text-gray-600">Create and manage Connect form definitions.</p>
           </div>
-          <NuxtLink to="/dashboard/forms/new" class="rounded-md bg-[rgba(13,94,130,1)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgba(10,69,92,1)]">
-            New form
-          </NuxtLink>
+          <div class="flex shrink-0 items-center gap-2">
+            <NuxtLink
+              v-if="canAccessSection('form-results')"
+              to="/dashboard/form-results"
+              class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
+            >
+              Form results
+            </NuxtLink>
+            <NuxtLink to="/dashboard/forms/new" class="rounded-md bg-[rgba(13,94,130,1)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgba(10,69,92,1)]">
+              New form
+            </NuxtLink>
+          </div>
         </div>
 
         <div v-if="mePending" class="py-8 text-gray-500">Checking access...</div>

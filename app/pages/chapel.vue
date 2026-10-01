@@ -68,7 +68,7 @@
           </div>
           <template v-else>
             <p class="mt-3 text-sm font-medium text-gray-900">
-              {{ dailyEnabledThisWeek ? 'Eucharist is scheduled this week.' : 'No Eucharist this week.' }}
+              {{ dailyStatusLabel }}
             </p>
             <p v-if="dailySummary" class="mt-1 text-sm text-gray-700">{{ dailySummary }}</p>
             <ul v-if="dailyEnabledThisWeek && dailyEntries.length" class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -80,6 +80,16 @@
                 <p class="text-xs uppercase tracking-wide text-[rgba(13,94,130,1)]">{{ weekdayDateLabel(entry.date) }}</p>
                 <p class="mt-1 text-sm font-semibold text-gray-900">{{ entry.speakerName || 'TBD' }}</p>
                 <p class="mt-0.5 text-sm text-gray-600">{{ entry.location || 'Location TBD' }}</p>
+              </li>
+            </ul>
+            <ul v-else-if="!dailyEntries.length && campusHours.length" class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+              <li
+                v-for="day in campusHours"
+                :key="day.date"
+                class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"
+              >
+                <p class="text-xs uppercase tracking-wide text-[rgba(13,94,130,1)]">{{ weekdayDateLabel(day.date) }}</p>
+                <p class="mt-1 text-sm font-semibold text-gray-900">{{ day.hours }}</p>
               </li>
             </ul>
           </template>
@@ -121,10 +131,16 @@ type DailyEucharistEntry = {
   speakerName: string
 }
 
+type CampusHoursEucharist = {
+  date: string
+  hours: string
+}
+
 type DailyEucharistResponse = {
   enabledThisWeek?: boolean
   summary?: string
   entries?: DailyEucharistEntry[]
+  campusHours?: CampusHoursEucharist[]
 }
 
 const config = useRuntimeConfig()
@@ -142,6 +158,12 @@ const weekEntries = computed(() => (Array.isArray(data.value?.entries) ? data.va
 const dailyEnabledThisWeek = computed(() => dailyData.value?.enabledThisWeek === true)
 const dailySummary = computed(() => (typeof dailyData.value?.summary === 'string' ? dailyData.value.summary.trim() : ''))
 const dailyEntries = computed(() => (Array.isArray(dailyData.value?.entries) ? dailyData.value.entries : []))
+const campusHours = computed(() => (Array.isArray(dailyData.value?.campusHours) ? dailyData.value.campusHours : []))
+const dailyStatusLabel = computed(() => {
+  if (dailyEnabledThisWeek.value && dailyEntries.value.length) return 'Eucharist is scheduled this week.'
+  if (!dailyEntries.value.length && campusHours.value.length) return 'Eucharist is scheduled this week.'
+  return 'No Eucharist this week.'
+})
 
 function speakerPhotoUrl(speaker?: WeekSpeaker | null): string {
   const image = chapelSpeakerPhoto(speaker)

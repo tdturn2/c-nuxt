@@ -63,16 +63,19 @@ export default defineEventHandler(async (event) => {
     if (notification?.enabled && notification.to) {
       const formTitle = String(formDoc?.title || formSlug)
       const textBody = buildPlainTextSummary(formTitle, email, answers)
-      await sendFormEntryNotification({
+      const sent = await sendFormEntryNotification({
         formTitle,
         formSlug,
         notification,
         textBody,
         htmlBody: buildHtmlSummary(formTitle, email, answers),
         meta: { submitter: email, submissionId: res?.id ?? res?.doc?.id },
-      }).catch((err) => {
-        console.warn('[form-submit] notification send skipped/failed', err?.statusMessage || err?.message || err)
       })
+      if (!sent.sent) {
+        console.warn('[form-submit] notification not sent', sent.reason, formSlug)
+      }
+    } else if (notification?.enabled) {
+      console.warn('[form-submit] notification enabled but has no recipients', formSlug)
     }
   } catch (err: any) {
     console.warn('[form-submit] notification prep failed', err?.message || err)
