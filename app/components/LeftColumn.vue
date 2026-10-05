@@ -99,8 +99,8 @@ const mainNavItems = computed<NavigationMenuItem[]>(() => [
     to: '/chapel',
     children: [
       {
-        label: 'Daily Eucharist',
-        to: '/chapel/daily-eucharist',
+        label: 'Chapel Calendar',
+        to: '/chapel/calendar',
       },
       {
         label: 'Chapel Media Archive',

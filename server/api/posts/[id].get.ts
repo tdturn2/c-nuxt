@@ -1,3 +1,4 @@
+import { toBrowserMediaUrl } from '../../utils/connectApi'
 import { extractFirstPreviewUrlFromLexical, fetchAndCacheLinkPreview } from '../../utils/linkPreview'
 
 export default defineEventHandler(async (event) => {
@@ -35,10 +36,7 @@ export default defineEventHandler(async (event) => {
       }
     })
 
-    const toAbsoluteUrl = (url: string) => {
-      if (!url || url.startsWith('http://') || url.startsWith('https://')) return url
-      return url.startsWith('/') ? `${payloadBaseUrl}${url}` : `${payloadBaseUrl}/${url}`
-    }
+    const toBrowserUrl = (url: string) => toBrowserMediaUrl(url) || url
 
     // Backward compatibility: prefer legacy avatar, fallback to new avatarConnectUserMedia.
     if (!response?.author?.avatar?.url && response?.author?.avatarConnectUserMedia?.url) {
@@ -46,7 +44,7 @@ export default defineEventHandler(async (event) => {
     }
 
     if (response?.author?.avatar?.url) {
-      response.author.avatar.url = toAbsoluteUrl(response.author.avatar.url)
+      response.author.avatar.url = toBrowserUrl(response.author.avatar.url)
     }
 
     // Backward compatibility: if legacy images are empty/missing, fallback to new imagesConnectUserMedia.
@@ -60,7 +58,7 @@ export default defineEventHandler(async (event) => {
     if (response?.images && Array.isArray(response.images)) {
       response.images = response.images.map((img: any) => {
         if (img?.image?.url) {
-          img.image.url = toAbsoluteUrl(img.image.url)
+          img.image.url = toBrowserUrl(img.image.url)
         }
         return img
       })

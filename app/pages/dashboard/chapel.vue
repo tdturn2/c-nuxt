@@ -6,7 +6,10 @@
         <div class="mb-6 flex items-start justify-between gap-4">
           <div>
             <h1 class="text-2xl font-bold text-gray-900">Chapel</h1>
-            <p class="mt-1 text-sm text-gray-600">Latest episodes first. Add or edit from one modal.</p>
+            <p class="mt-1 text-sm text-gray-600">
+              Latest episodes first. Add or edit from one modal.
+              <NuxtLink to="/dashboard/chapel-calendar" class="font-medium text-[rgba(13,94,130,1)] hover:underline">Calendar themes</NuxtLink>
+            </p>
           </div>
           <button
             v-if="canManageDashboard"

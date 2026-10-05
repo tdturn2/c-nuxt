@@ -59,7 +59,7 @@
                   <div class="w-30 h-30 rounded-full bg-gray-200 flex-shrink-0 overflow-hidden flex items-center justify-center mb-3">
                     <img
                       v-if="s.avatar?.url"
-                      :src="s.avatar.url"
+                      :src="mediaDisplayUrl(s.avatar.url, 256) || s.avatar.url"
                       :alt="s.name"
                       class="w-full h-full object-cover"
                     />
@@ -113,6 +113,7 @@
 
 <script setup lang="ts">
 import { sortDirectoryByLastName } from '@shared/directoryNameSort'
+import { mediaDisplayUrl } from '@shared/mediaUrls'
 type StudentRow = {
   id: number
   name: string

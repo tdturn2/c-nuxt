@@ -69,6 +69,7 @@ const allItems: NavItem[] = [
   { label: 'Daily Eucharist', to: '/dashboard/daily-eucharist', icon: 'i-lucide-calendar-heart', section: 'daily-eucharist' },
   { label: 'Campus Hours', to: '/dashboard/campus-hours', icon: 'i-lucide-clock', section: 'campus-hours' },
   { label: 'Chapel', to: '/dashboard/chapel', icon: 'i-lucide-mic-vocal', section: 'chapel' },
+  { label: 'Chapel Calendar', to: '/dashboard/chapel-calendar', icon: 'i-lucide-calendar-range', section: 'chapel' },
   { label: 'Chapel Speakers', to: '/dashboard/chapel-speakers', icon: 'i-lucide-user-round-pen', section: 'chapel-speakers' },
   { label: 'Toast Manager', to: '/dashboard/toasts', icon: 'i-lucide-bell-ring', section: 'toasts' },
   { label: 'Jobs Manager', to: '/dashboard/jobs', icon: 'i-lucide-briefcase', section: 'jobs' },

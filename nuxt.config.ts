@@ -154,13 +154,13 @@ export default defineNuxtConfig({
       '/api/connect-pages-media/file/**': {
         cors: true,
         headers: {
-          'Cache-Control': 'public, max-age=86400, s-maxage=2592000, stale-while-revalidate=86400',
+          'Cache-Control': 'public, max-age=604800, s-maxage=2592000, stale-while-revalidate=86400',
         },
       },
       '/api/connect-user-media/file/**': {
         cors: true,
         headers: {
-          'Cache-Control': 'public, max-age=86400, s-maxage=2592000, stale-while-revalidate=86400',
+          'Cache-Control': 'public, max-age=604800, s-maxage=2592000, stale-while-revalidate=86400',
         },
       },
       '/api/**': { cors: true, headers: { 'Access-Control-Allow-Methods': 'GET,HEAD,PUT,PATCH,POST,DELETE' } },

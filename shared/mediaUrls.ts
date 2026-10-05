@@ -23,3 +23,22 @@ export function toBrowserMediaUrl(urlRaw: unknown): string | null {
 
   return input
 }
+
+const RESIZABLE_MEDIA = /\/api\/(?:connect-user-media|connect-pages-media)\/file\//i
+
+/** Same-origin media URL plus a display width. The file route resizes and caches that variant. */
+export function mediaDisplayUrl(urlRaw: unknown, width?: number): string | null {
+  const rewritten = toBrowserMediaUrl(urlRaw)
+  const input = rewritten || (typeof urlRaw === 'string' ? urlRaw.trim() : '')
+  if (!input) return null
+  const w = Number(width)
+  if (!Number.isFinite(w) || w < 1 || !RESIZABLE_MEDIA.test(input)) return input
+  const hashAt = input.indexOf('#')
+  const hash = hashAt >= 0 ? input.slice(hashAt) : ''
+  const withoutHash = hashAt >= 0 ? input.slice(0, hashAt) : input
+  const queryAt = withoutHash.indexOf('?')
+  const path = queryAt >= 0 ? withoutHash.slice(0, queryAt) : withoutHash
+  const params = new URLSearchParams(queryAt >= 0 ? withoutHash.slice(queryAt + 1) : '')
+  params.set('w', String(Math.round(w)))
+  return `${path}?${params.toString()}${hash}`
+}

@@ -21,7 +21,7 @@ export const SITE_SEARCH_RESOURCE_LINKS: SiteSearchResourceLink[] = [
     icon: 'i-heroicons-building-library',
     description: 'Chapel schedule and media',
     children: [
-      { label: 'Daily Eucharist', to: '/chapel/daily-eucharist', icon: 'i-heroicons-calendar-days' },
+      { label: 'Chapel Calendar', to: '/chapel/calendar', icon: 'i-heroicons-calendar-days' },
       { label: 'Chapel Media Archive', to: '/media/chapel', icon: 'i-lucide-podcast' },
     ],
   },

@@ -72,7 +72,7 @@
                 <div class="w-30 h-30 rounded-full bg-gray-200 flex-shrink-0 overflow-hidden flex items-center justify-center mb-3">
                   <img
                     v-if="emp.avatar?.url"
-                    :src="emp.avatar.url"
+                    :src="mediaDisplayUrl(emp.avatar.url, 256) || emp.avatar.url"
                     :alt="emp.name"
                     class="w-full h-full object-cover"
                   />
@@ -105,6 +105,7 @@
 
 <script setup lang="ts">
 import { sortDirectoryByLastName } from '@shared/directoryNameSort'
+import { mediaDisplayUrl } from '@shared/mediaUrls'
 import { watchDebounced } from '@vueuse/core'
 
 type EmployeeRow = {

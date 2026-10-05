@@ -1,3 +1,4 @@
+import { toBrowserMediaUrl } from '../../utils/connectApi'
 import { extractFirstPreviewUrlFromLexical, fetchAndCacheLinkPreview } from '../../utils/linkPreview'
 import { verifyMobileAccessToken } from '../../utils/mobileAuth'
 
@@ -77,10 +78,7 @@ export default defineEventHandler(async (event) => {
       headers['Cookie'] = cookieHeader
     }
     
-    const toAbsoluteUrl = (url: string) => {
-      if (!url || url.startsWith('http://') || url.startsWith('https://')) return url
-      return url.startsWith('/') ? `${payloadBaseUrl}${url}` : `${payloadBaseUrl}/${url}`
-    }
+    const toBrowserUrl = (url: string) => toBrowserMediaUrl(url) || url
 
     // Fetch posts with populated author/image data (legacy + new connect-user-media fields)
     const response: any = await $fetch(payloadApiUrl, {
@@ -101,7 +99,7 @@ export default defineEventHandler(async (event) => {
         }
 
         if (post.author?.avatar?.url) {
-          post.author.avatar.url = toAbsoluteUrl(post.author.avatar.url)
+          post.author.avatar.url = toBrowserUrl(post.author.avatar.url)
         }
 
         // Backward compatibility: if legacy images are empty/missing, fallback to new imagesConnectUserMedia.
@@ -115,7 +113,7 @@ export default defineEventHandler(async (event) => {
         if (post.images && Array.isArray(post.images)) {
           post.images = post.images.map((img: any) => {
             if (img?.image?.url) {
-              img.image.url = toAbsoluteUrl(img.image.url)
+              img.image.url = toBrowserUrl(img.image.url)
             }
             return img
           })

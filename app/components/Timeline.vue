@@ -97,7 +97,7 @@
 import { hasFacultyHubAccess } from '@shared/facultyHubAccess'
 import { hasStaffHubAccess } from '@shared/staffHubAccess'
 import { normalizeConnectUserRoles } from '@shared/connectUserAccess'
-import { toBrowserMediaUrl } from '@shared/mediaUrls'
+import { mediaDisplayUrl, toBrowserMediaUrl } from '@shared/mediaUrls'
 import { authorIdFromPost, partitionTimelinePosts } from '~/utils/timelineFeed'
 
 interface Author {
@@ -224,7 +224,7 @@ function getImageUrl(image: any) {
       ? (image.url || image.file?.url || image._normalizedUrl || null)
       : null
   if (!raw) return '/estes-icon.png'
-  return toBrowserMediaUrl(raw) || String(raw)
+  return mediaDisplayUrl(raw, 1400) || toBrowserMediaUrl(raw) || String(raw)
 }
 
 function slideBoxStyle(item: HomeSlide) {

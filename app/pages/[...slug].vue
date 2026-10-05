@@ -45,7 +45,7 @@
               <UIcon name="i-lucide-pencil" class="h-4 w-4" />
             </button>
           </div>
-          <div v-if="htmlLayoutMarkup" v-html="htmlLayoutMarkup" />
+          <div v-if="htmlLayoutMarkup" data-html-layout @click="onContentClick" v-html="htmlLayoutMarkup" />
           <p v-else class="text-sm text-gray-500">This page has no custom HTML yet.</p>
         </article>
         <article v-else>
@@ -264,6 +264,35 @@
       @saved="onPageSaved"
       @deleted="onPageSaved"
     />
+
+    <UModal
+      v-model:open="imagePreviewOpen"
+      :close="false"
+      :ui="{
+        overlay: 'bg-black/70',
+        content: 'max-w-5xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-hidden bg-black ring-0 shadow-2xl divide-y-0',
+        header: 'hidden p-0 min-h-0',
+        body: 'p-0 sm:p-0 overflow-hidden',
+      }"
+    >
+      <template #body="{ close }">
+        <div v-if="imagePreviewSrc" class="relative flex max-h-[90vh] flex-col bg-black">
+          <button
+            type="button"
+            class="absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80"
+            aria-label="Close image preview"
+            @click="close"
+          >
+            <UIcon name="i-lucide-x" class="h-4 w-4" />
+          </button>
+          <img
+            :src="imagePreviewSrc"
+            :alt="imagePreviewAlt"
+            class="max-h-[90vh] w-full object-contain"
+          >
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
 
@@ -1237,6 +1266,15 @@ const renderedContentSegments = computed<Array<{ kind: 'html' | 'form'; value: s
   return out
 })
 
+const imagePreviewOpen = ref(false)
+const imagePreviewSrc = ref('')
+const imagePreviewAlt = ref('Image preview')
+
+function isImageHref(href: string): boolean {
+  const path = href.split(/[?#]/)[0] || ''
+  return /\.(?:jpe?g|png|gif|webp|avif|svg|bmp)$/i.test(path)
+}
+
 function onContentClick(event: MouseEvent) {
   if (!import.meta.client) return
   if (event.defaultPrevented) return
@@ -1267,6 +1305,17 @@ function onContentClick(event: MouseEvent) {
   if (!hrefAttr) return
 
   const text = (link.textContent || '').trim()
+  if (isImageHref(hrefAttr) || isImageHref(link.href)) {
+    event.preventDefault()
+    const imageAlt = link.querySelector('img')?.getAttribute('alt')?.trim() || ''
+    imagePreviewSrc.value = link.href || hrefAttr
+    imagePreviewAlt.value = (text && !isImageHref(text) ? text : imageAlt) || 'Image preview'
+    imagePreviewOpen.value = true
+    return
+  }
+
+  if (link.closest('[data-html-layout]')) return
+
   const looksLikePdf = /\.pdf(?:$|[?#])/i.test(hrefAttr)
 
   // Handle absolute PDF links from raw HTML content by routing them through SPA viewer.

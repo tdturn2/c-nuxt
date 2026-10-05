@@ -243,19 +243,9 @@
             ]"
           >
             <img
-              v-if="isBlobOrDataUrl(img.previewUrl)"
-              :src="img.previewUrl"
+              :src="isBlobOrDataUrl(img.previewUrl) ? img.previewUrl : (mediaDisplayUrl(img.previewUrl, 560) || img.previewUrl)"
               :alt="img.alt || 'Post image'"
               class="w-full h-28 object-cover"
-            />
-            <NuxtImg
-              v-else
-              :src="img.previewUrl"
-              :alt="img.alt || 'Post image'"
-              class="w-full h-28 object-cover"
-              width="560"
-              height="224"
-              sizes="(max-width: 640px) 50vw, 280px"
             />
             <span
               v-if="img.file"
@@ -300,13 +290,10 @@
                 isEditGalleryItemSelected(item) ? 'border-indigo-600' : 'border-transparent'
               ]"
             >
-              <NuxtImg
-                :src="item.url"
+              <img
+                :src="mediaDisplayUrl(item.url, 400) || item.url"
                 :alt="item.alt || 'Gallery image'"
                 class="w-full h-28 object-cover"
-                width="560"
-                height="224"
-                sizes="(max-width: 768px) 33vw, 200px"
               />
               <span
                 v-if="isEditGalleryItemSelected(item)"
@@ -379,12 +366,10 @@
           @click="openImageModal(0)"
           class="block w-full"
         >
-          <NuxtImg
-            :src="post.images[0].image.url"
+          <img
+            :src="mediaDisplayUrl(post.images[0].image.url, 1200) || post.images[0].image.url"
             :alt="post.images[0].image.alt || 'Post image'"
             class="w-full h-auto object-cover"
-            sizes="(max-width: 640px) 100vw, 672px"
-            width="1200"
           />
         </button>
       </div>
@@ -396,13 +381,10 @@
             @click="openImageModal(index)"
             class="block w-full"
           >
-            <NuxtImg
-              :src="img.image.url"
+            <img
+              :src="mediaDisplayUrl(img.image.url, 800) || img.image.url"
               :alt="img.image.alt || `Post image ${index + 1}`"
               class="w-full h-48 object-cover"
-              sizes="(max-width: 640px) 50vw, 336px"
-              width="800"
-              height="384"
             />
           </button>
         </template>
@@ -610,15 +592,11 @@
             <UIcon name="i-lucide-x" class="h-4 w-4" />
           </button>
           <div class="relative min-h-0">
-            <NuxtImg
-              :src="currentModalImage.image.url"
+            <img
+              :src="mediaDisplayUrl(currentModalImage.image.url, 1600) || currentModalImage.image.url"
               :alt="currentModalImage.image.alt || `Post image ${activeImageIndex + 1}`"
               :class="modalImages.length > 1 ? 'max-h-[calc(90vh-5rem)]' : 'max-h-[90vh]'"
               class="block w-full h-auto object-contain"
-              sizes="100vw"
-              width="1920"
-              height="1080"
-              fit="inside"
             />
             <button
               v-if="modalImages.length > 1"
@@ -651,14 +629,11 @@
                   idx === activeImageIndex ? 'border-white' : 'border-transparent'
                 ]"
               >
-                <NuxtImg
+                <img
                   v-if="img.image"
-                  :src="img.image.url"
+                  :src="mediaDisplayUrl(img.image.url, 128) || img.image.url"
                   :alt="img.image.alt || `Thumbnail ${idx + 1}`"
                   class="w-16 h-16 object-cover"
-                  width="128"
-                  height="128"
-                  sizes="64px"
                 />
               </button>
             </div>
@@ -670,7 +645,7 @@
 </template>
 
 <script setup lang="ts">
-import { toBrowserMediaUrl } from '@shared/mediaUrls'
+import { mediaDisplayUrl, toBrowserMediaUrl } from '@shared/mediaUrls'
 import { lexicalToPostHtml } from '~/utils/lexicalToPostHtml'
 import { selectedAudiencesFromPost, serializePostAudience } from '~/utils/postAudience'
 import {
@@ -1614,17 +1589,17 @@ const avatarUrl = computed(() => {
     if (props.user.avatar && typeof props.user.avatar === 'object' && 'url' in props.user.avatar) {
       const url = props.user.avatar.url
       if (typeof url === 'string' && url) {
-        return toBrowserMediaUrl(url) || url
+        return mediaDisplayUrl(url, 128) || toBrowserMediaUrl(url) || url
       }
     }
     // Handle avatar as string (legacy)
     if (typeof props.user.avatar === 'string') {
-      return toBrowserMediaUrl(props.user.avatar) || props.user.avatar
+      return mediaDisplayUrl(props.user.avatar, 128) || props.user.avatar
     }
   }
   // Fallback to author avatar (legacy format - string)
   if (props.post.author?.avatar && typeof props.post.author.avatar === 'string') {
-    return toBrowserMediaUrl(props.post.author.avatar) || props.post.author.avatar
+    return mediaDisplayUrl(props.post.author.avatar, 128) || props.post.author.avatar
   }
   return null
 })

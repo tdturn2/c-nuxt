@@ -183,6 +183,13 @@ const sections: Array<{
     section: 'chapel',
   },
   {
+    title: 'Chapel Calendar',
+    description: 'Highlight days or weeks on the chapel calendar, such as conferences.',
+    to: '/dashboard/chapel-calendar',
+    icon: 'i-lucide-calendar-range',
+    section: 'chapel',
+  },
+  {
     title: 'Chapel Speakers',
     description: 'Manage speaker profiles, titles, and photos.',
     to: '/dashboard/chapel-speakers',
