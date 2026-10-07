@@ -42,6 +42,8 @@ export default defineEventHandler(async () => {
         .filter((id: unknown): id is number => typeof id === 'number' && Number.isFinite(id)),
     )]
 
+    // Publications depth=1 only returns owner stubs ({ id, name, email }).
+    // Hydrate from connect-users so avatarConnectUserMedia is available.
     const ownersById = new Map<number, any>()
     for (const book of docs) {
       const owner = book?.owner
@@ -49,14 +51,14 @@ export default defineEventHandler(async () => {
         ownersById.set(owner.id, owner)
       }
     }
-    const missingOwnerIds = ownerIds.filter((id) => !ownersById.has(id))
-    if (missingOwnerIds.length) {
+    if (ownerIds.length) {
       const usersRes: any = await $fetch(`${payloadBaseUrl}/api/connect-users`, {
         headers,
         query: { limit: 500, depth: 1 },
       })
+      const wanted = new Set(ownerIds)
       for (const user of usersRes?.docs ?? []) {
-        if (typeof user?.id === 'number' && missingOwnerIds.includes(user.id)) {
+        if (typeof user?.id === 'number' && wanted.has(user.id)) {
           ownersById.set(user.id, user)
         }
       }
@@ -64,9 +66,8 @@ export default defineEventHandler(async () => {
 
     const books = docs.map((book: any) => {
       const ownerId = ownerIdFrom(book)
-      const owner =
-        (book?.owner && typeof book.owner === 'object' ? book.owner : null) ||
-        (ownerId != null ? ownersById.get(ownerId) : null)
+      const stubOwner = book?.owner && typeof book.owner === 'object' ? book.owner : null
+      const owner = (ownerId != null ? ownersById.get(ownerId) : null) || stubOwner
       const avatar = owner ? normalizeUserAvatar(owner) : null
       return {
         id: book?.id,

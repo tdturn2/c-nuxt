@@ -92,6 +92,14 @@
               >
                 Publications
               </button>
+              <button
+                type="button"
+                class="-mb-px border-b-2 pb-2.5 text-sm font-medium transition-colors"
+                :class="tabClass('teaching-schedule')"
+                @click="activeTab = 'teaching-schedule'"
+              >
+                Teaching Schedule
+              </button>
             </div>
 
             <template v-if="!showProfileTabs || activeTab === 'overview'">
@@ -193,6 +201,57 @@
                 </div>
               </div>
             </div>
+
+            <div v-else-if="activeTab === 'teaching-schedule'" class="mt-5 space-y-4">
+              <div v-if="scheduleLoading" class="text-sm text-gray-500">Loading teaching schedule…</div>
+              <div
+                v-else-if="scheduleError"
+                class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+              >
+                {{ scheduleError }}
+              </div>
+              <div
+                v-else-if="scheduleTerms.length === 0 || scheduleTerms.every((t) => t.count === 0)"
+                class="text-sm text-gray-500"
+              >
+                No classes listed for the current or upcoming open semesters.
+              </div>
+              <div v-else class="space-y-4">
+                <div
+                  v-for="termBlock in scheduleTerms"
+                  :key="termBlock.code"
+                  class="overflow-hidden rounded-lg border border-gray-200"
+                >
+                  <div class="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-4 py-2.5">
+                    <h3 class="text-sm font-semibold text-gray-900">{{ termBlock.label }}</h3>
+                    <span class="text-xs text-gray-600">
+                      {{ termBlock.count }} {{ termBlock.count === 1 ? 'class' : 'classes' }}
+                    </span>
+                  </div>
+                  <ul v-if="termBlock.classes.length" class="divide-y divide-gray-100">
+                    <li
+                      v-for="row in termBlock.classes"
+                      :key="String(row.fullClassId || `${row.shortName}-${row.section}`)"
+                      class="px-4 py-3"
+                    >
+                      <p class="text-sm font-medium text-gray-900">
+                        {{ row.shortName || row.fullClassId || 'Course' }}
+                        <span v-if="row.section" class="font-normal text-gray-600"> · {{ row.section }}</span>
+                        <span v-if="row.credits != null" class="font-normal text-gray-500"> · {{ row.credits }} cr</span>
+                      </p>
+                      <p v-if="row.title" class="mt-0.5 text-sm text-gray-700">{{ row.title }}</p>
+                      <p class="mt-1 text-xs text-gray-500">
+                        <span v-if="row.dayTime">{{ row.dayTime }}</span>
+                        <span v-if="row.dayTime && (row.location || row.building)"> · </span>
+                        <span v-if="row.building || row.location">{{ row.building || row.location }}</span>
+                        <span v-if="row.deliveryMethod"> · {{ row.deliveryMethod }}</span>
+                      </p>
+                    </li>
+                  </ul>
+                  <p v-else class="px-4 py-3 text-sm text-gray-500">No classes listed for this semester.</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -206,7 +265,31 @@ const username = computed(() => route.params.username as string)
 
 const loading = ref(true)
 const error = ref<string | null>(null)
-const activeTab = ref<'overview' | 'expertise' | 'education' | 'publications'>('overview')
+type ProfileTab = 'overview' | 'expertise' | 'education' | 'publications' | 'teaching-schedule'
+const activeTab = ref<ProfileTab>('overview')
+type ScheduleClass = {
+  fullClassId: string | null
+  shortName: string | null
+  section: string | null
+  title: string | null
+  dayTime: string | null
+  location: string | null
+  building: string | null
+  deliveryMethod: string | null
+  credits: number | null
+  classStatus: string | null
+  seats: string | null
+}
+type ScheduleTerm = {
+  code: string
+  label: string
+  count: number
+  classes: ScheduleClass[]
+}
+const scheduleLoading = ref(false)
+const scheduleError = ref<string | null>(null)
+const scheduleTerms = ref<ScheduleTerm[]>([])
+const scheduleLoadedForId = ref<number | null>(null)
 const user = ref<{
   id: number
   name: string
@@ -333,7 +416,7 @@ const hasSecondaryOverview = computed(() =>
   || studentProfileEntries.value.length > 0,
 )
 
-function tabClass(tab: typeof activeTab.value) {
+function tabClass(tab: ProfileTab) {
   return activeTab.value === tab
     ? 'border-[rgba(13,94,130,1)] text-[rgba(13,94,130,1)]'
     : 'border-transparent text-gray-500 hover:text-gray-800'
@@ -365,9 +448,31 @@ const showPublicationsTab = computed(() =>
   isFaculty.value && profilePublications.value.some((pub) => String(pub.type || '').toLowerCase() === 'book'),
 )
 
-const showProfileTabs = computed(() =>
-  isFaculty.value && (expertiseItems.value.length > 0 || educationItems.value.length > 0 || showPublicationsTab.value),
-)
+const showProfileTabs = computed(() => isFaculty.value)
+
+async function loadTeachingSchedule() {
+  const id = user.value?.id
+  if (!id || !isFaculty.value) return
+  if (scheduleLoadedForId.value === id) return
+
+  try {
+    scheduleLoading.value = true
+    scheduleError.value = null
+    const result = await $fetch<{ terms?: ScheduleTerm[] }>(`/api/users/${id}/teaching-schedule`)
+    scheduleTerms.value = Array.isArray(result?.terms) ? result.terms : []
+    scheduleLoadedForId.value = id
+  } catch (err: any) {
+    scheduleError.value = err?.data?.message || err?.statusMessage || err?.message || 'Failed to load teaching schedule.'
+    scheduleTerms.value = []
+    scheduleLoadedForId.value = null
+  } finally {
+    scheduleLoading.value = false
+  }
+}
+
+watch(activeTab, (tab) => {
+  if (tab === 'teaching-schedule') loadTeachingSchedule()
+})
 
 function lexicalParagraphs(value: unknown): string[] {
   if (value == null) return []
@@ -572,12 +677,18 @@ const loadUser = async () => {
 
     user.value = userData
     studentProfile.value = surveyData as { answers: Record<string, unknown>; updatedAt: string } | null
+    scheduleTerms.value = []
+    scheduleLoadedForId.value = null
+    scheduleError.value = null
     const allowedTabs = new Set<string>(['overview'])
+    if (isFaculty.value) allowedTabs.add('teaching-schedule')
     if (expertiseItems.value.length) allowedTabs.add('expertise')
     if (educationItems.value.length) allowedTabs.add('education')
     if (showPublicationsTab.value) allowedTabs.add('publications')
     if (!allowedTabs.has(activeTab.value)) {
       activeTab.value = 'overview'
+    } else if (activeTab.value === 'teaching-schedule') {
+      await loadTeachingSchedule()
     }
   } catch (err: any) {
     console.error('Error loading user:', err)

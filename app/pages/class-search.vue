@@ -371,6 +371,8 @@
 </template>
 
 <script setup lang="ts">
+import { buildClassSearchTermOptions, defaultClassSearchTerm, DEFAULT_CLASS_SEARCH_TERM } from '@shared/academicTerms'
+
 interface ClassRow {
   full_class_id: string
   short_name: string
@@ -414,24 +416,11 @@ function formatInstructor(raw: string): string {
   return raw
 }
 
-const termOptions = (() => {
-  const terms: { label: string; value: string }[] = []
-  terms.push({ label: 'Fall 2026', value: 'FA26' })
-  terms.push({ label: 'Summer 2026', value: 'SU26' })
-  terms.push({ label: 'Spring 2026', value: 'SP26' })
-  for (let y = 25; y >= 17; y--) {
-    const year = 2000 + y
-    terms.push({ label: `Fall ${year}`, value: `FA${y}` })
-    terms.push({ label: `Summer ${year}`, value: `SU${y}` })
-    terms.push({ label: `Spring ${year}`, value: `SP${y}` })
-  }
-  return terms
-})()
-
-const selectedTerm = ref(termOptions[0])
+const termOptions = buildClassSearchTermOptions()
+const selectedTerm = ref(defaultClassSearchTerm(termOptions))
 const plannerOpen = ref(false)
 
-const termSlug = computed(() => selectedTerm.value?.value ?? 'SP26')
+const termSlug = computed(() => selectedTerm.value?.value ?? DEFAULT_CLASS_SEARCH_TERM)
 const {
   plannerItems,
   plannerPending,
