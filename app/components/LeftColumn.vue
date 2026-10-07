@@ -70,7 +70,7 @@ function filterMenuByLabel(item: NavigationMenuItem, query: string): NavigationM
 }
 
 const isPodcastsActive = computed(() => /^\/media\/(wesworld|elementary|chapel)$/.test(route.path))
-const isDirectoriesActive = computed(() => /^\/((student|faculty|employee|alumni)-directory|alumni-wall)$/.test(route.path))
+const isDirectoriesActive = computed(() => /^\/((student|faculty|employee|alumni|location)-directory|alumni-wall)$/.test(route.path))
 const isStudentsActive = computed(() => {
   const path = route.path
   return (
@@ -146,6 +146,9 @@ const mainNavItems = computed<NavigationMenuItem[]>(() => [
     icon: 'i-lucide-users',
     defaultOpen: isDirectoriesActive.value,
     children: [{
+      label: 'By Location',
+      to: '/location-directory'
+    }, {
       label: 'Student Directory',
       to: '/student-directory'
     }, {

@@ -6,6 +6,14 @@ type ChapelEpisode = {
   date?: string
   title?: string
   description?: string | null
+  campus?: string | null
+  length?: string | null
+  size?: string | null
+  mp3?: { id?: number | string; url?: string } | number | string | null
+  mp3Url?: string | null
+  vimeo?: string | null
+  vimeo_id?: string | null
+  youtube?: string | null
   speaker?: {
     id?: string | number
     name?: string
@@ -77,6 +85,12 @@ function rewriteSpeaker(speaker: ChapelEpisode['speaker']): ChapelEpisode['speak
   }
 }
 
+function rewriteMp3(mp3: ChapelEpisode['mp3']): ChapelEpisode['mp3'] {
+  if (!mp3 || typeof mp3 !== 'object') return mp3
+  const url = rewriteMediaUrl(mp3.url)
+  return url ? { ...mp3, url } : mp3
+}
+
 export default defineEventHandler(async () => {
   const config = useRuntimeConfig()
   const payloadBaseUrl = (config.public.connectApi || 'http://localhost:3003').replace(/\/+$/, '')
@@ -128,6 +142,14 @@ export default defineEventHandler(async () => {
           date: ymd,
           title: ep.title != null && String(ep.title).trim() ? String(ep.title).trim() : undefined,
           description: ep.description != null && String(ep.description).trim() ? String(ep.description).trim() : null,
+          campus: ep.campus != null ? String(ep.campus) : null,
+          length: ep.length != null && String(ep.length).trim() ? String(ep.length).trim() : null,
+          size: ep.size != null && String(ep.size).trim() ? String(ep.size).trim() : null,
+          mp3: rewriteMp3(ep.mp3 ?? null),
+          mp3Url: rewriteMediaUrl(ep.mp3Url) || (typeof ep.mp3Url === 'string' ? ep.mp3Url : null),
+          vimeo: ep.vimeo != null && String(ep.vimeo).trim() ? String(ep.vimeo).trim() : null,
+          vimeo_id: ep.vimeo_id != null && String(ep.vimeo_id).trim() ? String(ep.vimeo_id).trim() : null,
+          youtube: ep.youtube != null && String(ep.youtube).trim() ? String(ep.youtube).trim() : null,
           weekday: wd,
           speaker: rewriteSpeaker(ep.speaker || null),
         }

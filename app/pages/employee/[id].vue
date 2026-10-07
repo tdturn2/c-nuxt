@@ -99,8 +99,12 @@
               <span class="text-sm font-medium text-gray-500">Phone</span>
               <p class="text-gray-900">{{ employeeData.phone }}</p>
             </div>
+            <div v-if="homeLocationLabel" class="md:col-span-2">
+              <span class="text-sm font-medium text-gray-500">Home / current location</span>
+              <p class="text-gray-900">{{ homeLocationLabel }}</p>
+            </div>
             <div v-if="employeeData.location" class="md:col-span-2">
-              <span class="text-sm font-medium text-gray-500">Location</span>
+              <span class="text-sm font-medium text-gray-500">Office location</span>
               <p class="text-gray-900">{{ employeeData.location }}</p>
             </div>
           </div>
@@ -199,6 +203,8 @@
 </template>
 
 <script setup lang="ts">
+import { formatHomeLocation } from '@shared/geo'
+
 const route = useRoute()
 const employeeId = computed(() => route.params.id as string)
 
@@ -234,6 +240,9 @@ const employeeData = ref<{
   startDate: string | null
   phone: string | null
   location: string | null
+  country: string | null
+  region: string | null
+  city: string | null
   department: string | null
   section: string | null
   roles?: string[] | null
@@ -259,6 +268,14 @@ const isFaculty = computed(() => {
   const roles = employeeData.value?.roles ?? []
   return Array.isArray(roles) && roles.some((role) => String(role).toLowerCase() === 'faculty')
 })
+
+const homeLocationLabel = computed(() =>
+  formatHomeLocation({
+    country: employeeData.value?.country,
+    region: employeeData.value?.region,
+    city: employeeData.value?.city,
+  }),
+)
 
 // Format date helper
 const formatDate = (dateString: string) => {

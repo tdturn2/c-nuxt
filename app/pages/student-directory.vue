@@ -28,16 +28,27 @@
           </div>
 
           <template v-else>
-            <div class="mb-6 w-full sm:max-w-md">
-              <label for="student-search" class="sr-only">Search by name</label>
-              <input
-                id="student-search"
-                v-model="searchQuery"
-                type="search"
-                placeholder="Search by name..."
-                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm placeholder:text-gray-400 focus:border-[rgba(13,94,130,1)] focus:outline-none focus:ring-1 focus:ring-[rgba(13,94,130,1)]"
-                autocomplete="off"
+            <div class="mb-6 flex flex-wrap items-end gap-3 sm:gap-4">
+              <DirectoryLocationFilters
+                v-model:country="filterCountry"
+                v-model:region="filterRegion"
+                v-model:city="filterCity"
+                id-prefix="student-geo"
+                :available-countries="availableCountries"
+                :available-regions="availableRegions"
+                :available-cities="availableCities"
               />
+              <div class="w-full sm:max-w-md sm:min-w-[200px] sm:flex-1">
+                <label for="student-search" class="sr-only">Search by name</label>
+                <input
+                  id="student-search"
+                  v-model="searchQuery"
+                  type="search"
+                  placeholder="Search by name..."
+                  class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm placeholder:text-gray-400 focus:border-[rgba(13,94,130,1)] focus:outline-none focus:ring-1 focus:ring-[rgba(13,94,130,1)]"
+                  autocomplete="off"
+                />
+              </div>
             </div>
 
             <div v-if="filteredStudents.length === 0" class="text-gray-500 py-8">
@@ -113,7 +124,10 @@
 
 <script setup lang="ts">
 import { sortDirectoryByLastName } from '@shared/directoryNameSort'
+import { matchesHomeLocationFilter } from '@shared/geo'
 import { mediaDisplayUrl } from '@shared/mediaUrls'
+import DirectoryLocationFilters from '~/components/directory/DirectoryLocationFilters.vue'
+
 type StudentRow = {
   id: number
   name: string
@@ -122,10 +136,16 @@ type StudentRow = {
   department: string | null
   section: string | null
   phone: string | null
+  country: string | null
+  region: string | null
+  city: string | null
   avatar: { url: string } | null
 }
 
 const searchQuery = ref('')
+const filterCountry = ref('')
+const filterRegion = ref('')
+const filterCity = ref('')
 
 const { data: studentsPayload, pending: loading, error: fetchError } = useLazyFetch<{ students: StudentRow[] }>(
   '/api/students',
@@ -170,18 +190,56 @@ function userProfilePath(s: { id: number; email: string | null }): string {
   return `/user/${s.id}`
 }
 
+const availableCountries = computed(() => {
+  const set = new Set<string>()
+  for (const s of students.value) {
+    const c = (s.country || '').trim().toUpperCase()
+    if (c) set.add(c)
+  }
+  return [...set]
+})
+
+const availableRegions = computed(() => {
+  const set = new Set<string>()
+  for (const s of students.value) {
+    if ((s.country || '').trim().toUpperCase() !== 'US') continue
+    const r = (s.region || '').trim().toUpperCase()
+    if (r) set.add(r)
+  }
+  return [...set]
+})
+
+const availableCities = computed(() => {
+  if (!filterRegion.value) return []
+  const set = new Set<string>()
+  for (const s of students.value) {
+    if ((s.country || '').trim().toUpperCase() !== 'US') continue
+    if ((s.region || '').trim().toUpperCase() !== filterRegion.value) continue
+    const city = (s.city || '').trim()
+    if (city) set.add(city)
+  }
+  return [...set]
+})
+
 const filteredStudents = computed(() => {
   const words = searchQuery.value
     .trim()
     .toLowerCase()
     .split(/\s+/)
     .filter(Boolean)
-  const list = words.length === 0
-    ? students.value
-    : students.value.filter((s: StudentRow) => {
-        const name = (s.name ?? '').toLowerCase()
-        return words.every((word) => name.includes(word))
-      })
+  let list = students.value.filter((s) =>
+    matchesHomeLocationFilter(s, {
+      country: filterCountry.value,
+      region: filterRegion.value,
+      city: filterCity.value,
+    }),
+  )
+  if (words.length) {
+    list = list.filter((s: StudentRow) => {
+      const name = (s.name ?? '').toLowerCase()
+      return words.every((word) => name.includes(word))
+    })
+  }
   return sortDirectoryByLastName(list)
 })
 
@@ -198,7 +256,7 @@ const rangeEnd = computed(() =>
   Math.min(currentPage.value * PAGE_SIZE, filteredStudents.value.length)
 )
 
-watch(searchQuery, () => {
+watch([searchQuery, filterCountry, filterRegion, filterCity], () => {
   currentPage.value = 1
 })
 

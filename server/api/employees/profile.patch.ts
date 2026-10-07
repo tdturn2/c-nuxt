@@ -23,6 +23,9 @@ export default defineEventHandler(async (event) => {
       startDate?: string | null
       phone?: string | null
       location?: string | null
+      country?: string | null
+      region?: string | null
+      city?: string | null
       department?: string | null
       publications?: any[] | null
       facultyBio?: any | null
@@ -67,6 +70,9 @@ export default defineEventHandler(async (event) => {
     if (body.startDate !== undefined) updateData.startDate = body.startDate
     if (body.phone !== undefined) updateData.phone = body.phone
     if (body.location !== undefined) updateData.location = body.location
+    if (body.country !== undefined) updateData.country = body.country
+    if (body.region !== undefined) updateData.region = body.region
+    if (body.city !== undefined) updateData.city = body.city
     if (body.department !== undefined) updateData.department = body.department
     if (body.publications !== undefined) updateData.publications = body.publications
     if (body.facultyBio !== undefined) updateData.facultyBio = body.facultyBio

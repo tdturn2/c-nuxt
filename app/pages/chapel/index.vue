@@ -17,13 +17,13 @@
         </div>
 
         <section v-else class="mt-2">
-          <ul class="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          <ul class="grid grid-cols-1 items-stretch gap-8 sm:grid-cols-2 lg:grid-cols-3">
             <li
               v-for="item in weekEntries"
               :key="String(item.id)"
-              class="min-w-0"
+              class="min-w-0 h-full"
             >
-              <article class="flex flex-col items-center rounded-lg border border-gray-200 bg-white px-5 py-6 text-center shadow-sm">
+              <article class="flex h-full flex-col items-center rounded-lg border border-gray-200 bg-white px-5 py-6 text-center shadow-sm">
                 <h2 class="font-serif text-xl text-gray-900">
                   {{ weekdayDateLabel(item.date) }}
                 </h2>
@@ -47,6 +47,31 @@
                 <p v-if="item.title" class="mt-2 max-w-[16rem] text-sm font-medium text-[rgba(13,94,130,1)]">
                   {{ item.title }}
                 </p>
+
+                <div
+                  v-if="entryAudioUrl(item) || entryMessageVideo(item)"
+                  class="mt-auto flex items-center justify-center gap-2 pt-4"
+                >
+                  <button
+                    v-if="entryAudioUrl(item)"
+                    type="button"
+                    class="flex h-9 w-9 items-center justify-center rounded-full bg-[rgba(13,94,130,0.1)] text-[rgba(13,94,130,1)] hover:bg-[rgba(13,94,130,0.18)]"
+                    aria-label="Play audio message"
+                    @click="playEntryAudio(item)"
+                  >
+                    <UIcon name="i-heroicons-play" class="h-4 w-4" />
+                  </button>
+                  <button
+                    v-if="entryMessageVideo(item)"
+                    type="button"
+                    class="flex h-9 w-9 items-center justify-center rounded-full bg-[rgba(13,94,130,0.1)] text-[rgba(13,94,130,1)] hover:bg-[rgba(13,94,130,0.18)]"
+                    aria-label="Play video message"
+                    @click="playEntryVideo(item)"
+                  >
+                    <UIcon name="i-heroicons-film" class="h-4 w-4" />
+                  </button>
+                </div>
+                <div v-else class="mt-auto" aria-hidden="true" />
               </article>
             </li>
           </ul>
@@ -101,6 +126,7 @@
 
 <script setup lang="ts">
 import { chapelSpeakerPhoto, chapelSpeakerTitle } from '@shared/chapelSpeakerDisplay'
+import { chapelMp3PublicUrl } from '@shared/chapelMp3'
 import { toBrowserMediaUrl } from '@shared/mediaUrls'
 
 type WeekSpeaker = {
@@ -121,7 +147,21 @@ type WeekEntry = {
   date: string
   title?: string
   description?: string | null
+  campus?: string | null
+  length?: string | null
+  size?: string | null
+  mp3?: { id?: number | string; url?: string } | number | string | null
+  mp3Url?: string | null
+  vimeo?: string | null
+  vimeo_id?: string | null
+  youtube?: string | null
   speaker?: WeekSpeaker | null
+}
+
+type MessageVideo = {
+  title: string
+  vimeoId?: string
+  youtubeId?: string
 }
 
 type DailyEucharistEntry = {
@@ -145,6 +185,9 @@ type DailyEucharistResponse = {
 
 const config = useRuntimeConfig()
 const payloadBaseUrl = String(config.public.connectApi || '').replace(/\/$/, '')
+const { playTrack } = useAudioPlayer()
+const { playVideo } = useVideoPlayer()
+
 const { data, pending, error } = useFetch<{ entries?: WeekEntry[] }>('/api/chapel/current-week', {
   key: 'chapel-current-week',
   lazy: true,
@@ -189,5 +232,70 @@ function weekdayDateLabel(dateStr: string): string {
 function parseSafeDate(dateStr: string): Date | null {
   const d = new Date(`${dateStr}T12:00:00Z`)
   return Number.isNaN(d.getTime()) ? null : d
+}
+
+function hasChapelAudio(entry: WeekEntry): boolean {
+  const mp3 = entry.mp3
+  if (mp3 != null) {
+    if (typeof mp3 === 'object' && (mp3.url || mp3.id != null)) return true
+    if (typeof mp3 === 'number' && Number.isFinite(mp3)) return true
+    if (typeof mp3 === 'string' && mp3.trim()) return true
+  }
+  if (typeof entry.mp3Url === 'string' && entry.mp3Url.trim()) return true
+  if (entry.length != null && String(entry.length).trim() !== '') return true
+  if (entry.size != null && String(entry.size).trim() !== '') return true
+  return false
+}
+
+function entryAudioUrl(entry: WeekEntry): string {
+  if (!hasChapelAudio(entry)) return ''
+  const linked = typeof entry.mp3 === 'object' && entry.mp3?.url ? String(entry.mp3.url) : ''
+  if (linked) return linked
+  if (typeof entry.mp3Url === 'string' && entry.mp3Url.trim()) return entry.mp3Url.trim()
+  return chapelMp3PublicUrl(entry.date, entry.campus) || ''
+}
+
+function mediaId(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function youtubeVideoId(value: string | null | undefined): string {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  const fromUrl = raw.match(/(?:v=|youtu\.be\/|embed\/)([\w-]{6,})/)
+  return fromUrl?.[1] || (/^[\w-]{6,}$/.test(raw) ? raw : '')
+}
+
+/** Sermon / message video only — not full-service recordings. */
+function entryMessageVideo(entry: WeekEntry): MessageVideo | null {
+  const title = entry.title?.trim() || entry.speaker?.name || 'Chapel'
+  const sermon = mediaId(entry.vimeo_id ?? entry.vimeo)
+  if (sermon) return { title, vimeoId: sermon }
+  const youtubeId = youtubeVideoId(entry.youtube)
+  if (youtubeId) return { title, youtubeId }
+  return null
+}
+
+function playEntryAudio(entry: WeekEntry) {
+  const audio = entryAudioUrl(entry)
+  if (!audio) return
+  playTrack({
+    id: Number(entry.id) || 0,
+    audio,
+    title: entry.title?.trim() || 'Chapel',
+    artist: entry.speaker?.name || 'Asbury Seminary Chapel',
+    artwork: speakerPhotoUrl(entry.speaker) || '/estes-icon.png',
+    album: 'Chapel',
+  })
+}
+
+function playEntryVideo(entry: WeekEntry) {
+  const video = entryMessageVideo(entry)
+  if (!video) return
+  playVideo({
+    title: video.title,
+    vimeoId: video.vimeoId,
+    youtubeId: video.youtubeId,
+  })
 }
 </script>

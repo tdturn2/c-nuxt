@@ -38,6 +38,9 @@ export default defineEventHandler(async () => {
       name: user.name,
       email: user.email ?? null,
       degrees: normalizeAlumniDegrees(user.alumniDegrees),
+      country: user.country ?? null,
+      region: user.region ?? null,
+      city: user.city ?? null,
       avatar: normalizeUserAvatar(user),
     }))
 

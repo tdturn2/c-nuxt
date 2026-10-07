@@ -24,6 +24,9 @@ export default defineEventHandler(async () => {
       department: user.department ?? null,
       section: user.section ?? null,
       phone: user.phone ?? null,
+      country: user.country ?? null,
+      region: user.region ?? null,
+      city: user.city ?? null,
       avatar: normalizeUserAvatar(user),
     }))
 

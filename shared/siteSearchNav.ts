@@ -53,6 +53,7 @@ export const SITE_SEARCH_RESOURCE_LINKS: SiteSearchResourceLink[] = [
     icon: 'i-lucide-users',
     description: 'People directories',
     children: [
+      { label: 'By Location', to: '/location-directory', icon: 'i-lucide-globe' },
       { label: 'Student Directory', to: '/student-directory', icon: 'i-lucide-users' },
       { label: 'Faculty Directory', to: '/faculty-directory', icon: 'i-lucide-users' },
       { label: 'Employee Directory', to: '/employee-directory', icon: 'i-lucide-users' },

@@ -112,6 +112,16 @@
                 No bio available.
               </p>
 
+              <div v-if="homeLocationLabel" class="mt-6">
+                <h3 class="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Location</h3>
+                <dl class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <dt class="text-xs font-medium text-gray-500">Home / current</dt>
+                    <dd class="mt-0.5 text-sm text-gray-900">{{ homeLocationLabel }}</dd>
+                  </div>
+                </dl>
+              </div>
+
               <div v-if="!isFaculty && employeeProfileEntries.length > 0" class="mt-6">
                 <h3 class="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Employee</h3>
                 <dl class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -260,6 +270,8 @@
 </template>
 
 <script setup lang="ts">
+import { formatHomeLocation } from '@shared/geo'
+
 const route = useRoute()
 const username = computed(() => route.params.username as string)
 
@@ -304,6 +316,9 @@ const user = ref<{
   startDate?: string | null
   phone?: string | null
   location?: string | null
+  country?: string | null
+  region?: string | null
+  city?: string | null
   department?: string | null
   section?: string | null
   alumniOptIn?: boolean
@@ -546,8 +561,16 @@ const EMPLOYEE_FIELDS: { key: keyof NonNullable<typeof user.value>; label: strin
   { key: 'section', label: 'Section' },
   { key: 'startDate', label: 'Start date' },
   { key: 'phone', label: 'Phone' },
-  { key: 'location', label: 'Location' }
+  { key: 'location', label: 'Office location' }
 ]
+
+const homeLocationLabel = computed(() =>
+  formatHomeLocation({
+    country: user.value?.country,
+    region: user.value?.region,
+    city: user.value?.city,
+  }),
+)
 
 const employeeProfileEntries = computed(() => {
   const u = user.value

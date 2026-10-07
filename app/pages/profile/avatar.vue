@@ -55,6 +55,10 @@
           </div>
         </section>
 
+        <section class="rounded-lg border border-gray-200 bg-gray-50 p-5 sm:p-6">
+          <ProfileLocationFields />
+        </section>
+
         <!-- Role-gated profile sections -->
         <section v-if="accordionItems.length">
           <h2 class="text-lg font-semibold text-gray-900 mb-3">Your profiles</h2>
@@ -115,6 +119,7 @@ import { normalizeConnectUserRoles } from '@shared/connectUserAccess'
 import ProfileAlumniForm from '~/components/profile/ProfileAlumniForm.vue'
 import ProfileEmployeeForm from '~/components/profile/ProfileEmployeeForm.vue'
 import ProfileFacultyForm from '~/components/profile/ProfileFacultyForm.vue'
+import ProfileLocationFields from '~/components/profile/ProfileLocationFields.vue'
 import ProfileStudentForm from '~/components/profile/ProfileStudentForm.vue'
 
 const { user: meUser, loading: authLoading, refresh } = useMe()
