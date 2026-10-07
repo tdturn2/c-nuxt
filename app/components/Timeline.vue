@@ -32,8 +32,21 @@
           dots: 'mt-3'
         }"
       >
+        <button
+          v-if="slidePostModalId(item)"
+          type="button"
+          class="block w-full overflow-hidden bg-gray-50 text-left"
+          :style="slideBoxStyle(item)"
+          :disabled="openingSlidePostId === slidePostModalId(item)"
+          @click="openSlidePostModal(item)"
+        >
+          <img
+            v-bind="slideImg(item)"
+            class="h-auto w-full"
+          >
+        </button>
         <NuxtLink
-          v-if="item.href"
+          v-else-if="item.href"
           :to="item.href || '/'"
           :target="item.openInNewTab ? '_blank' : undefined"
           :rel="item.openInNewTab ? 'noopener noreferrer' : undefined"
@@ -97,6 +110,7 @@
 import { hasFacultyHubAccess } from '@shared/facultyHubAccess'
 import { hasStaffHubAccess } from '@shared/staffHubAccess'
 import { normalizeConnectUserRoles } from '@shared/connectUserAccess'
+import { parseHomeSliderPostModalHref } from '@shared/homeSlider'
 import { mediaDisplayUrl, toBrowserMediaUrl } from '@shared/mediaUrls'
 import { authorIdFromPost, partitionTimelinePosts } from '~/utils/timelineFeed'
 
@@ -189,7 +203,7 @@ const { data: sliderData } = await useFetch<{ docs?: HomeSlide[] }>('/api/home-s
   key: 'connect-home-slider',
 })
 
-const { fetchUsers } = useUsers()
+const { fetchUser, fetchUsers } = useUsers()
 
 // Get current authenticated user's PayloadCMS ID
 const { currentUserId, user: meUser } = useMe()
@@ -216,6 +230,44 @@ const selectedPost = ref<PostWithUser | null>(null)
 const selectedPostUser = ref<User | null>(null)
 const postModalStartInEditMode = ref(false)
 const postModalStartWithCommentsOpen = ref(false)
+const openingSlidePostId = ref<number | null>(null)
+
+function slidePostModalId(item: HomeSlide): number | null {
+  return parseHomeSliderPostModalHref(item.href)
+}
+
+async function openSlidePostModal(item: HomeSlide) {
+  const postId = slidePostModalId(item)
+  if (postId == null || openingSlidePostId.value === postId) return
+
+  openingSlidePostId.value = postId
+  try {
+    const existing = allPostsWithUsers.value.find((post) => Number(post.id) === postId)
+    let post: any = existing || null
+    let user: User | null = existing?.user || null
+
+    if (!post) {
+      post = await $fetch(`/api/posts/${postId}`, { credentials: 'include' })
+    }
+
+    if (!user) {
+      const authorId = authorIdFromPost(post?.author) ?? (typeof post?.author?.id === 'number' ? post.author.id : null)
+      if (authorId != null) {
+        user = await fetchUser(authorId)
+      }
+    }
+
+    selectedPost.value = { ...post, user } as PostWithUser
+    selectedPostUser.value = user
+    postModalStartInEditMode.value = false
+    postModalStartWithCommentsOpen.value = false
+    isPostModalOpen.value = true
+  } catch (err) {
+    console.error('Failed to open slider post modal:', err)
+  } finally {
+    openingSlidePostId.value = null
+  }
+}
 
 function getImageUrl(image: any) {
   if (!image) return '/estes-icon.png'
@@ -243,7 +295,7 @@ function slideImg(item: HomeSlide) {
     alt: item.title || 'Connect highlight',
     width,
     height,
-    fetchpriority: isFirst ? 'high' : 'low',
+    fetchpriority: (isFirst ? 'high' : 'low') as 'high' | 'low',
     loading: (isFirst ? 'eager' : 'lazy') as 'eager' | 'lazy',
     decoding: 'async' as const,
   }

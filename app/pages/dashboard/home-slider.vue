@@ -5,7 +5,7 @@
       <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="mb-6">
           <h1 class="text-2xl font-bold text-gray-900">Home Slider</h1>
-          <p class="mt-1 text-sm text-gray-600">Manage image slides and links for the Connect homepage.</p>
+          <p class="mt-1 text-sm text-gray-600">Manage image slides, URLs, and post modal links for the Connect homepage.</p>
         </div>
 
         <div v-if="mePending" class="py-8 text-gray-500">Checking access...</div>
@@ -24,7 +24,58 @@
             </p>
             <div class="mt-3 grid gap-3 sm:grid-cols-2">
               <input v-model="form.title" type="text" placeholder="Title (optional)" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
-              <input v-model="form.href" type="text" placeholder="Link (optional)" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
+              <label class="block text-xs text-gray-500 sm:col-span-2">
+                Link type
+                <select v-model="form.linkType" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900">
+                  <option value="none">No link</option>
+                  <option value="url">URL</option>
+                  <option value="post">Post (opens in modal)</option>
+                </select>
+              </label>
+              <input
+                v-if="form.linkType === 'url'"
+                v-model="form.href"
+                type="text"
+                placeholder="URL (optional)"
+                class="rounded-md border border-gray-300 px-3 py-2 text-sm sm:col-span-2"
+              >
+              <div v-else-if="form.linkType === 'post'" class="sm:col-span-2 space-y-2">
+                <UInput
+                  v-model="postSearch"
+                  type="search"
+                  placeholder="Search posts by text or author..."
+                  icon="i-lucide-search"
+                  color="neutral"
+                  variant="outline"
+                  size="sm"
+                />
+                <ul class="max-h-48 overflow-auto rounded-md border border-gray-200 divide-y divide-gray-200 bg-white">
+                  <li
+                    v-for="post in filteredPostOptions"
+                    :key="String(post.id)"
+                    class="flex items-start justify-between gap-3 px-3 py-2 text-sm"
+                  >
+                    <div class="min-w-0">
+                      <p class="line-clamp-2 text-gray-900">{{ postPreview(post) || `Post #${post.id}` }}</p>
+                      <p class="mt-0.5 truncate text-xs text-gray-500">
+                        #{{ post.id }} · {{ post.author?.name || post.author?.email || 'Unknown author' }}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      :class="String(form.postId) === String(post.id)
+                        ? 'shrink-0 rounded border border-[rgba(13,94,130,0.35)] bg-[rgba(13,94,130,0.08)] px-2 py-1 text-xs text-[rgba(10,69,92,1)]'
+                        : 'shrink-0 rounded border border-gray-200 bg-white px-2 py-1 text-xs text-[rgba(13,94,130,1)] hover:bg-gray-50'"
+                      @click="form.postId = String(post.id)"
+                    >
+                      {{ String(form.postId) === String(post.id) ? 'Selected' : 'Select' }}
+                    </button>
+                  </li>
+                  <li v-if="postsLoading" class="px-3 py-3 text-sm text-gray-500">Loading posts...</li>
+                  <li v-else-if="!filteredPostOptions.length" class="px-3 py-3 text-sm text-gray-500">No matching posts.</li>
+                </ul>
+                <p v-if="form.postId" class="text-xs text-gray-500">Selected post ID: {{ form.postId }}</p>
+              </div>
               <div class="min-w-0">
                 <div v-if="form.images.length" class="flex flex-wrap gap-1.5 rounded-md border border-gray-300 bg-gray-50 px-2 py-2">
                   <span
@@ -128,7 +179,9 @@
             </p>
             <div class="mt-3 flex items-center gap-4 text-sm">
               <label class="inline-flex items-center gap-2"><input v-model="form.active" type="checkbox"> Active</label>
-              <label class="inline-flex items-center gap-2"><input v-model="form.openInNewTab" type="checkbox"> Open in new tab</label>
+              <label v-if="form.linkType === 'url'" class="inline-flex items-center gap-2">
+                <input v-model="form.openInNewTab" type="checkbox"> Open in new tab
+              </label>
             </div>
             <div class="mt-4 flex items-center gap-2">
               <button
@@ -209,7 +262,7 @@
                     <span v-else class="text-gray-400">—</span>
                   </td>
                   <td class="px-4 py-3 font-medium text-gray-900">{{ item.title || '—' }}</td>
-                  <td class="px-4 py-3 text-gray-700 truncate max-w-[260px]">{{ item.href || '—' }}</td>
+                  <td class="px-4 py-3 text-gray-700 truncate max-w-[260px]">{{ linkLabel(item.href) }}</td>
                   <td class="px-4 py-3 text-gray-700">{{ item.active ? 'Active' : 'Inactive' }}</td>
                   <td class="px-4 py-3 text-gray-700">{{ item.sortOrder ?? 0 }}</td>
                   <td class="px-4 py-3 text-right space-x-2">
@@ -227,7 +280,13 @@
 </template>
 
 <script setup lang="ts">
-import { buildHomeSliderCreateItems } from '@shared/homeSlider'
+import {
+  buildHomeSliderCreateItems,
+  homeSliderLinkTypeFromHref,
+  parseHomeSliderPostModalHref,
+  resolveHomeSliderHref,
+  type HomeSliderLinkType,
+} from '@shared/homeSlider'
 import type { DashboardSliderItem } from '~/composables/useDashboardContent'
 import { mediaIsImage } from '~/utils/dashboardMedia'
 
@@ -237,6 +296,9 @@ const canManageDashboard = computed(() => canAccessSection('home-slider'))
 
 const items = ref<DashboardSliderItem[]>([])
 const mediaAssets = ref<any[]>([])
+const postOptions = ref<any[]>([])
+const postsLoading = ref(false)
+const postSearch = ref('')
 const loading = ref(false)
 const error = ref<string | null>(null)
 const uploadInputRef = ref<HTMLInputElement | null>(null)
@@ -248,7 +310,9 @@ const editingId = ref<string | number | null>(null)
 const saving = ref(false)
 const form = ref({
   title: '',
+  linkType: 'none' as HomeSliderLinkType,
   href: '',
+  postId: '',
   images: [] as Array<string | number>,
   active: true,
   openInNewTab: false,
@@ -267,7 +331,9 @@ function resolveAssetId(asset: any): string | number | null {
 function emptyForm() {
   return {
     title: '',
+    linkType: 'none' as HomeSliderLinkType,
     href: '',
+    postId: '',
     images: [] as Array<string | number>,
     active: true,
     openInNewTab: false,
@@ -279,23 +345,87 @@ function emptyForm() {
 
 function resetForm() {
   editingId.value = null
+  postSearch.value = ''
   form.value = emptyForm()
 }
 
 function startEdit(item: DashboardSliderItem) {
   editingId.value = item.id
   const imageId = item.image?.id ?? (typeof item.image === 'number' || typeof item.image === 'string' ? item.image : null)
+  const linkType = homeSliderLinkTypeFromHref(item.href)
+  const postId = parseHomeSliderPostModalHref(item.href)
   form.value = {
     title: item.title || '',
-    href: item.href || '',
+    linkType,
+    href: linkType === 'url' ? (item.href || '') : '',
+    postId: postId == null ? '' : String(postId),
     images: imageId == null || imageId === '' ? [] : [imageId],
     active: item.active !== false,
-    openInNewTab: !!item.openInNewTab,
+    openInNewTab: linkType === 'url' ? !!item.openInNewTab : false,
     sortOrder: item.sortOrder == null ? '' : String(item.sortOrder),
     startAt: item.startAt ? String(item.startAt).slice(0, 10) : '',
     endAt: item.endAt ? String(item.endAt).slice(0, 10) : '',
   }
+  if (linkType === 'post') void loadPostOptions()
 }
+
+function postPreview(post: any): string {
+  const collect = (node: any): string => {
+    if (!node) return ''
+    if (node.type === 'text') return String(node.text || '')
+    const children = Array.isArray(node.children) ? node.children.map(collect).join('') : ''
+    return ['paragraph', 'heading', 'listitem'].includes(node.type) ? `${children}\n` : children
+  }
+  return collect(post?.content?.root).trim()
+}
+
+function linkLabel(href: unknown): string {
+  const postId = parseHomeSliderPostModalHref(href)
+  if (postId != null) {
+    const match = postOptions.value.find((post) => String(post.id) === String(postId))
+    const preview = match ? postPreview(match) : ''
+    return preview ? `Post #${postId}: ${preview}` : `Post #${postId} (modal)`
+  }
+  if (typeof href === 'string' && href.trim()) return href.trim()
+  return '—'
+}
+
+const filteredPostOptions = computed(() => {
+  const q = postSearch.value.trim().toLowerCase()
+  if (!q) return postOptions.value
+  return postOptions.value.filter((post) => {
+    const haystack = `${postPreview(post)} ${post.author?.name || ''} ${post.author?.email || ''} ${post.id}`.toLowerCase()
+    return haystack.includes(q)
+  })
+})
+
+async function loadPostOptions() {
+  if (!canManageDashboard.value) return
+  postsLoading.value = true
+  try {
+    const res: any = await $fetch('/api/posts', {
+      query: { limit: 100, sort: '-createdAt' },
+    })
+    postOptions.value = Array.isArray(res?.docs) ? res.docs : []
+  } catch {
+    postOptions.value = []
+  } finally {
+    postsLoading.value = false
+  }
+}
+
+watch(
+  () => form.value.linkType,
+  (linkType) => {
+    if (linkType === 'post') {
+      form.value.openInNewTab = false
+      if (!postOptions.value.length) void loadPostOptions()
+    }
+    if (linkType !== 'url') form.value.openInNewTab = false
+    if (linkType !== 'post') form.value.postId = ''
+    if (linkType !== 'url') form.value.href = ''
+  },
+)
 
 async function loadItems() {
   if (!canManageDashboard.value) return
@@ -454,15 +584,25 @@ async function uploadImageAsset(opts?: { silentIfEmpty?: boolean }) {
 
 async function saveItem() {
   error.value = null
+  if (form.value.linkType === 'post' && !form.value.postId.trim()) {
+    error.value = 'Select a post for the modal link.'
+    return
+  }
+  const href = resolveHomeSliderHref({
+    linkType: form.value.linkType,
+    href: form.value.href,
+    postId: form.value.postId,
+  })
+  const openInNewTab = form.value.linkType === 'url' ? form.value.openInNewTab : false
   saving.value = true
   try {
     if (editingId.value) {
       await updateSliderItem(editingId.value, {
         title: form.value.title.trim(),
-        href: form.value.href.trim(),
+        href,
         image: form.value.images[0] ?? null,
         active: form.value.active,
-        openInNewTab: form.value.openInNewTab,
+        openInNewTab,
         sortOrder: form.value.sortOrder === '' ? 0 : Number(form.value.sortOrder),
         startAt: form.value.startAt || null,
         endAt: form.value.endAt || null,
@@ -471,9 +611,9 @@ async function saveItem() {
       const payloads = buildHomeSliderCreateItems({
         images: form.value.images,
         title: form.value.title,
-        href: form.value.href,
+        href,
         active: form.value.active,
-        openInNewTab: form.value.openInNewTab,
+        openInNewTab,
         sortOrder: form.value.sortOrder,
         startAt: form.value.startAt || null,
         endAt: form.value.endAt || null,
@@ -567,4 +707,7 @@ async function removeItem(id: string | number) {
 
 watch(canManageDashboard, () => loadItems(), { immediate: true })
 watch(canManageDashboard, () => loadMediaAssets(), { immediate: true })
+watch(canManageDashboard, (allowed) => {
+  if (allowed) void loadPostOptions()
+}, { immediate: true })
 </script>

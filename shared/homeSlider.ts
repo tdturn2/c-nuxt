@@ -1,3 +1,8 @@
+/** Stored in `href` when a slide should open a Connect post in a modal. */
+export const HOME_SLIDER_POST_MODAL_PREFIX = 'post-modal:'
+
+export type HomeSliderLinkType = 'none' | 'url' | 'post'
+
 export type HomeSliderWritePayload = {
   title: string
   href: string
@@ -7,6 +12,46 @@ export type HomeSliderWritePayload = {
   sortOrder: number
   startAt: string | null
   endAt: string | null
+}
+
+export function buildHomeSliderPostModalHref(postId: string | number): string {
+  return `${HOME_SLIDER_POST_MODAL_PREFIX}${String(postId).trim()}`
+}
+
+export function parseHomeSliderPostModalHref(href: unknown): number | null {
+  if (typeof href !== 'string') return null
+  const trimmed = href.trim()
+  const lower = trimmed.toLowerCase()
+  if (!lower.startsWith(HOME_SLIDER_POST_MODAL_PREFIX)) return null
+  const idPart = trimmed.slice(HOME_SLIDER_POST_MODAL_PREFIX.length).trim()
+  if (!/^\d+$/.test(idPart)) return null
+  const id = Number(idPart)
+  return Number.isFinite(id) && id > 0 ? id : null
+}
+
+export function isHomeSliderPostModalHref(href: unknown): boolean {
+  return parseHomeSliderPostModalHref(href) != null
+}
+
+export function resolveHomeSliderHref(input: {
+  linkType?: HomeSliderLinkType | string | null
+  href?: string | null
+  postId?: string | number | null
+}): string {
+  const linkType = input.linkType || 'url'
+  if (linkType === 'none') return ''
+  if (linkType === 'post') {
+    const id = input.postId == null || input.postId === '' ? null : String(input.postId).trim()
+    if (!id || !/^\d+$/.test(id)) return ''
+    return buildHomeSliderPostModalHref(id)
+  }
+  return String(input.href || '').trim()
+}
+
+export function homeSliderLinkTypeFromHref(href: unknown): HomeSliderLinkType {
+  if (isHomeSliderPostModalHref(href)) return 'post'
+  if (typeof href === 'string' && href.trim()) return 'url'
+  return 'none'
 }
 
 export function nextHomeSliderSortOrder(items: Array<{ sortOrder?: number | string | null }>): number {

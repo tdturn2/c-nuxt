@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { buildHomeSliderCreateItems, nextHomeSliderSortOrder } from '../shared/homeSlider'
+import {
+  buildHomeSliderCreateItems,
+  buildHomeSliderPostModalHref,
+  homeSliderLinkTypeFromHref,
+  nextHomeSliderSortOrder,
+  parseHomeSliderPostModalHref,
+  resolveHomeSliderHref,
+} from '../shared/homeSlider'
 
 describe('home slider create items', () => {
   it('creates one payload per selected image', () => {
@@ -50,5 +57,28 @@ describe('home slider sort order', () => {
   it('starts after the current max', () => {
     expect(nextHomeSliderSortOrder([])).toBe(0)
     expect(nextHomeSliderSortOrder([{ sortOrder: 2 }, { sortOrder: '8' }])).toBe(9)
+  })
+})
+
+describe('home slider post modal href', () => {
+  it('encodes and parses post modal links', () => {
+    expect(buildHomeSliderPostModalHref(42)).toBe('post-modal:42')
+    expect(parseHomeSliderPostModalHref('post-modal:42')).toBe(42)
+    expect(parseHomeSliderPostModalHref('POST-MODAL:7')).toBe(7)
+    expect(parseHomeSliderPostModalHref('/news')).toBeNull()
+    expect(parseHomeSliderPostModalHref('post-modal:abc')).toBeNull()
+  })
+
+  it('resolves link type into the stored href', () => {
+    expect(resolveHomeSliderHref({ linkType: 'none', href: '/x', postId: 9 })).toBe('')
+    expect(resolveHomeSliderHref({ linkType: 'url', href: ' /news ' })).toBe('/news')
+    expect(resolveHomeSliderHref({ linkType: 'post', postId: 15 })).toBe('post-modal:15')
+    expect(resolveHomeSliderHref({ linkType: 'post', postId: '' })).toBe('')
+  })
+
+  it('infers link type from stored href', () => {
+    expect(homeSliderLinkTypeFromHref('')).toBe('none')
+    expect(homeSliderLinkTypeFromHref('/news')).toBe('url')
+    expect(homeSliderLinkTypeFromHref('post-modal:3')).toBe('post')
   })
 })
