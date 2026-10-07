@@ -212,7 +212,9 @@ const { connectUserDoc, canAccessFacultyHub, canAccessStaffHub } = useAudienceHu
 const viewerUser = computed(() => connectUserDoc.value || meUser.value)
 const viewerRoles = computed(() => normalizeConnectUserRoles(viewerUser.value))
 const canSeeAllAudiencePosts = computed(() => viewerRoles.value.includes('admin'))
-const canSeeStudentPosts = computed(() => true)
+const canSeeStudentPosts = computed(() =>
+  canSeeAllAudiencePosts.value || viewerRoles.value.includes('student'),
+)
 const canSeeFacultyPosts = computed(() =>
   canSeeAllAudiencePosts.value || canAccessFacultyHub.value || hasFacultyHubAccess(viewerUser.value),
 )

@@ -8,6 +8,13 @@ const studentAccess = {
   canSeeEmployees: false,
 }
 
+const staffAccess = {
+  canSeeStudents: false,
+  canSeeFaculty: false,
+  canSeeStaff: true,
+  canSeeEmployees: true,
+}
+
 describe('timeline feed visibility', () => {
   it('lets students see general and student posts, not employees', () => {
     expect(postVisibleToViewer(['all'], studentAccess)).toBe(true)
@@ -15,6 +22,14 @@ describe('timeline feed visibility', () => {
     expect(postVisibleToViewer(['student'], studentAccess)).toBe(true)
     expect(postVisibleToViewer(['employees'], studentAccess)).toBe(false)
     expect(postVisibleToViewer(['faculty'], studentAccess)).toBe(false)
+  })
+
+  it('hides student-only posts from staff without the student role', () => {
+    expect(postVisibleToViewer(['all'], staffAccess)).toBe(true)
+    expect(postVisibleToViewer(['staff'], staffAccess)).toBe(true)
+    expect(postVisibleToViewer(['employees'], staffAccess)).toBe(true)
+    expect(postVisibleToViewer(['students'], staffAccess)).toBe(false)
+    expect(postVisibleToViewer(['student'], staffAccess)).toBe(false)
   })
 
   it('shows the older-posts empty state when every visible post is stale', () => {
