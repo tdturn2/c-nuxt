@@ -45,15 +45,6 @@
                   placeholder="All sections"
                 />
               </div>
-              <DirectoryLocationFilters
-                v-model:country="filterCountry"
-                v-model:region="filterRegion"
-                v-model:city="filterCity"
-                id-prefix="emp-geo"
-                :show-country="false"
-                :available-regions="availableRegions"
-                :available-cities="availableCities"
-              />
               <div class="w-full sm:max-w-md sm:min-w-[200px] sm:flex-1">
                 <label for="emp-search" class="sr-only">Search by name</label>
                 <input
@@ -114,10 +105,8 @@
 
 <script setup lang="ts">
 import { sortDirectoryByLastName } from '@shared/directoryNameSort'
-import { matchesHomeLocationFilter } from '@shared/geo'
 import { mediaDisplayUrl } from '@shared/mediaUrls'
 import { watchDebounced } from '@vueuse/core'
-import DirectoryLocationFilters from '~/components/directory/DirectoryLocationFilters.vue'
 
 type EmployeeRow = {
   id: number
@@ -127,9 +116,6 @@ type EmployeeRow = {
   department: string | null
   section: string | null
   phone: string | null
-  country: string | null
-  region: string | null
-  city: string | null
   avatar: { url: string } | null
 }
 
@@ -137,9 +123,6 @@ const route = useRoute()
 const router = useRouter()
 
 const searchQuery = ref('')
-const filterCountry = ref('')
-const filterRegion = ref('')
-const filterCity = ref('')
 
 const { data: employeesPayload, pending: loading, error: fetchError } = useLazyFetch<{ employees: EmployeeRow[] }>(
   '/api/employees',
@@ -225,28 +208,6 @@ watch(selectedDepartment, () => {
   if (!stillValid) selectedSection.value = { ...ALL_SECTIONS }
 })
 
-const availableRegions = computed(() => {
-  const set = new Set<string>()
-  for (const e of employees.value) {
-    if ((e.country || '').trim().toUpperCase() !== 'US') continue
-    const r = (e.region || '').trim().toUpperCase()
-    if (r) set.add(r)
-  }
-  return [...set]
-})
-
-const availableCities = computed(() => {
-  if (!filterRegion.value) return []
-  const set = new Set<string>()
-  for (const e of employees.value) {
-    if ((e.country || '').trim().toUpperCase() !== 'US') continue
-    if ((e.region || '').trim().toUpperCase() !== filterRegion.value) continue
-    const city = (e.city || '').trim()
-    if (city) set.add(city)
-  }
-  return [...set]
-})
-
 const filteredEmployees = computed(() => {
   let list = employees.value
   const dept = selectedDepartment.value?.value
@@ -257,13 +218,6 @@ const filteredEmployees = computed(() => {
   if (sec) {
     list = list.filter((e) => (e.section ?? '').trim() === sec)
   }
-  list = list.filter((e) =>
-    matchesHomeLocationFilter(e, {
-      country: filterCountry.value,
-      region: filterRegion.value,
-      city: filterCity.value,
-    }),
-  )
   const words = searchQuery.value
     .trim()
     .toLowerCase()
@@ -276,41 +230,32 @@ const filteredEmployees = computed(() => {
   }))
 })
 
-/** Shareable filters: department, section, geo, optional name search (`q` or legacy `name`). */
+/** Shareable filters: department, section, optional name search (`q` or legacy `name`). */
 function parseQuery(q: typeof route.query) {
   const department = typeof q.department === 'string' ? q.department.trim() : ''
   const section = typeof q.section === 'string' ? q.section.trim() : ''
-  const country = typeof q.country === 'string' ? q.country.trim().toUpperCase() : ''
-  const region = typeof q.region === 'string' ? q.region.trim().toUpperCase() : ''
-  const city = typeof q.city === 'string' ? q.city.trim() : ''
   const name =
     typeof q.q === 'string'
       ? q.q
       : typeof q.name === 'string'
         ? q.name
         : ''
-  return { department, section, country, region, city, name }
+  return { department, section, name }
 }
 
 function queryRecordFromState(): Record<string, string> {
   const out: Record<string, string> = {}
   if (selectedDepartment.value?.value) out.department = selectedDepartment.value.value
   if (selectedSection.value?.value) out.section = selectedSection.value.value
-  if (filterCountry.value) out.country = filterCountry.value
-  if (filterCountry.value === 'US' && filterRegion.value) out.region = filterRegion.value
-  if (filterCountry.value === 'US' && filterRegion.value && filterCity.value) out.city = filterCity.value
   if (searchQuery.value.trim()) out.q = searchQuery.value.trim()
   return out
 }
 
 function queryRecordFromRoute(q: typeof route.query): Record<string, string> {
-  const { department, section, country, region, city, name } = parseQuery(q)
+  const { department, section, name } = parseQuery(q)
   const out: Record<string, string> = {}
   if (department) out.department = department
   if (section) out.section = section
-  if (country) out.country = country
-  if (country === 'US' && region) out.region = region
-  if (country === 'US' && region && city) out.city = city
   if (name.trim()) out.q = name.trim()
   return out
 }
@@ -324,7 +269,7 @@ function equalQuery(a: Record<string, string>, b: Record<string, string>) {
 }
 
 function applyQueryToFilters() {
-  const { department, section, country, region, city, name } = parseQuery(route.query)
+  const { department, section, name } = parseQuery(route.query)
   const deptOpt = department
     ? { label: DEPARTMENT_LABELS[department] ?? department, value: department }
     : { ...ALL_DEPARTMENTS }
@@ -345,9 +290,6 @@ function applyQueryToFilters() {
   if (selectedSection.value.value !== secOpt.value) {
     selectedSection.value = secOpt
   }
-  if (filterCountry.value !== country) filterCountry.value = country
-  if (filterRegion.value !== region) filterRegion.value = country === 'US' ? region : ''
-  if (filterCity.value !== city) filterCity.value = country === 'US' && region ? city : ''
   if (searchQuery.value !== name) {
     searchQuery.value = name
   }
@@ -361,14 +303,26 @@ watch(
   { immediate: true, deep: true }
 )
 
+onMounted(() => {
+  const q = route.query
+  if (!q.country && !q.region && !q.city) return
+  const next: Record<string, string> = {}
+  for (const [key, value] of Object.entries(q)) {
+    if (key === 'country' || key === 'region' || key === 'city') continue
+    if (typeof value === 'string' && value) next[key] = value
+  }
+  router.replace({ path: route.path, query: next })
+})
+
 function syncRouteFromFilters() {
   const next = queryRecordFromState()
   const cur = queryRecordFromRoute(route.query)
-  if (equalQuery(next, cur)) return
+  const hasStaleGeo = Boolean(route.query.country || route.query.region || route.query.city)
+  if (equalQuery(next, cur) && !hasStaleGeo) return
   router.replace({ path: route.path, query: next })
 }
 
-watch([selectedDepartment, selectedSection, filterCountry, filterRegion, filterCity], syncRouteFromFilters, { deep: true })
+watch([selectedDepartment, selectedSection], syncRouteFromFilters, { deep: true })
 watchDebounced(searchQuery, syncRouteFromFilters, { debounce: 400 })
 
 watch(fetchError, (e) => {

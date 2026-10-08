@@ -20,17 +20,8 @@
           </div>
 
           <template v-else>
-            <div class="mb-6 flex flex-wrap items-end gap-3 sm:gap-4">
-              <DirectoryLocationFilters
-                v-model:country="filterCountry"
-                v-model:region="filterRegion"
-                v-model:city="filterCity"
-                id-prefix="faculty-geo"
-                :show-country="false"
-                :available-regions="availableRegions"
-                :available-cities="availableCities"
-              />
-              <div class="w-full sm:max-w-md sm:min-w-[200px] sm:flex-1">
+            <div class="mb-6">
+              <div class="w-full sm:max-w-md">
                 <label for="faculty-search" class="sr-only">Search by name</label>
                 <input
                   id="faculty-search"
@@ -90,9 +81,7 @@
 
 <script setup lang="ts">
 import { sortDirectoryByLastName } from '@shared/directoryNameSort'
-import { matchesHomeLocationFilter } from '@shared/geo'
 import { mediaDisplayUrl } from '@shared/mediaUrls'
-import DirectoryLocationFilters from '~/components/directory/DirectoryLocationFilters.vue'
 
 type FacultyRow = {
   id: number
@@ -100,16 +89,10 @@ type FacultyRow = {
   email: string | null
   employeeTitle: string | null
   phone: string | null
-  country: string | null
-  region: string | null
-  city: string | null
   avatar: { url: string } | null
 }
 
 const searchQuery = ref('')
-const filterCountry = ref('')
-const filterRegion = ref('')
-const filterCity = ref('')
 
 const { data: facultyPayload, pending: loading, error: fetchError } = useLazyFetch<{ faculty: FacultyRow[] }>(
   '/api/faculty',
@@ -132,41 +115,13 @@ function userProfilePath(person: { id: number; email: string | null }): string {
   return `/user/${person.id}`
 }
 
-const availableRegions = computed(() => {
-  const set = new Set<string>()
-  for (const person of faculty.value) {
-    if ((person.country || '').trim().toUpperCase() !== 'US') continue
-    const r = (person.region || '').trim().toUpperCase()
-    if (r) set.add(r)
-  }
-  return [...set]
-})
-
-const availableCities = computed(() => {
-  if (!filterRegion.value) return []
-  const set = new Set<string>()
-  for (const person of faculty.value) {
-    if ((person.country || '').trim().toUpperCase() !== 'US') continue
-    if ((person.region || '').trim().toUpperCase() !== filterRegion.value) continue
-    const city = (person.city || '').trim()
-    if (city) set.add(city)
-  }
-  return [...set]
-})
-
 const filteredFaculty = computed(() => {
   const words = searchQuery.value
     .trim()
     .toLowerCase()
     .split(/\s+/)
     .filter(Boolean)
-  let list = faculty.value.filter((person) =>
-    matchesHomeLocationFilter(person, {
-      country: filterCountry.value,
-      region: filterRegion.value,
-      city: filterCity.value,
-    }),
-  )
+  let list = faculty.value
   if (words.length) {
     list = list.filter((person: FacultyRow) => {
       const name = (person.name ?? '').toLowerCase()
