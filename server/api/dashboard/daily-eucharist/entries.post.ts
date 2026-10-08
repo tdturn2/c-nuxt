@@ -26,8 +26,8 @@ export default defineEventHandler(async (event) => {
   const location = asTrimmedString(body.location)
   const connectUser = toPayloadId(body.connectUser)
   const eucharistSpeaker = asTrimmedString(body.eucharistSpeaker)
-  if (!date || !location || (connectUser == null && !eucharistSpeaker)) {
-    throw createError({ statusCode: 400, statusMessage: 'Date, location, and either a speaker user or manual speaker name are required.' })
+  if (!date || !location) {
+    throw createError({ statusCode: 400, statusMessage: 'Date and location are required.' })
   }
 
   const payload: Record<string, any> = {

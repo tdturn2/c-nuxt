@@ -142,7 +142,7 @@ const dailyStatus = computed(() => {
   const next = entries[0]
   if (next) {
     const when = weekdayLabel(next.date)
-    const speaker = next.speakerName || 'TBD'
+    const speaker = next.speakerName || ''
     const location = next.location || 'Location TBD'
     return [when, speaker, location].filter(Boolean).join(' · ')
   }

@@ -17,6 +17,7 @@
         </header>
 
         <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+          <div class="min-w-0">
           <section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
             <div class="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3">
               <div class="flex items-center gap-1">
@@ -135,6 +136,13 @@
               </div>
             </div>
           </section>
+          <NuxtLink
+            to="/chapel/daily-eucharist"
+            class="mt-4 inline-flex text-sm font-medium text-[rgba(13,94,130,1)] hover:underline"
+          >
+            Daily Eucharist
+          </NuxtLink>
+          </div>
 
           <aside class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <p class="text-xs font-semibold uppercase tracking-wide text-[rgba(13,94,130,1)]">

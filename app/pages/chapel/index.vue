@@ -47,6 +47,9 @@
                 <p v-if="item.title" class="mt-2 max-w-[16rem] text-sm font-medium text-[rgba(13,94,130,1)]">
                   {{ item.title }}
                 </p>
+                <p v-if="entryDetail(item)" class="mt-2 max-w-[16rem] text-sm leading-snug text-gray-600 whitespace-pre-wrap">
+                  {{ entryDetail(item) }}
+                </p>
 
                 <div
                   v-if="entryAudioUrl(item) || entryMessageVideo(item)"
@@ -103,7 +106,7 @@
                 class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"
               >
                 <p class="text-xs uppercase tracking-wide text-[rgba(13,94,130,1)]">{{ weekdayDateLabel(entry.date) }}</p>
-                <p class="mt-1 text-sm font-semibold text-gray-900">{{ entry.speakerName || 'TBD' }}</p>
+                <p v-if="entry.speakerName" class="mt-1 text-sm font-semibold text-gray-900">{{ entry.speakerName }}</p>
                 <p class="mt-0.5 text-sm text-gray-600">{{ entry.location || 'Location TBD' }}</p>
               </li>
             </ul>
@@ -115,6 +118,7 @@
               >
                 <p class="text-xs uppercase tracking-wide text-[rgba(13,94,130,1)]">{{ weekdayDateLabel(day.date) }}</p>
                 <p class="mt-1 text-sm font-semibold text-gray-900">{{ day.hours }}</p>
+                <p v-if="day.detail" class="mt-0.5 text-sm text-gray-600">{{ day.detail }}</p>
               </li>
             </ul>
           </template>
@@ -174,6 +178,7 @@ type DailyEucharistEntry = {
 type CampusHoursEucharist = {
   date: string
   hours: string
+  detail?: string
 }
 
 type DailyEucharistResponse = {
@@ -221,6 +226,10 @@ function speakerPhotoUrl(speaker?: WeekSpeaker | null): string {
 
 function speakerTitle(speaker?: WeekSpeaker | null): string {
   return chapelSpeakerTitle(speaker)
+}
+
+function entryDetail(entry: WeekEntry): string {
+  return typeof entry.description === 'string' ? entry.description.trim() : ''
 }
 
 function weekdayDateLabel(dateStr: string): string {

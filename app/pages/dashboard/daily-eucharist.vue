@@ -60,7 +60,7 @@
               <input
                 v-model="entryForm.eucharistSpeaker"
                 type="text"
-                placeholder="Speaker display override (optional)"
+                placeholder="Speaker name (optional)"
                 class="rounded-md border border-gray-300 px-3 py-2 text-sm"
               >
               <select v-model="entryForm.location" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
@@ -168,7 +168,7 @@
                 <tr v-for="entry in entries" :key="String(entry.id)" class="border-t border-gray-200">
                   <td class="px-4 py-3 text-gray-700">{{ displayDate(entry.date) }}</td>
                   <td class="px-4 py-3 font-medium text-gray-900">
-                    {{ entry.eucharistSpeaker || entry.connectUser?.name || 'TBD' }}
+                    {{ entry.eucharistSpeaker || entry.connectUser?.name || '—' }}
                   </td>
                   <td class="px-4 py-3 text-gray-700">{{ entry.location || '—' }}</td>
                   <td class="px-4 py-3 text-gray-700">{{ entry.active === false ? 'Inactive' : 'Active' }}</td>
@@ -424,8 +424,8 @@ async function saveEntry() {
   error.value = null
   success.value = null
   const speakerName = entryForm.value.eucharistSpeaker.trim()
-  if (!entryForm.value.date || !entryForm.value.location || (!entryForm.value.connectUser && !speakerName)) {
-    error.value = 'Date, location, and either a speaker user or manual speaker name are required.'
+  if (!entryForm.value.date || !entryForm.value.location) {
+    error.value = 'Date and location are required.'
     return
   }
 

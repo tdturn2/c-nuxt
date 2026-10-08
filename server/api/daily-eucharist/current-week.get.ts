@@ -41,6 +41,7 @@ type CampusHoursDay = {
   date?: string
   closedAll?: boolean
   cells?: Record<string, string>
+  notes?: string[]
 }
 
 /** Standing Eucharist times from campus hours, skipping blank and closed days. */
@@ -51,7 +52,10 @@ function campusHoursEucharist(days: CampusHoursDay[] | undefined) {
     if (!date || day.closedAll) return []
     const hours = typeof day.cells?.eucharist === 'string' ? day.cells.eucharist.trim() : ''
     if (!hours || isClosedHours(hours)) return []
-    return [{ date, hours }]
+    const detail = Array.isArray(day.notes)
+      ? day.notes.map((note) => String(note || '').trim()).filter(Boolean).join(' · ')
+      : ''
+    return [{ date, hours, detail }]
   })
 }
 
@@ -106,7 +110,7 @@ export default defineEventHandler(async () => {
       id: entry.id,
       date: entry.date ? String(entry.date).slice(0, 10) : '',
       location: entry.location || '',
-      speakerName: entry.eucharistSpeaker?.trim() || entry.connectUser?.name || 'TBD',
+      speakerName: entry.eucharistSpeaker?.trim() || entry.connectUser?.name || '',
       connectUser: entry.connectUser
         ? {
             id: entry.connectUser.id,
