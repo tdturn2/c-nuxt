@@ -8,7 +8,7 @@ import {
 
 const route = useRoute()
 const isHome = computed(() => route.path === '/')
-const { asideWidthPx, collapsed, toggleCollapsed, startResize } = useSidebar()
+const { asideWidthPx, collapsed, isNarrow, toggleCollapsed, startResize } = useSidebar()
 const menuSearchQuery = ref('')
 
 const { data: internalPagesData } = useConnectPagesTreeData()
@@ -263,12 +263,26 @@ const revealActiveLink = () => {
 }
 
 watch([() => route.path, () => internalPagesData.value?.docs], revealActiveLink, { immediate: true })
+
+watch(() => route.path, () => {
+  if (isNarrow.value) collapsed.value = true
+})
 </script>
 
 <template>
+  <button
+    v-if="!collapsed"
+    type="button"
+    class="fixed inset-0 z-[55] bg-black/40 md:hidden"
+    aria-label="Close menu"
+    @click="toggleCollapsed"
+  />
   <aside
-    class="sidebar-aside sticky top-[3.75rem] self-start flex-shrink-0 flex items-stretch border-r border-gray-200 bg-white transition-[width] duration-200 ease-out"
-    :class="isHome ? 'h-full' : 'h-[calc(100vh-3.75rem)]'"
+    class="sidebar-aside sticky top-[3.75rem] self-start flex-shrink-0 flex items-stretch border-r border-gray-200 bg-white transition-[width] duration-200 ease-out max-md:w-[85vw]! max-md:max-w-80!"
+    :class="[
+      collapsed ? 'max-md:hidden' : 'max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-[60] max-md:h-dvh! max-md:shadow-2xl',
+      isHome ? 'h-full max-md:h-dvh' : 'h-[calc(100vh-3.75rem)] max-md:h-dvh',
+    ]"
     :style="{ width: `${asideWidthPx}px` }"
   >
     <!-- Collapsed: expand control pinned to top of rail -->
@@ -376,7 +390,7 @@ watch([() => route.path, () => internalPagesData.value?.docs], revealActiveLink,
       <div
         role="separator"
         aria-label="Resize sidebar"
-        class="resize-handle relative w-1 shrink-0 cursor-col-resize hover:bg-[rgba(13,94,130,0.2)] active:bg-[rgba(13,94,130,0.3)] transition-colors group"
+        class="resize-handle relative hidden w-1 shrink-0 cursor-col-resize hover:bg-[rgba(13,94,130,0.2)] active:bg-[rgba(13,94,130,0.3)] transition-colors group md:block"
         @mousedown="startResize"
       >
         <span class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-8 rounded-full bg-gray-300 group-hover:bg-[rgba(13,94,130,0.5)] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   canEditPageByGroups,
+  canUploadPageAssets,
   childPagePath,
   editorPrefixesForGroups,
   joinConnectPageSlugs,
@@ -49,6 +50,16 @@ describe('canEditPageByGroups', () => {
       groupSlugs: ['staff'],
       pagePath: '/arp',
     })).toBe(false)
+  })
+})
+
+describe('canUploadPageAssets', () => {
+  it('allows admins and mapped page-editor groups', () => {
+    expect(canUploadPageAssets({ isAdmin: true, groupSlugs: [] })).toBe(true)
+    expect(canUploadPageAssets({ isAdmin: false, groupSlugs: ['registrar'] })).toBe(true)
+    expect(canUploadPageAssets({ isAdmin: false, groupSlugs: ['arp', 'hr'] })).toBe(true)
+    expect(canUploadPageAssets({ isAdmin: false, groupSlugs: ['staff'] })).toBe(false)
+    expect(canUploadPageAssets({ isAdmin: false, groupSlugs: [] })).toBe(false)
   })
 })
 

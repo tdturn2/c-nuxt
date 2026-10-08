@@ -85,3 +85,9 @@ export function canEditPageByGroups(opts: {
   if (!prefixes.length) return false
   return pathMatchesEditorPrefixes(opts.pagePath, prefixes)
 }
+
+/** Page-editor groups may upload assets for the sections they edit. */
+export function canUploadPageAssets(opts: { isAdmin: boolean; groupSlugs: string[] }): boolean {
+  if (opts.isAdmin) return true
+  return editorPrefixesForGroups(opts.groupSlugs).length > 0
+}

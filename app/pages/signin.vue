@@ -1,11 +1,11 @@
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-10">
-    <div class="w-full max-w-md overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-lg">
-      <div class="flex justify-center bg-gradient-to-r from-[rgba(13,94,130,1)] to-[rgba(10,69,92,1)] px-8 py-9">
-        <img :src="connectLogoWide" alt="Asbury Connect" class="h-10 w-auto sm:h-11" />
+  <div class="flex min-h-dvh w-full items-center justify-center overflow-x-hidden bg-gray-50 px-4 py-10">
+    <div class="signin-card overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-lg">
+      <div class="flex justify-center bg-gradient-to-r from-[rgba(13,94,130,1)] to-[rgba(10,69,92,1)] px-5 py-8 sm:px-8 sm:py-9">
+        <img :src="connectLogoWide" alt="Asbury Connect" class="signin-logo block h-auto" />
       </div>
 
-      <div class="px-8 py-8 text-center">
+      <div class="px-5 py-8 text-center sm:px-8">
         <p v-if="isRedirecting" class="text-sm text-gray-600">
           Redirecting to Microsoft…
         </p>
@@ -172,3 +172,15 @@ const handleSignIn = async (e: MouseEvent) => {
   }
 }
 </script>
+
+<style scoped>
+.signin-card {
+  width: min(28rem, calc(100vw - 2rem));
+  max-width: 100%;
+}
+
+.signin-logo {
+  width: min(14rem, 68vw);
+  height: auto;
+}
+</style>

@@ -23,14 +23,17 @@ function readStoredCollapsed(): boolean | null {
 }
 
 function resolveCollapsedDefault(): boolean {
+  if (isMobileViewport()) return true
   const stored = readStoredCollapsed()
   if (stored !== null) return stored
-  return isMobileViewport()
+  return false
 }
 
 export function useSidebar() {
   const width = useState('sidebar-width', () => DEFAULT_WIDTH)
   const collapsed = useState('sidebar-collapsed', () => false)
+  const isNarrow = useState('sidebar-is-narrow', () => false)
+  const desktopCollapsed = useState<boolean | null>('sidebar-desktop-collapsed', () => null)
   const mobileListenersAttached = useState('sidebar-mobile-listeners', () => false)
 
   if (import.meta.client) {
@@ -42,13 +45,27 @@ export function useSidebar() {
       }
     } catch (_) {}
 
+    isNarrow.value = isMobileViewport()
+    if (isNarrow.value && desktopCollapsed.value === null) {
+      desktopCollapsed.value = readStoredCollapsed() ?? false
+    }
     collapsed.value = resolveCollapsedDefault()
 
     if (!mobileListenersAttached.value) {
       mobileListenersAttached.value = true
       const mq = window.matchMedia(`(max-width: ${MOBILE_MAX_WIDTH}px)`)
+      const syncNarrow = () => {
+        isNarrow.value = mq.matches
+      }
+      syncNarrow()
       mq.addEventListener('change', (event) => {
-        if (event.matches) collapsed.value = true
+        syncNarrow()
+        if (event.matches) {
+          desktopCollapsed.value = collapsed.value
+          collapsed.value = true
+        } else if (desktopCollapsed.value !== null) {
+          collapsed.value = desktopCollapsed.value
+        }
       })
     }
   }
@@ -62,11 +79,10 @@ export function useSidebar() {
   }, { flush: 'post' })
 
   watch(collapsed, (c) => {
-    if (import.meta.client) {
-      try {
-        localStorage.setItem(STORAGE_KEY_COLLAPSED, c ? 'true' : 'false')
-      } catch (_) {}
-    }
+    if (!import.meta.client || isMobileViewport()) return
+    try {
+      localStorage.setItem(STORAGE_KEY_COLLAPSED, c ? 'true' : 'false')
+    } catch (_) {}
   }, { flush: 'post' })
 
   const asideWidthPx = computed(() =>
@@ -105,6 +121,7 @@ export function useSidebar() {
   return {
     width,
     collapsed,
+    isNarrow,
     asideWidthPx,
     toggleCollapsed,
     startResize,

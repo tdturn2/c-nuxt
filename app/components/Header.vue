@@ -1,9 +1,24 @@
 <template>
   <header class="border-b border-white/10 bg-gradient-to-r from-[rgba(13,94,130,1)] to-[rgba(10,69,92,1)]">
-    <div class="w-full flex items-center gap-2 sm:gap-3 min-h-[60px] px-3 md:px-4">
-      <div class="ml-6 flex shrink-0 items-center">
+    <div class="flex w-full min-h-14 items-center gap-0.5 px-2 sm:min-h-[60px] sm:gap-2 sm:px-3 md:gap-3 md:px-4">
+      <button
+        v-if="isSignedIn"
+        type="button"
+        class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white/90 transition-colors hover:bg-white/10 hover:text-white md:hidden"
+        :aria-label="sidebarCollapsed ? 'Open menu' : 'Close menu'"
+        :aria-expanded="!sidebarCollapsed"
+        @click="toggleSidebar"
+      >
+        <UIcon :name="sidebarCollapsed ? 'i-lucide-menu' : 'i-lucide-x'" class="h-5 w-5" />
+      </button>
+
+      <div class="flex shrink-0 items-center">
         <NuxtLink to="/" class="flex items-center" noPrefetch>
-          <img :src="connectLogoWide" alt="Logo" class="block h-8 w-auto sm:h-9" />
+          <img
+            :src="connectLogoWide"
+            alt="Asbury Connect"
+            class="block h-6 w-auto max-w-[42vw] sm:h-8 sm:max-w-none md:h-9"
+          />
         </NuxtLink>
       </div>
 
@@ -37,7 +52,11 @@
           :items="gridMenuItems"
           content-orientation="horizontal"
           class="flex items-center [&>div>div]:min-w-0 md:[&>div>div]:min-w-[320px]"
-          :ui="{ content: 'min-w-0 max-w-[calc(100vw-1.5rem)] md:min-w-[320px]' }"
+          :ui="{
+            content: 'min-w-0 max-w-[calc(100vw-1.5rem)] md:min-w-[320px]',
+            linkTrailing: 'hidden',
+            linkTrailingIcon: 'hidden',
+          }"
         />
 
         <UPopover :popper="{ placement: 'bottom-end' }">
@@ -156,6 +175,7 @@ import connectLogoWide from '../../assets/connect-logo.svg'
 const route = useRoute()
 const { open: openSiteSearchModal } = useSiteSearchModal()
 const { activeTab } = useFeedFilter()
+const { collapsed: sidebarCollapsed, toggleCollapsed: toggleSidebar } = useSidebar()
 
 function openSiteSearch() {
   openSiteSearchModal.value = true

@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-2xl mx-auto px-4 py-6">
+  <div class="mx-auto w-full max-w-5xl px-10 py-5 sm:px-15">
     <PostModal
       :post="selectedPost"
       :user="selectedPostUser"
@@ -14,7 +14,7 @@
 
     <section
       v-if="slides.length"
-      class="relative z-0 mb-12 w-full"
+      class="home-slider relative z-0 -mx-2 mb-12 w-auto sm:mx-0"
     >
       <UCarousel
         v-slot="{ item }"
@@ -23,13 +23,15 @@
         arrows
         dots
         :items="slides"
+        :prev="{ color: 'neutral', variant: 'solid', size: 'sm' }"
+        :next="{ color: 'neutral', variant: 'solid', size: 'sm' }"
         :ui="{
           item: 'basis-full ps-0',
           container: 'ms-0',
-          controls: 'inset-x-2',
-          prev: 'bg-white/90 border border-gray-200',
-          next: 'bg-white/90 border border-gray-200',
-          dots: 'mt-3'
+          viewport: 'overflow-hidden rounded-none shadow-sm sm:rounded-xl',
+          prev: 'z-10 rounded-full bg-white/95 text-gray-800 shadow-md ring-1 ring-black/10 hover:bg-white',
+          next: 'z-10 rounded-full bg-white/95 text-gray-800 shadow-md ring-1 ring-black/10 hover:bg-white',
+          dots: '-bottom-6'
         }"
       >
         <button
@@ -494,3 +496,40 @@ onUnmounted(() => {
   }
 })
 </script>
+
+<style scoped>
+/* Keep slide controls off the baked-in banner type on small screens. */
+.home-slider :deep([data-slot="prev"]),
+.home-slider :deep([data-slot="next"]) {
+  top: auto !important;
+  bottom: -2.15rem !important;
+  transform: none !important;
+}
+
+.home-slider :deep([data-slot="prev"]) {
+  left: 0 !important;
+  right: auto !important;
+}
+
+.home-slider :deep([data-slot="next"]) {
+  right: 0 !important;
+  left: auto !important;
+}
+
+@media (min-width: 768px) {
+  .home-slider :deep([data-slot="prev"]),
+  .home-slider :deep([data-slot="next"]) {
+    top: 50% !important;
+    bottom: auto !important;
+    transform: translateY(-50%) !important;
+  }
+
+  .home-slider :deep([data-slot="prev"]) {
+    left: 0.75rem !important;
+  }
+
+  .home-slider :deep([data-slot="next"]) {
+    right: 0.75rem !important;
+  }
+}
+</style>

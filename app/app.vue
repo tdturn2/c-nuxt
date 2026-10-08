@@ -9,7 +9,7 @@
         <ImpersonationBanner />
       </div>
       <main
-        class="flex-1 relative z-10 min-h-0"
+        class="relative z-10 min-h-0 min-w-0 flex-1"
         :class="isHome ? 'overflow-hidden flex flex-col' : ''"
       >
         <div :class="isHome ? 'flex-1 min-h-0' : ''">

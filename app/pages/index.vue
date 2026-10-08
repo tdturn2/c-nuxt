@@ -2,7 +2,7 @@
   <div class="flex h-full min-h-0 bg-gray-50">
     <LeftColumn />
     <RightColumn>
-      <div class="mx-auto flex w-full max-w-[1200px]">
+      <div class="mx-auto flex w-full max-w-[1480px]">
         <div class="min-w-0 flex-1">
           <Timeline api-url="/api/posts" />
         </div>

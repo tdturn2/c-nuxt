@@ -71,10 +71,12 @@
               aria-label="Degree plan years"
             >
               <details
-                v-for="(yearBlock, index) in catalog"
+                v-for="yearBlock in catalog"
                 :key="yearBlock.year"
+                :data-year="yearBlock.year"
                 class="group rounded-lg border border-gray-200 bg-white shadow-sm open:shadow-md [&_summary::-webkit-details-marker]:hidden"
-                :open="index === 0"
+                :open="openYears.has(yearBlock.year)"
+                @toggle="syncYearOpen(yearBlock.year, $event)"
               >
                 <summary
                   class="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-50/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(13,94,130,0.35)] focus-visible:ring-offset-1"
@@ -103,7 +105,7 @@
                         :key="link.filename"
                       >
                         <NuxtLink
-                          :to="pdfViewerTo(link)"
+                          :to="pdfViewerTo(link, yearBlock.year)"
                           class="text-[rgba(13,94,130,1)] underline decoration-[rgba(13,94,130,0.35)] underline-offset-2 hover:text-[rgba(10,69,92,1)]"
                         >
                           {{ link.title }}
@@ -140,8 +142,46 @@ useSeoMeta({
 })
 
 const route = useRoute()
+const router = useRouter()
 const catalog = DEGREE_PLANS_CATALOG
 const PAGE_PATH = '/registrar/degree-plans'
+
+function yearFromRoute(): number | null {
+  const raw = route.query.year
+  const value = Array.isArray(raw) ? raw[0] : raw
+  const year = Number(value)
+  if (!Number.isFinite(year)) return null
+  return catalog.some((block) => block.year === year) ? year : null
+}
+
+const openYears = ref(new Set<number>())
+
+function restoreOpenYear() {
+  const year = yearFromRoute() ?? catalog[0]?.year
+  openYears.value = new Set(year != null ? [year] : [])
+}
+
+restoreOpenYear()
+
+function syncYearOpen(year: number, event: Event) {
+  const el = event.target
+  if (!(el instanceof HTMLDetailsElement)) return
+  if (el.open === openYears.value.has(year)) return
+  const next = new Set(openYears.value)
+  if (el.open) next.add(year)
+  else next.delete(year)
+  openYears.value = next
+  if (!el.open) return
+  const current = yearFromRoute()
+  if (current === year) return
+  router.replace({ path: PAGE_PATH, query: { ...route.query, year: String(year) } })
+}
+
+onMounted(() => {
+  const year = yearFromRoute()
+  if (year == null || year === catalog[0]?.year) return
+  document.querySelector(`details[data-year="${year}"]`)?.scrollIntoView({ block: 'nearest' })
+})
 
 const { data: pagesTree } = useConnectPagesTreeData()
 
@@ -214,11 +254,11 @@ function isTabActive(path: string): boolean {
   return current.startsWith(`${target}/`)
 }
 
-function pdfViewerTo(link: DegreePlanLink) {
+function pdfViewerTo(link: DegreePlanLink, year: number) {
   const params = new URLSearchParams({
     src: link.href,
     title: link.title,
-    from: route.fullPath,
+    from: `${PAGE_PATH}?year=${year}`,
   })
   return `/pdf?${params.toString()}`
 }

@@ -1,6 +1,7 @@
 import { createError, getHeader } from 'h3'
 import { authenticateWithPayloadCMS, getPayloadProxyHeaders } from './payloadAuth'
-import { isConnectAdminUser } from '@shared/connectUserAccess'
+import { isConnectAdminUser, normalizeConnectGroupSlugs } from '@shared/connectUserAccess'
+import { canUploadPageAssets } from '@shared/pageEditorGroups'
 import {
   canAccessDashboard,
   canAccessDashboardSection,
@@ -102,7 +103,7 @@ function getPayloadBaseUrl() {
 
 export async function requireDashboardStaff(
   event: any,
-  options?: { adminOnly?: boolean; section?: DashboardSection; anyDashboard?: boolean },
+  options?: { adminOnly?: boolean; section?: DashboardSection; anyDashboard?: boolean; pageAssets?: boolean },
 ): Promise<DashboardFormsAuth> {
   let { email } = await authenticateWithPayloadCMS(event)
   if (!email) {
@@ -233,6 +234,11 @@ export async function requireDashboardStaff(
     }
   } else if (options?.anyDashboard) {
     if (!canAccessDashboard(accessUser)) {
+      throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
+    }
+  } else if (options?.pageAssets) {
+    const groupSlugs = normalizeConnectGroupSlugs({ groups: accessGroups })
+    if (!canUploadPageAssets({ isAdmin: hasAdminAccess, groupSlugs })) {
       throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
     }
   } else if (!hasAdminAccess) {
