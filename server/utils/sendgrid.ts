@@ -15,6 +15,11 @@ export type SendFormNotificationInput = {
   htmlBody?: string
   /** Extra context for logs / future Personalizations. */
   meta?: Record<string, unknown>
+  /**
+   * When set, send to these addresses even if the form notification is disabled.
+   * Used by dashboard resend.
+   */
+  toOverride?: string
 }
 
 export type SendFormNotificationResult =
@@ -37,11 +42,12 @@ export async function sendFormEntryNotification(
 
   const fallbackTitle = input.formTitle || input.formSlug || 'Form'
   const notification = normalizeFormEmailNotification(input.notification, fallbackTitle)
-  if (!notification.enabled) {
+  const override = parseNotificationRecipients(input.toOverride)
+  if (!override.length && !notification.enabled) {
     return { sent: false, reason: 'notification disabled' }
   }
 
-  const recipients = parseNotificationRecipients(notification.to)
+  const recipients = override.length ? override : parseNotificationRecipients(notification.to)
   if (!recipients.length) {
     return { sent: false, reason: 'no valid recipients' }
   }
@@ -63,7 +69,7 @@ export async function sendFormEntryNotification(
         to: recipients.map((email) => ({ email })),
       },
     ],
-    from: { email: from, name: 'Asbury Connect Forms' },
+    from: { email: from, name: 'Asbury Connect' },
     subject,
     content: [
       { type: 'text/plain', value: text },

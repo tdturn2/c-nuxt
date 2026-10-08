@@ -2,11 +2,15 @@ import { defineEventHandler, createError, readBody } from 'h3'
 import { getSSOSession } from '../../utils/ssoAuth'
 import { sendFormEntryNotification } from '../../utils/sendgrid'
 import {
-  defaultFormNotificationSubject,
   normalizeFormEmailNotification,
   type FormEmailNotification,
 } from '~/types/forms'
-import { formatStoredAnswer } from '~/utils/forms/productFields'
+import {
+  buildFormResultsEmail,
+  formatFormSubmittedAt,
+  labeledFormAnswers,
+  type FormAnswerField,
+} from '@shared/formNotificationEmail'
 
 type SubmitBody = {
   formSlug?: string
@@ -62,13 +66,19 @@ export default defineEventHandler(async (event) => {
     const notification = resolveFormNotification(formDoc)
     if (notification?.enabled && notification.to) {
       const formTitle = String(formDoc?.title || formSlug)
-      const textBody = buildPlainTextSummary(formTitle, email, answers)
+      const fields = Array.isArray(formDoc?.schema?.fields) ? formDoc.schema.fields as FormAnswerField[] : []
+      const message = buildFormResultsEmail({
+        formTitle,
+        submitterEmail: email,
+        submittedAt: formatFormSubmittedAt(res?.createdAt ?? res?.doc?.createdAt),
+        answers: labeledFormAnswers(answers, fields),
+      })
       const sent = await sendFormEntryNotification({
         formTitle,
         formSlug,
         notification,
-        textBody,
-        htmlBody: buildHtmlSummary(formTitle, email, answers),
+        textBody: message.text,
+        htmlBody: message.html,
         meta: { submitter: email, submissionId: res?.id ?? res?.doc?.id },
       })
       if (!sent.sent) {
@@ -98,54 +108,4 @@ function resolveFormNotification(formDoc: any): FormEmailNotification | null {
   const raw = formDoc.emailNotification ?? formDoc.schema?.emailNotification
   if (!raw) return null
   return normalizeFormEmailNotification(raw, formDoc.title || formDoc.slug || '')
-}
-
-function buildPlainTextSummary(
-  formTitle: string,
-  submitterEmail: string,
-  answers: Record<string, unknown>,
-): string {
-  const lines = [
-    defaultFormNotificationSubject(formTitle),
-    '',
-    `Form: ${formTitle}`,
-    `Submitted by: ${submitterEmail}`,
-    '',
-    'Answers:',
-  ]
-  for (const [key, value] of Object.entries(answers)) {
-    lines.push(`- ${key}: ${formatAnswerValue(value)}`)
-  }
-  return lines.join('\n')
-}
-
-function buildHtmlSummary(
-  formTitle: string,
-  submitterEmail: string,
-  answers: Record<string, unknown>,
-): string {
-  const rows = Object.entries(answers)
-    .map(
-      ([key, value]) =>
-        `<tr><td style="padding:4px 8px;border:1px solid #e5e7eb;"><strong>${escapeHtml(key)}</strong></td><td style="padding:4px 8px;border:1px solid #e5e7eb;">${escapeHtml(formatAnswerValue(value))}</td></tr>`,
-    )
-    .join('')
-  return `
-    <h2>${escapeHtml(defaultFormNotificationSubject(formTitle))}</h2>
-    <p><strong>Form:</strong> ${escapeHtml(formTitle)}<br/>
-    <strong>Submitted by:</strong> ${escapeHtml(submitterEmail)}</p>
-    <table style="border-collapse:collapse;font-size:14px;">${rows}</table>
-  `.trim()
-}
-
-function formatAnswerValue(value: unknown): string {
-  return formatStoredAnswer(value)
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
 }

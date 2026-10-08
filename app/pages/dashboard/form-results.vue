@@ -93,6 +93,33 @@
                   {{ selectedRow.email || 'Unknown submitter' }}
                   · {{ selectedRow.createdAtDisplay }}
                 </p>
+                <div class="mt-4 space-y-2">
+                  <label for="resend-to" class="block text-xs font-medium text-gray-700">Send results to</label>
+                  <input
+                    id="resend-to"
+                    v-model="resendTo"
+                    type="text"
+                    class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-[rgba(13,94,130,1)] focus:outline-none focus:ring-1 focus:ring-[rgba(13,94,130,1)]"
+                    placeholder="name@asburyseminary.edu"
+                    @input="resendDirty = true"
+                  >
+                  <p class="text-xs text-gray-500">Comma-separated. This overrides the form’s notification list for this send only.</p>
+                  <button
+                    type="button"
+                    class="inline-flex items-center rounded-md bg-[rgba(13,94,130,1)] px-3 py-2 text-sm font-medium text-white hover:bg-[rgba(11,82,114,1)] disabled:cursor-not-allowed disabled:opacity-50"
+                    :disabled="resendPending || !resendTo.trim()"
+                    @click="resendResults"
+                  >
+                    {{ resendPending ? 'Sending…' : 'Resend results' }}
+                  </button>
+                  <p
+                    v-if="resendNotice"
+                    class="text-sm"
+                    :class="resendNotice.kind === 'ok' ? 'text-green-700' : 'text-red-700'"
+                  >
+                    {{ resendNotice.text }}
+                  </p>
+                </div>
                 <dl v-if="selectedRow.answers.length" class="mt-4 space-y-3">
                   <div
                     v-for="(item, idx) in selectedRow.answers"
@@ -254,6 +281,11 @@ const fieldsBySlug = computed(() => {
 })
 
 const selectedId = ref('')
+const resendTo = ref('')
+const resendDirty = ref(false)
+const resendSlug = ref('')
+const resendPending = ref(false)
+const resendNotice = ref<{ kind: 'ok' | 'err'; text: string } | null>(null)
 
 const submissionRows = computed(() => {
   const docs = Array.isArray(submissionsData.value?.docs) ? submissionsData.value.docs : []
@@ -286,6 +318,55 @@ watch(submissionRows, (rows) => {
     selectedId.value = rows[0]?.id || ''
   }
 })
+
+watch(selectedId, () => {
+  resendNotice.value = null
+})
+
+watch(
+  () => [selectedRow.value?.formSlug || '', formsData.value] as const,
+  ([slug]) => {
+    if (resendDirty.value && slug === resendSlug.value) return
+    const slugChanged = slug !== resendSlug.value
+    resendSlug.value = slug
+    resendDirty.value = false
+    resendTo.value = defaultRecipients(slug)
+    if (slugChanged) resendNotice.value = null
+  },
+)
+
+function defaultRecipients(slug: string): string {
+  if (!slug) return ''
+  const docs = Array.isArray(formsData.value?.docs) ? formsData.value.docs : []
+  const form = docs.find((doc: any) => String(doc?.slug || '').trim() === slug)
+  const to = form?.emailNotification?.to ?? form?.schema?.emailNotification?.to ?? ''
+  return String(to || '').trim()
+}
+
+async function resendResults() {
+  const row = selectedRow.value
+  if (!row?.id || resendPending.value) return
+  resendPending.value = true
+  resendNotice.value = null
+  try {
+    const res = await $fetch<{ sentTo?: string[] }>(
+      `/api/dashboard/form-submissions/${encodeURIComponent(row.id)}/resend`,
+      { method: 'POST', body: { to: resendTo.value } },
+    )
+    const sentTo = Array.isArray(res?.sentTo) ? res.sentTo.filter(Boolean) : []
+    resendNotice.value = {
+      kind: 'ok',
+      text: sentTo.length ? `Sent to ${sentTo.join(', ')}` : 'Results sent.',
+    }
+  } catch (err: any) {
+    resendNotice.value = {
+      kind: 'err',
+      text: err?.data?.statusMessage || err?.data?.message || err?.statusMessage || err?.message || 'Could not send results.',
+    }
+  } finally {
+    resendPending.value = false
+  }
+}
 
 function humanizeKey(key: string): string {
   const spaced = key
