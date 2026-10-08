@@ -215,6 +215,12 @@ export default defineNuxtConfig({
       .replace(/\/.*$/, ''),
     /** SendGrid API key for form entry notification emails. */
     sendgridApiKey: process.env.SENDGRID_API_KEY || process.env.NUXT_SENDGRID_API_KEY || '',
+    /** Communications project request cards. Unused by every other form. */
+    trelloApiKey: process.env.TRELLO_API_KEY || process.env.NUXT_TRELLO_API_KEY || '',
+    trelloToken: process.env.TRELLO_TOKEN || process.env.NUXT_TRELLO_TOKEN || '',
+    trelloListId: process.env.TRELLO_LIST_ID || process.env.NUXT_TRELLO_LIST_ID || '',
+    trelloMemberIds: process.env.TRELLO_MEMBER_IDS || '',
+    trelloPrfMembers: process.env.TRELLO_PRF_MEMBERS || '',
     // Public keys (exposed to client-side)
     public: {
       authAzureAdClientId: process.env.AUTH_AZURE_AD_CLIENT_ID,

@@ -7,7 +7,7 @@ import { isConnectAdminUser } from '@shared/connectUserAccess'
 
 /**
  * Dashboard access from Connect-user roles + groups (not Azure staff).
- * Admins see every section; groups such as chapel-podcast unlock specific ones.
+ * Admins see every section; groups such as chapel-podcast and jobs-manager unlock specific ones.
  */
 export function useDashboardAccess(options?: {
   meKey?: string

@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'id is required' })
 
-  const auth = await requireDashboardStaff(event)
+  const auth = await requireDashboardStaff(event, { section: 'jobs' })
 
   // SSO-style delete: email query only. No Bearer.
   return await $fetch(`${auth.payloadBaseUrl}/api/connect-jobs/${encodeURIComponent(String(id))}`, {

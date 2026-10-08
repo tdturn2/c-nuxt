@@ -1,5 +1,6 @@
 import { defineEventHandler, createError, readMultipartFormData } from 'h3'
 import { getSSOSession } from '../../utils/ssoAuth'
+import { attachFileToCommunicationsTrelloCard } from '../../utils/trello'
 
 export default defineEventHandler(async (event) => {
   const { email } = await getSSOSession(event)
@@ -18,6 +19,7 @@ export default defineEventHandler(async (event) => {
   const formSlug = String(getValue('formSlug') || '').trim()
   const submissionId = String(getValue('submissionId') || '').trim()
   const fieldKey = String(getValue('fieldKey') || '').trim()
+  const trelloCardId = String(getValue('trelloCardId') || '').trim()
 
   if (!formSlug) throw createError({ statusCode: 400, statusMessage: 'formSlug is required' })
   if (!submissionId) throw createError({ statusCode: 400, statusMessage: 'submissionId is required' })
@@ -54,6 +56,20 @@ export default defineEventHandler(async (event) => {
       data: err?.data,
     })
   })
+
+  if (trelloCardId && filePart?.data) {
+    try {
+      await attachFileToCommunicationsTrelloCard({
+        formSlug,
+        cardId: trelloCardId,
+        filename: String(filePart.filename || 'upload'),
+        mimeType: typeof filePart.type === 'string' ? filePart.type : 'application/octet-stream',
+        bytes: Buffer.from(filePart.data),
+      })
+    } catch (err: any) {
+      console.warn('[form-upload] trello attachment failed', err?.message || err)
+    }
+  }
 
   return res
 })

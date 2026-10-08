@@ -26,9 +26,18 @@
             This form is not currently accepting submissions.
           </div>
 
-          <div v-else-if="success" class="rounded-lg border border-green-200 bg-green-50 p-4 text-green-900">
-            Submitted.
-            <span v-if="submissionId" class="text-sm text-green-900/80">Submission #{{ submissionId }}</span>
+          <div v-else-if="success" class="rounded-lg border border-green-200 bg-green-50 p-4 text-green-900 space-y-2">
+            <p>{{ successMessage }}</p>
+            <p v-if="submissionId" class="text-sm text-green-900/80">Submission #{{ submissionId }}</p>
+            <a
+              v-if="trelloCardUrl"
+              :href="trelloCardUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-block text-sm font-semibold underline"
+            >
+              View the Trello card
+            </a>
           </div>
 
           <ConnectFormRenderer
@@ -291,6 +300,13 @@ const submitting = ref(false)
 const submitError = ref<string | null>(null)
 const success = ref(false)
 const submissionId = ref<number | string | null>(null)
+const trelloCardUrl = ref('')
+const successMessage = computed(() => {
+  if (trelloCardUrl.value && resolvedSchema.value?.confirmationMessage) {
+    return resolvedSchema.value.confirmationMessage
+  }
+  return 'Submitted.'
+})
 
 function validateVisibleAnswers(
   schemaValue: FormSchemaV1,
@@ -333,6 +349,7 @@ async function handleSubmit(payload: { answers: Record<string, unknown>; files: 
 
     const id = submitted?.submissionId ?? submitted?.doc?.id ?? submitted?.id ?? null
     submissionId.value = id
+    trelloCardUrl.value = String(submitted?.trelloCardUrl || '')
 
     // Upload files after submit
     const fileEntries = Object.entries(payload.files || {}).filter(([, f]) => !!f) as Array<[string, File]>
@@ -343,6 +360,7 @@ async function handleSubmit(payload: { answers: Record<string, unknown>; files: 
       fd.set('formSlug', String(formDoc.value.slug || ''))
       fd.set('submissionId', String(id))
       fd.set('fieldKey', String(fieldKey))
+      if (submitted?.trelloCardId) fd.set('trelloCardId', String(submitted.trelloCardId))
       fd.set('file', file)
       await $fetch('/api/form-uploads/upload', { method: 'POST', body: fd })
       uploadProgress.value[fieldKey] = 100

@@ -55,7 +55,10 @@
           </div>
         </section>
 
-        <section class="rounded-lg border border-gray-200 bg-gray-50 p-5 sm:p-6">
+        <section
+          v-if="!hasStudentRole"
+          class="rounded-lg border border-gray-200 bg-gray-50 p-5 sm:p-6"
+        >
           <ProfileLocationFields />
         </section>
 
@@ -64,6 +67,7 @@
           <h2 class="text-lg font-semibold text-gray-900 mb-3">Your profiles</h2>
           <UAccordion
             type="multiple"
+            :default-value="hasStudentRole ? ['student'] : undefined"
             :items="accordionItems"
             :ui="{
               root: 'flex flex-col gap-3',

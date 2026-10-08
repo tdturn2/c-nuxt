@@ -4,7 +4,7 @@
       <div class="text-sm text-red-800">{{ error }}</div>
     </div>
 
-    <form class="space-y-4" @submit.prevent="handleSubmit">
+    <div class="space-y-4">
       <div>
         <h2 class="text-lg font-semibold text-gray-900">Where are you located?</h2>
         <p class="mt-1 text-sm text-gray-600">
@@ -19,7 +19,8 @@
           <select
             id="home-country"
             v-model="country"
-            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+            :disabled="disabled"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-50"
           >
             <option value="">Select a country</option>
             <option v-for="c in COUNTRY_OPTIONS" :key="c.value" :value="c.value">
@@ -33,7 +34,8 @@
           <select
             id="home-state"
             v-model="region"
-            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+            :disabled="disabled"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-50"
           >
             <option value="">Select a state</option>
             <option v-for="s in US_STATE_OPTIONS" :key="s.value" :value="s.value">
@@ -51,7 +53,8 @@
             list="home-city-options"
             placeholder="Start typing a city…"
             autocomplete="off"
-            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+            :disabled="disabled"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-50"
             @change="syncCityFromQuery"
             @blur="syncCityFromQuery"
           >
@@ -68,27 +71,34 @@
         <button
           v-if="hasSavedLocation"
           type="button"
-          class="px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:text-gray-900"
-          :disabled="saving"
+          class="px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+          :disabled="saving || disabled"
           @click="clearLocation"
         >
           Clear
         </button>
         <button
-          type="submit"
-          :disabled="saving || !canSave"
+          type="button"
+          :disabled="saving || disabled || !canSave"
+          @click="handleSubmit"
           class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {{ saving ? 'Saving...' : 'Save Location' }}
         </button>
       </div>
-    </form>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { COUNTRY_OPTIONS, US_STATE_OPTIONS } from '@shared/geo'
 import { watchDebounced } from '@vueuse/core'
+
+const props = withDefaults(defineProps<{
+  disabled?: boolean
+}>(), {
+  disabled: false,
+})
 
 const { user: meUser, refresh } = useMe()
 
@@ -194,7 +204,7 @@ function syncCityFromQuery() {
 }
 
 async function handleSubmit() {
-  if (!canSave.value || saving.value) return
+  if (props.disabled || !canSave.value || saving.value) return
   syncCityFromQuery()
 
   try {
@@ -220,7 +230,7 @@ async function handleSubmit() {
 }
 
 async function clearLocation() {
-  if (saving.value) return
+  if (props.disabled || saving.value) return
   country.value = ''
   region.value = ''
   cityQuery.value = ''

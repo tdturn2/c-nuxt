@@ -46,5 +46,6 @@ describe('product field helpers', () => {
     expect(resolveFormMergeTags('{user:user_email}', { email: 'ada@asburyseminary.edu' })).toBe(
       'ada@asburyseminary.edu',
     )
+    expect(resolveFormMergeTags('{user:display_name}', { name: 'Ada Lovelace' })).toBe('Ada Lovelace')
   })
 })

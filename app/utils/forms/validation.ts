@@ -121,7 +121,8 @@ export function validateFormSchemaV1(schema: unknown): { valid: boolean; errors:
       disableQuantity: type === 'product' ? field.disableQuantity === true : undefined,
       content: type === 'html' && typeof field.content === 'string' ? field.content : undefined,
       defaultValue:
-        typeof field.defaultValue === 'string' && (type === 'hidden' || type === 'product')
+        typeof field.defaultValue === 'string' &&
+        (type === 'hidden' || type === 'product' || type === 'checkbox')
           ? field.defaultValue
           : undefined,
     }
@@ -134,6 +135,8 @@ export function validateFormSchemaV1(schema: unknown): { valid: boolean; errors:
     layout: isPlainObject(schema.layout) ? { columns: Number(schema.layout.columns || 1) } : undefined,
     fields,
     rules: Array.isArray(schema.rules) ? schema.rules : coerceToArray(schema.rules),
+    confirmationMessage:
+      typeof schema.confirmationMessage === 'string' ? schema.confirmationMessage.trim() : undefined,
     emailNotification: isPlainObject(schema.emailNotification)
       ? {
           enabled: schema.emailNotification.enabled === true,

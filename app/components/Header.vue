@@ -51,9 +51,14 @@
         <UNavigationMenu
           :items="gridMenuItems"
           content-orientation="horizontal"
-          class="flex items-center [&>div>div]:min-w-0 md:[&>div>div]:min-w-[320px]"
+          class="flex items-center [&>div>div]:min-w-0 md:[&>div>div]:min-w-[360px]"
           :ui="{
-            content: 'min-w-0 max-w-[calc(100vw-1.5rem)] md:min-w-[320px]',
+            item: 'py-0',
+            link: 'px-2 py-2 text-white/90 hover:text-white data-[state=open]:text-white hover:before:bg-white/10 data-[state=open]:before:bg-white/15',
+            linkLeadingIcon: 'text-white/90 group-hover:text-white group-data-[state=open]:text-white',
+            content: 'min-w-0 max-w-[calc(100vw-1.5rem)] md:min-w-[360px]',
+            childLink: 'rounded-md hover:bg-gray-100 hover:before:bg-transparent',
+            childLinkIcon: 'text-gray-500 group-hover:text-gray-800',
             linkTrailing: 'hidden',
             linkTrailingIcon: 'hidden',
           }"

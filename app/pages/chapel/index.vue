@@ -241,7 +241,6 @@ function hasChapelAudio(entry: WeekEntry): boolean {
     if (typeof mp3 === 'number' && Number.isFinite(mp3)) return true
     if (typeof mp3 === 'string' && mp3.trim()) return true
   }
-  if (typeof entry.mp3Url === 'string' && entry.mp3Url.trim()) return true
   if (entry.length != null && String(entry.length).trim() !== '') return true
   if (entry.size != null && String(entry.size).trim() !== '') return true
   return false

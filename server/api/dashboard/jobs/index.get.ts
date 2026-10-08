@@ -2,7 +2,7 @@ import { defineEventHandler } from 'h3'
 import { requireDashboardStaff, toProxyError } from '../../../utils/dashboardForms'
 
 export default defineEventHandler(async (event) => {
-  const auth = await requireDashboardStaff(event)
+  const auth = await requireDashboardStaff(event, { section: 'jobs' })
 
   // SSO-style list: email unlocks all statuses. Do not forward Bearer.
   return await $fetch(`${auth.payloadBaseUrl}/api/connect-jobs/list`, {

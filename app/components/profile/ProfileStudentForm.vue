@@ -20,7 +20,7 @@
         </p>
         <p class="mt-2 text-sm text-gray-600">
           Asbury Seminary treats student information as an education record under FERPA. Checking this box is optional.
-          It lets other signed-in Connect users see your photo, name, and the student profile details you enter here
+          It lets other signed-in Connect users see your photo, name, location, and the student profile details you enter here
           (directory listing and your Connect profile). You can uncheck this box at any time to stop sharing. Your
           answers are still saved for you.
         </p>
@@ -38,6 +38,13 @@
       </div>
 
       <fieldset :disabled="!studentOptIn" class="contents">
+      <div
+        class="rounded-md border border-gray-200 bg-white p-4"
+        :class="studentOptIn ? '' : 'opacity-60'"
+      >
+        <ProfileLocationFields :disabled="!studentOptIn" />
+      </div>
+
       <div
         v-for="q in questions"
         :key="q.id"
@@ -94,8 +101,8 @@
       </div>
       </fieldset>
 
-      <p v-if="!studentOptIn && questions.length" class="text-sm text-gray-500">
-        Check “I agree” above to edit your student profile.
+      <p v-if="!studentOptIn" class="text-sm text-gray-500">
+        Check “I agree” above to set your location and edit your student profile.
       </p>
 
       <div v-if="questions.length === 0" class="text-gray-500 py-4 text-sm">
@@ -116,6 +123,8 @@
 </template>
 
 <script setup lang="ts">
+import ProfileLocationFields from '~/components/profile/ProfileLocationFields.vue'
+
 interface SurveyQuestion {
   id: number
   slug: string

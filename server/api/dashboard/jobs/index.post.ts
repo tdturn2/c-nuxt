@@ -8,7 +8,7 @@ function trimOrNull(value: unknown): string | null {
 }
 
 export default defineEventHandler(async (event) => {
-  const auth = await requireDashboardStaff(event)
+  const auth = await requireDashboardStaff(event, { section: 'jobs' })
   const body = (await readBody(event).catch(() => ({}))) as Record<string, unknown>
 
   const jobTitle = trimOrNull(body.jobTitle)

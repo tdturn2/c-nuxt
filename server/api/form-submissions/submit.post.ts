@@ -3,14 +3,20 @@ import { getSSOSession } from '../../utils/ssoAuth'
 import { sendFormEntryNotification } from '../../utils/sendgrid'
 import {
   normalizeFormEmailNotification,
+  parseNotificationRecipients,
   type FormEmailNotification,
 } from '~/types/forms'
+import {
+  COMMUNICATIONS_PRF_SLUG,
+  communicationsPrfNotifyEmails,
+} from '@shared/communicationsPrf'
 import {
   buildFormResultsEmail,
   formatFormSubmittedAt,
   labeledFormAnswers,
   type FormAnswerField,
 } from '@shared/formNotificationEmail'
+import { createCommunicationsTrelloCard } from '../../utils/trello'
 
 type SubmitBody = {
   formSlug?: string
@@ -61,9 +67,19 @@ export default defineEventHandler(async (event) => {
   })
 
   // Best-effort notification — never fail the submit if email sending fails/skips.
+  const formDoc = await fetchFormDocBySlug(payloadBaseUrl, formSlug).catch(() => null)
   try {
-    const formDoc = await fetchFormDocBySlug(payloadBaseUrl, formSlug)
     const notification = resolveFormNotification(formDoc)
+    if (formSlug === COMMUNICATIONS_PRF_SLUG && notification) {
+      const title = String(answers['project-title'] || '').trim()
+      if (title) notification.subject = `Project request: ${title}`
+      const merged = new Set([
+        ...parseNotificationRecipients(notification.to),
+        ...communicationsPrfNotifyEmails(answers, email).map((value) => value.toLowerCase()),
+      ])
+      notification.to = [...merged].join(', ')
+      notification.enabled = true
+    }
     if (notification?.enabled && notification.to) {
       const formTitle = String(formDoc?.title || formSlug)
       const fields = Array.isArray(formDoc?.schema?.fields) ? formDoc.schema.fields as FormAnswerField[] : []
@@ -91,7 +107,25 @@ export default defineEventHandler(async (event) => {
     console.warn('[form-submit] notification prep failed', err?.message || err)
   }
 
-  return res
+  let trelloCardId: string | null = null
+  let trelloCardUrl: string | null = null
+  if (formSlug === COMMUNICATIONS_PRF_SLUG) {
+    try {
+      const fields = Array.isArray(formDoc?.schema?.fields) ? formDoc.schema.fields as FormAnswerField[] : []
+      const card = await createCommunicationsTrelloCard({
+        formSlug,
+        answers,
+        fields,
+        submitterEmail: email,
+      })
+      trelloCardId = card?.id ?? null
+      trelloCardUrl = card?.url ?? null
+    } catch (err: any) {
+      console.warn('[form-submit] trello card failed', err?.message || err)
+    }
+  }
+
+  return { ...res, trelloCardId, trelloCardUrl }
 })
 
 async function fetchFormDocBySlug(payloadBaseUrl: string, slug: string): Promise<any | null> {

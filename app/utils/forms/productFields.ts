@@ -85,8 +85,13 @@ export function applyProductAndTotalAnswers(
   return out
 }
 
-export function resolveFormMergeTags(value: unknown, vars: { email?: string | null }): string {
-  return String(value ?? '').replace(/\{user:user_email\}/gi, String(vars.email || '').trim())
+export function resolveFormMergeTags(
+  value: unknown,
+  vars: { email?: string | null; name?: string | null },
+): string {
+  return String(value ?? '')
+    .replace(/\{user:user_email\}/gi, String(vars.email || '').trim())
+    .replace(/\{user:display_name\}/gi, String(vars.name || '').trim())
 }
 
 export function formatStoredAnswer(value: unknown): string {

@@ -11,6 +11,7 @@ import {
 } from './connectUserAccess'
 
 export const CHAPEL_PODCAST_GROUP_SLUG = 'chapel-podcast'
+export const JOBS_MANAGER_GROUP_SLUG = 'jobs-manager'
 
 export type DashboardSection =
   | 'home'
@@ -36,6 +37,7 @@ export type DashboardSection =
 export const DASHBOARD_SECTION_GROUPS: Partial<Record<DashboardSection, readonly string[]>> = {
   chapel: [CHAPEL_PODCAST_GROUP_SLUG],
   'chapel-speakers': [CHAPEL_PODCAST_GROUP_SLUG],
+  jobs: [JOBS_MANAGER_GROUP_SLUG],
 }
 
 function userHasAnySectionGroup(user: ConnectUserAccessLike | null | undefined): boolean {

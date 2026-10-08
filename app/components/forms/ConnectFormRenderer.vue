@@ -1,7 +1,7 @@
 <template>
   <form class="space-y-4" @submit.prevent="onSubmit">
     <template v-for="f in normalizedFields" :key="f.key">
-      <div v-if="visibilityByField[f.key] !== false" class="space-y-1.5">
+      <div v-if="visibilityByField[f.key] !== false" :class="f.type === 'hidden' ? 'hidden' : 'space-y-1.5'">
       <div v-if="f.type === 'section'" class="rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
         <h3 class="text-sm font-semibold text-gray-900">{{ f.label || f.key }}</h3>
         <p v-if="f.description" class="mt-1 text-xs text-gray-600">{{ f.description }}</p>
@@ -190,6 +190,7 @@
 
 <script setup lang="ts">
 import { applyProductAndTotalAnswers, formatMoney, normalizeProductAnswer, resolveFormMergeTags, sumProductAnswers } from '~/utils/forms/productFields'
+import { visibilityForFields } from '~/utils/forms/visibility'
 
 type Choice = { label: string; value: string }
 type RepeaterColumn = { id: string; label: string }
@@ -216,6 +217,14 @@ type ConditionalRule = {
     sourceFieldId?: string
     operator?: string
     value?: string
+  }>
+  groups?: Array<{
+    logicType?: string
+    conditions?: Array<{
+      sourceFieldId?: string
+      operator?: string
+      value?: string
+    }>
   }>
 }
 
@@ -276,35 +285,6 @@ const normalizedFields = computed<Field[]>(() =>
   })),
 )
 
-function valuesInclude(value: unknown, expected: string): boolean {
-  if (Array.isArray(value)) return value.map((v) => String(v)).includes(expected)
-  return String(value ?? '') === expected
-}
-
-function conditionPasses(operator: string, currentValue: unknown, expectedValue: string): boolean {
-  if (operator === 'isnot' || operator === 'is_not' || operator === '!=' || operator === 'not_equal') {
-    return !valuesInclude(currentValue, expectedValue)
-  }
-  const current = String(currentValue ?? '')
-  const expected = String(expectedValue ?? '')
-  if (operator === 'greater_than' || operator === '>') {
-    return Number(current) > Number(expected)
-  }
-  if (operator === 'less_than' || operator === '<') {
-    return Number(current) < Number(expected)
-  }
-  if (operator === 'contains') {
-    return current.toLowerCase().includes(expected.toLowerCase())
-  }
-  if (operator === 'starts_with') {
-    return current.toLowerCase().startsWith(expected.toLowerCase())
-  }
-  if (operator === 'ends_with') {
-    return current.toLowerCase().endsWith(expected.toLowerCase())
-  }
-  return valuesInclude(currentValue, expectedValue)
-}
-
 const emit = defineEmits<{
   (e: 'update:modelValue', v: Record<string, unknown>): void
   (e: 'submit', v: { answers: Record<string, unknown>; files: Record<string, File | null>; visibleFieldKeys: string[] }): void
@@ -317,35 +297,17 @@ const answersProxy = computed({
   set: (v) => emit('update:modelValue', v),
 })
 
-const visibilityByField = computed<Record<string, boolean>>(() => {
-  const out: Record<string, boolean> = {}
-  const rules = Array.isArray(props.rules) ? props.rules : []
-  for (const field of normalizedFields.value) out[field.key] = true
-
-  for (const rawRule of rules) {
-    if (!rawRule || rawRule.type !== 'gravityConditional') continue
-    const target = String(rawRule.targetFieldId || '').trim()
-    if (!target || !(target in out)) continue
-    const action = String(rawRule.actionType || 'show').toLowerCase()
-    const logicType = String(rawRule.logicType || 'all').toLowerCase()
-    const conditions = Array.isArray(rawRule.conditions) ? rawRule.conditions : []
-    if (!conditions.length) continue
-    const results = conditions.map((condition) => {
-      const sourceKey = String(condition?.sourceFieldId || '').trim()
-      const operator = String(condition?.operator || 'is').toLowerCase()
-      const expected = String(condition?.value || '')
-      const current = answersProxy.value[sourceKey]
-      return conditionPasses(operator, current, expected)
-    })
-    const matches = logicType === 'any' ? results.some(Boolean) : results.every(Boolean)
-    out[target] = action === 'hide' ? !matches : matches
-  }
-
-  return out
-})
+const visibilityByField = computed(() =>
+  visibilityForFields(
+    normalizedFields.value.map((field) => field.key),
+    props.rules,
+    answersProxy.value,
+  ),
+)
 
 const { data: session } = useAuth()
 const viewerEmail = computed(() => String((session.value as any)?.user?.email || '').trim())
+const viewerName = computed(() => String((session.value as any)?.user?.name || '').trim())
 
 const productsTotal = computed(() => {
   const visible = new Set(
@@ -388,15 +350,25 @@ function onProductQuantityInput(field: Field, event: Event) {
 }
 
 watch(
-  [normalizedFields, viewerEmail],
+  [normalizedFields, viewerEmail, viewerName],
   () => {
     const next = { ...answersProxy.value }
     let changed = false
     for (const field of normalizedFields.value) {
       if (field.type === 'hidden') {
-        const resolved = resolveFormMergeTags(field.defaultValue, { email: viewerEmail.value })
+        const resolved = resolveFormMergeTags(field.defaultValue, {
+          email: viewerEmail.value,
+          name: viewerName.value,
+        })
         if (String(next[field.key] ?? '') !== resolved) {
           next[field.key] = resolved
+          changed = true
+        }
+      }
+      if (field.type === 'checkbox' && field.defaultValue && (next[field.key] == null || next[field.key] === '')) {
+        const selected = field.defaultValue.split(',').map((value) => value.trim()).filter(Boolean)
+        if (selected.length) {
+          next[field.key] = selected
           changed = true
         }
       }

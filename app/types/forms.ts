@@ -68,6 +68,8 @@ export type FormSchemaV1 = {
   layout?: { columns?: number }
   fields: FormFieldV1[]
   rules?: unknown[]
+  /** Shown after a successful submit when the form defines one. */
+  confirmationMessage?: string
   /** Persisted with schema JSON so no Payload collection field is required. */
   emailNotification?: FormEmailNotification
 }

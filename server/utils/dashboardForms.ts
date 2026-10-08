@@ -50,6 +50,7 @@ export type DashboardFormSchema = {
   layout?: Record<string, unknown>
   fields: DashboardFormField[]
   rules?: unknown[]
+  confirmationMessage?: string
   emailNotification?: {
     enabled?: boolean
     to?: string
@@ -513,7 +514,7 @@ export function normalizeDashboardFormSchema(schema: unknown): DashboardFormSche
       fieldOut.content = fieldObj.content
     }
 
-    if (type === 'hidden' && typeof fieldObj.defaultValue === 'string') {
+    if ((type === 'hidden' || type === 'checkbox') && typeof fieldObj.defaultValue === 'string') {
       fieldOut.defaultValue = fieldObj.defaultValue
     }
 
@@ -527,6 +528,8 @@ export function normalizeDashboardFormSchema(schema: unknown): DashboardFormSche
     layout: parsed.layout && typeof parsed.layout === 'object' ? parsed.layout : undefined,
     fields,
     rules: Array.isArray(parsed.rules) ? parsed.rules : [],
+    confirmationMessage:
+      typeof parsed.confirmationMessage === 'string' ? parsed.confirmationMessage.trim() : undefined,
     emailNotification: normalizeEmailNotificationConfig(parsed.emailNotification),
   }
 }
