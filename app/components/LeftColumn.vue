@@ -76,7 +76,7 @@ const isStudentsActive = computed(() => {
   return (
     path === '/students' ||
     path.startsWith('/students/') ||
-    /^\/(student-dashboard|class-search|user\/degree-map)$/.test(path)
+    /^\/(student-dashboard|class-planner|class-search|user\/degree-map)$/.test(path)
   )
 })
 
@@ -103,6 +103,10 @@ const mainNavItems = computed<NavigationMenuItem[]>(() => [
         to: '/chapel/calendar',
       },
       {
+        label: 'Daily Eucharist',
+        to: '/chapel/daily-eucharist',
+      },
+      {
         label: 'Chapel Media Archive',
         to: '/media/chapel',
       },
@@ -124,6 +128,9 @@ const mainNavItems = computed<NavigationMenuItem[]>(() => [
     }, {
       label: 'Class Search',
       to: '/class-search'
+    }, {
+      label: 'Class Planner',
+      to: '/class-planner'
     }, {
       label: 'Degree Map',
       to: '/user/degree-map'

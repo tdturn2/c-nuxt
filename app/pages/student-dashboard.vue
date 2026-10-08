@@ -6,7 +6,7 @@
         <header class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 class="text-2xl font-bold text-gray-900">Student Dashboard</h1>
-            <p class="text-sm text-gray-600">Courses, planner, and degree tools — Canvas data appears when an account is found for your email.</p>
+            <p class="text-sm text-gray-600">Courses and deadlines — Canvas data appears when an account is found for your email.</p>
           </div>
           <p class="text-xs text-gray-500">
             Updated: {{ generatedAtLabel }}
@@ -34,41 +34,6 @@
           >
             No Canvas account was found for your email. Class planner, class search, and degree map still work. Canvas courses and deadlines will show here if you have a Canvas account.
           </div>
-
-          <section class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-            <div class="flex items-center justify-between gap-3">
-              <div>
-                <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700">Class Planner</h2>
-                <p class="text-sm text-gray-600">Saved sections and your planning notes across terms.</p>
-              </div>
-              <div class="flex items-center gap-2">
-                <button
-                  type="button"
-                  class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-                  @click="plannerOpen = true"
-                >
-                  My Degree Planner ({{ plannerItems.length }})
-                </button>
-                <NuxtLink to="/class-search" class="text-sm text-blue-700 hover:text-blue-900">Class Search</NuxtLink>
-              </div>
-            </div>
-            <div v-if="plannerPending" class="mt-3 text-sm text-gray-500">Loading planner...</div>
-            <div v-else-if="plannerError" class="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-              {{ plannerError }}
-            </div>
-            <ul v-else-if="plannerItems.length" class="mt-3 space-y-2 text-sm">
-              <li
-                v-for="item in plannerItems.slice(0, 5)"
-                :key="item.id"
-                class="rounded-md border border-gray-100 bg-gray-50 p-3"
-              >
-                <p class="font-medium text-gray-900">{{ item.courseCode }} · {{ item.courseTitle || item.sectionKey }}</p>
-                <p class="text-xs text-gray-600">{{ item.termLabel }} · {{ item.sectionKey }}</p>
-                <p v-if="item.studentNote" class="mt-1 text-xs text-gray-700 line-clamp-2">{{ item.studentNote }}</p>
-              </li>
-            </ul>
-            <p v-else class="mt-3 text-sm text-gray-600">No classes saved yet.</p>
-          </section>
 
           <template v-if="!canvasUnavailable">
           <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -308,14 +273,6 @@
           </template>
         </template>
       </div>
-      <ClassPlannerSlideover
-        v-model:open="plannerOpen"
-        :items="plannerItems"
-        :pending="plannerPending"
-        :error="plannerError"
-        @remove="removePlannerItem"
-        @update-note="updatePlannerNote"
-      />
     </main>
   </div>
 </template>
@@ -402,9 +359,6 @@ const { data, pending, error } = useFetch<StudentDashboardResponse>('/api/studen
   fatal: false,
   default: () => ({})
 })
-const plannerOpen = ref(false)
-const { plannerItems, plannerPending, plannerError, plannerLoaded, refreshPlanner, removeItem, updateNote } = useClassPlanner()
-
 const dashboard = computed<StudentDashboardResponse>(() => data.value || {})
 const canvasUnavailable = computed(() => dashboard.value.meta?.canvasAvailable === false)
 const courses = computed(() => dashboard.value.courses || [])
@@ -465,17 +419,4 @@ function formatCourseGrade(score: number | null | undefined, letter: string | nu
   return scoreText || letter || 'N/A'
 }
 
-async function removePlannerItem(id: number) {
-  await removeItem(id)
-}
-
-async function updatePlannerNote(id: number, note: string) {
-  await updateNote(id, note)
-}
-
-onMounted(async () => {
-  if (!plannerLoaded.value) {
-    await refreshPlanner()
-  }
-})
 </script>

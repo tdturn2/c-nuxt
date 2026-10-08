@@ -22,6 +22,7 @@ export const SITE_SEARCH_RESOURCE_LINKS: SiteSearchResourceLink[] = [
     description: 'Chapel schedule and media',
     children: [
       { label: 'Chapel Calendar', to: '/chapel/calendar', icon: 'i-heroicons-calendar-days' },
+      { label: 'Daily Eucharist', to: '/chapel/daily-eucharist', icon: 'i-lucide-calendar-heart' },
       { label: 'Chapel Media Archive', to: '/media/chapel', icon: 'i-lucide-podcast' },
     ],
   },
@@ -34,6 +35,7 @@ export const SITE_SEARCH_RESOURCE_LINKS: SiteSearchResourceLink[] = [
     children: [
       { label: 'My Dashboard', to: '/student-dashboard', icon: 'i-lucide-layout-dashboard' },
       { label: 'Class Search', to: '/class-search', icon: 'i-lucide-search' },
+      { label: 'Class Planner', to: '/class-planner', icon: 'i-lucide-bookmark' },
       { label: 'Degree Map', to: '/user/degree-map', icon: 'i-lucide-map' },
     ],
   },

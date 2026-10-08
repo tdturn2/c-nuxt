@@ -38,7 +38,7 @@
         </button>
       </div>
 
-      <div v-if="isSignedIn" class="ml-auto flex items-center justify-end gap-0.5 sm:gap-1 shrink-0">
+      <div v-if="isSignedIn" class="relative ml-auto flex items-center justify-end gap-0.5 sm:gap-1 shrink-0">
         <button
           type="button"
           class="md:hidden flex h-9 w-9 items-center justify-center rounded-md text-white/90 transition-colors hover:bg-white/10 hover:text-white"
@@ -51,13 +51,18 @@
         <UNavigationMenu
           :items="gridMenuItems"
           content-orientation="horizontal"
-          class="flex items-center [&>div>div]:min-w-0 md:[&>div>div]:min-w-[360px]"
+          class="flex items-center"
           :ui="{
+            root: 'static',
             item: 'py-0',
             link: 'px-2 py-2 text-white/90 hover:text-white data-[state=open]:text-white hover:before:bg-white/10 data-[state=open]:before:bg-white/15',
             linkLeadingIcon: 'text-white/90 group-hover:text-white group-data-[state=open]:text-white',
-            content: 'min-w-0 max-w-[calc(100vw-1.5rem)] md:min-w-[360px]',
-            childLink: 'rounded-md hover:bg-gray-100 hover:before:bg-transparent',
+            viewportWrapper: 'left-auto right-0 w-auto justify-end',
+            viewport: 'w-[min(26rem,calc(100vw-1.5rem))]',
+            content: 'w-full',
+            childList: 'gap-3 p-3',
+            childLink: 'rounded-md px-3 py-2.5 hover:bg-gray-100 hover:before:bg-transparent',
+            childLinkLabel: 'overflow-visible whitespace-nowrap text-clip',
             childLinkIcon: 'text-gray-500 group-hover:text-gray-800',
             linkTrailing: 'hidden',
             linkTrailingIcon: 'hidden',

@@ -409,12 +409,7 @@ function toggleExpand(id: string) {
 
 
 /** "Last, First" → "First Last" */
-function formatInstructor(raw: string): string {
-  if (!raw?.trim()) return raw ?? ''
-  const parts = raw.split(',').map((p) => p.trim())
-  if (parts.length >= 2) return `${parts[1]} ${parts[0]}`
-  return raw
-}
+const { lookupFaculty, formatInstructor } = useFacultyNameMap()
 
 const termOptions = buildClassSearchTermOptions()
 const selectedTerm = ref(defaultClassSearchTerm(termOptions))
@@ -432,29 +427,6 @@ const {
   removeItem,
   updateNote,
 } = useClassPlanner()
-type FacultyInfo = { id: number; name: string; username: string | null; employeeTitle: string | null; avatarUrl: string | null }
-const { data: facultyNameMap } = useFetch<Record<string, FacultyInfo>>(
-  '/api/faculty/name-map',
-  { key: 'faculty-name-map', lazy: true },
-)
-
-function lookupFaculty(rawInstructor: string): FacultyInfo | null {
-  const map = facultyNameMap.value
-  if (!map || !rawInstructor?.trim()) return null
-  const key = rawInstructor.trim().toLowerCase()
-  // Exact match
-  if (map[key]) return map[key]
-  // First-name prefix match: "Long, Fredrick" matches "long, fred"
-  const [last, first] = key.split(',').map(s => s.trim())
-  if (last && first) {
-    for (const [k, v] of Object.entries(map)) {
-      const [mLast, mFirst] = k.split(',').map(s => s.trim())
-      if (mLast === last && (first.startsWith(mFirst) || mFirst.startsWith(first))) return v
-    }
-  }
-  return null
-}
-
 // Heavy aggregate (many upstream term fetches); only used for optional row badges — do not block the class table.
 const { data: offeringPatternsData } = useFetch<{ courses?: Record<string, OfferingPattern> }>(
   '/api/course-offering-patterns',

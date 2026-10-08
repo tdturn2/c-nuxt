@@ -27,43 +27,13 @@
       <div v-else class="space-y-5 pb-4">
         <section v-for="group in groupedItems" :key="group.termKey" class="space-y-2">
           <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ group.termLabel }}</h3>
-          <article
+          <ClassPlannerCard
             v-for="item in group.items"
             :key="item.id"
-            class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm"
-          >
-            <div class="flex items-start justify-between gap-3">
-              <div class="min-w-0">
-                <p class="text-sm font-semibold text-gray-900 truncate">
-                  {{ item.courseCode }} {{ item.section ? `· ${item.section}` : '' }}
-                </p>
-                <p class="text-sm text-gray-700 truncate">{{ item.courseTitle || item.sectionKey }}</p>
-                <p class="mt-1 text-xs text-gray-500">
-                  {{ item.instructor || 'Instructor TBD' }}
-                  <span v-if="item.location"> · {{ item.location }}</span>
-                  <span v-if="item.credits != null"> · {{ item.credits }} cr</span>
-                </p>
-                <p class="mt-1 text-[11px] text-gray-400">{{ item.sectionKey }}</p>
-              </div>
-              <button
-                type="button"
-                class="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
-                @click="$emit('remove', item.id)"
-              >
-                Remove
-              </button>
-            </div>
-            <div class="mt-3">
-              <label class="block text-xs font-medium text-gray-700 mb-1">My notes</label>
-              <textarea
-                :value="item.studentNote"
-                rows="3"
-                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgba(13,94,130,1)] focus:outline-none focus:ring-1 focus:ring-[rgba(13,94,130,1)]"
-                placeholder="Add your thoughts for registration..."
-                @input="onNoteInput(item.id, ($event.target as HTMLTextAreaElement).value)"
-              />
-            </div>
-          </article>
+            :item="item"
+            @remove="$emit('remove', $event)"
+            @update-note="onNoteInput"
+          />
         </section>
       </div>
     </template>
