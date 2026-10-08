@@ -26,9 +26,11 @@ describe('form results email', () => {
       answers: [{ label: 'Comment', value: '<script>alert(1)</script>' }],
       resent: true,
     })
-    expect(email.html).toContain('Asbury Seminary')
-    expect(email.html).toContain('Connect')
+    expect(email.html).toContain('https://connect.asburyseminary.edu/email/connect-logo.png')
+    expect(email.html).not.toContain('cid:')
+    expect(email.html).toContain('alt="Asbury Connect"')
     expect(email.html).toContain('#0d5e82')
+    expect(email.html).not.toContain('Asbury Seminary')
     expect(email.html).toContain('Guest Form')
     expect(email.html).toContain('ada@asburyseminary.edu')
     expect(email.html).toContain('&lt;script&gt;')

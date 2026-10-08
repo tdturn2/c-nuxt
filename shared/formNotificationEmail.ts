@@ -105,9 +105,8 @@ export function buildFormResultsEmail(input: {
         <td align="center">
           <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;border:1px solid #d7e2e8;border-radius:12px;overflow:hidden;">
             <tr>
-              <td style="background:#0d5e82;padding:22px 28px;">
-                <div style="font-family:Georgia,'Times New Roman',serif;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:#d5e6ee;">Asbury Seminary</div>
-                <div style="font-family:Georgia,'Times New Roman',serif;font-size:28px;line-height:1.15;color:#ffffff;margin-top:4px;">Connect</div>
+              <td style="background:#0d5e82;padding:18px 28px;">
+                <img src="https://connect.asburyseminary.edu/email/connect-logo.png" width="220" height="30" alt="Asbury Connect" style="display:block;border:0;outline:none;text-decoration:none;height:30px;width:220px;">
               </td>
             </tr>
             <tr>

@@ -1,3 +1,4 @@
+import { isActiveConnectMember } from '@shared/connectMembership'
 import { defineEventHandler, getQuery, createError } from 'h3'
 import { normalizeUserAvatar, resolveConnectApiUrl } from '../../utils/connectApi'
 
@@ -20,7 +21,7 @@ export default defineEventHandler(async (event) => {
     const response = await $fetch(`${connectApiUrl}/api/connect-users`, {
       headers: { 'Content-Type': 'application/json' },
       query: {
-        limit: 15,
+        limit: 50,
         depth: 1,
         sort: 'name',
         'where[or][0][name][contains]': searchQuery,
@@ -28,7 +29,7 @@ export default defineEventHandler(async (event) => {
       },
     }) as { docs: Array<{ id: number; name: string; email: string; roles?: string[]; avatar?: { url: string } | null }> }
 
-    const users = response.docs.map((user) => {
+    const users = response.docs.filter((user) => isActiveConnectMember(user)).slice(0, 15).map((user) => {
       const avatar = normalizeUserAvatar(user)
       return {
         id: user.id,

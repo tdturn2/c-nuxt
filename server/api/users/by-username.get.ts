@@ -1,3 +1,4 @@
+import { isActiveConnectMember } from '@shared/connectMembership'
 import { defineEventHandler, getQuery, createError } from 'h3'
 import { sanitizeAlumniContact } from '../../utils/alumniProfile'
 import { normalizePublicationDoc, normalizeUserAvatar, resolveConnectApiUrl } from '../../utils/connectApi'
@@ -46,7 +47,7 @@ export default defineEventHandler(async (event) => {
 
     const user = response?.docs?.[0]
 
-    if (!user) {
+    if (!user || !isActiveConnectMember(user)) {
       throw createError({
         statusCode: 404,
         statusMessage: 'User not found'

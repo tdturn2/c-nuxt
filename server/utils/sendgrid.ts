@@ -75,6 +75,11 @@ export async function sendFormEntryNotification(
       { type: 'text/plain', value: text },
       { type: 'text/html', value: html },
     ],
+    tracking_settings: {
+      click_tracking: { enable: false, enable_text: false },
+      open_tracking: { enable: false },
+      subscription_tracking: { enable: false },
+    },
   }
 
   try {

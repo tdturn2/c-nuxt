@@ -189,6 +189,7 @@ export default defineNuxtConfig({
     // Private keys (only available on server-side)
     // AUTH_SECRET was used for months; keep it primary so existing session cookies still decrypt.
     authSecret: process.env.AUTH_SECRET || process.env.NUXT_AUTH_SECRET,
+    offboardKey: process.env.CONNECT_OFFBOARD_KEY || process.env.NUXT_CONNECT_OFFBOARD_KEY || '',
     azureAdClientId: process.env.AUTH_AZURE_AD_CLIENT_ID,
     azureAdMobileClientId: process.env.AUTH_AZURE_AD_MOBILE_CLIENT_ID,
     azureAdClientSecret: process.env.AUTH_AZURE_AD_CLIENT_SECRET,
