@@ -26,7 +26,7 @@
               class="w-full h-full border-0"
               allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
               allowfullscreen
-              title="Vimeo collection player"
+              :title="currentVideo.title"
             />
           </div>
           <div

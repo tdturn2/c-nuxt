@@ -30,6 +30,7 @@ export type DashboardSection =
   | 'featured-publications'
   | 'form-results'
   | 'toasts'
+  | 'analytics'
 
 /** Sections a non-admin group may use. Unlisted sections are admin-only. */
 export const DASHBOARD_SECTION_GROUPS: Partial<Record<DashboardSection, readonly string[]>> = {

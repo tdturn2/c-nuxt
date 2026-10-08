@@ -106,6 +106,13 @@ const sections: Array<{
   section: DashboardSection
 }> = [
   {
+    title: 'Analytics',
+    description: 'Account, interaction, and content totals, plus what still needs to be tracked.',
+    to: '/dashboard/analytics',
+    icon: 'i-lucide-chart-column',
+    section: 'analytics',
+  },
+  {
     title: 'Posts',
     description: 'Create and manage homepage timeline posts.',
     to: '/dashboard/posts',

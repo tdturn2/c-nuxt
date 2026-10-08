@@ -42,5 +42,7 @@ describe('dashboard section access', () => {
     expect(canAccessDashboardSection(chapelEditor, 'users')).toBe(false)
     expect(canAccessDashboardSection(chapelEditor, 'jobs')).toBe(false)
     expect(canAccessDashboardSection(chapelEditor, 'campus-hours')).toBe(false)
+    expect(canAccessDashboardSection(chapelEditor, 'analytics')).toBe(false)
+    expect(canAccessDashboardSection(admin, 'analytics')).toBe(true)
   })
 })

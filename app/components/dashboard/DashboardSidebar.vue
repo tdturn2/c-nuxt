@@ -51,6 +51,7 @@ type NavItem = {
 
 const allItems: NavItem[] = [
   { label: 'Dashboard Home', to: '/dashboard', icon: 'i-lucide-layout-dashboard', section: 'home' },
+  { label: 'Analytics', to: '/dashboard/analytics', icon: 'i-lucide-chart-column', section: 'analytics' },
   { label: 'Posts', to: '/dashboard/posts', icon: 'i-lucide-newspaper', section: 'posts' },
   { label: 'Users & Groups', to: '/dashboard/users', icon: 'i-lucide-users-round', section: 'users' },
   { label: 'Docs / Pages', to: '/dashboard/docs', icon: 'i-lucide-file-text', section: 'docs' },
