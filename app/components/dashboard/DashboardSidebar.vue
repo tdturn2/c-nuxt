@@ -67,6 +67,7 @@ const allItems: NavItem[] = [
     ],
   },
   { label: 'Home Slider', to: '/dashboard/home-slider', icon: 'i-lucide-images', section: 'home-slider' },
+  { label: 'Community News', to: '/dashboard/community-news', icon: 'i-lucide-mail', section: 'community-news' },
   { label: 'Daily Eucharist', to: '/dashboard/daily-eucharist', icon: 'i-lucide-calendar-heart', section: 'daily-eucharist' },
   { label: 'Campus Hours', to: '/dashboard/campus-hours', icon: 'i-lucide-clock', section: 'campus-hours' },
   { label: 'Chapel', to: '/dashboard/chapel', icon: 'i-lucide-mic-vocal', section: 'chapel' },

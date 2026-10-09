@@ -19,7 +19,7 @@
                 alt="Estes Chapel"
                 class="mx-auto w-full max-w-[96px] object-contain"
               >
-              <p class="mt-2 text-center text-sm font-semibold text-gray-900">Chapel Schedule</p>
+              <p class="mt-2 text-center text-sm font-semibold text-gray-900">Chapel and Eucharist Schedule</p>
             </NuxtLink>
             <KeenersComicsCard />
             <DiningServicesCard />

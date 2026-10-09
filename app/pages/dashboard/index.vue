@@ -169,6 +169,13 @@ const sections: Array<{
     section: 'home-slider',
   },
   {
+    title: 'Community News',
+    description: 'Build this week’s newsletter HTML and copy it into SendGrid.',
+    to: '/dashboard/community-news',
+    icon: 'i-lucide-mail',
+    section: 'community-news',
+  },
+  {
     title: 'Daily Eucharist',
     description: 'Manage weekly Eucharist toggle, summary, and schedule entries.',
     to: '/dashboard/daily-eucharist',
