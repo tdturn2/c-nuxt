@@ -228,7 +228,7 @@
 
           <div
             v-if="renderedContentSegments.length"
-            class="connect-page-body prose prose-gray max-w-none prose-headings:font-semibold prose-a:text-[rgba(13,94,130,1)] prose-p:mb-4 prose-h1:mb-6 prose-h2:mt-8 prose-h2:mb-3 prose-ul:ml-6 prose-ul:list-disc prose-ul:my-2 prose-ol:ml-6 prose-ol:list-decimal prose-ol:my-2 prose-li:my-0 prose-li:leading-snug"
+            class="connect-page-body prose prose-gray max-w-3xl text-[15px] leading-relaxed prose-headings:font-semibold prose-headings:text-gray-900 prose-p:text-gray-700 prose-p:leading-relaxed prose-p:mb-5 prose-a:text-[rgba(13,94,130,1)] prose-h1:mb-6 prose-h2:mt-8 prose-h2:mb-3 prose-ul:ml-6 prose-ul:list-disc prose-ul:my-2 prose-ol:ml-6 prose-ol:list-decimal prose-ol:my-2 prose-li:my-0 prose-li:leading-relaxed prose-li:text-gray-700"
             @click="onContentClick"
           >
             <template
@@ -239,7 +239,7 @@
               <ConnectInlineForm v-else :slug="segment.value" />
             </template>
           </div>
-          <div v-else-if="effectivePage?.content" class="prose prose-gray max-w-none text-gray-600">
+          <div v-else-if="effectivePage?.content" class="prose prose-gray max-w-3xl text-gray-600">
             <p>Content format is not supported for display.</p>
           </div>
 
