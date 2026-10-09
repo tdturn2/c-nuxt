@@ -3,7 +3,7 @@ export const CONNECT_PAGE_CATEGORIES = [
   { value: 'advancement', label: 'Advancement' },
   { value: 'beeson-center', label: 'Beeson Center' },
   { value: 'enrollment-management', label: 'Enrollment Services' },
-  { value: 'finance-and-administration', label: 'Finance and Administration' },
+  { value: 'finance-and-administration', label: 'Finance and Operations' },
   { value: 'presidents-office', label: "President's Office" },
   { value: 'student-life-and-formation', label: 'Student Life and Formation' },
 ] as const

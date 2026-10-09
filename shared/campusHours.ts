@@ -2,6 +2,7 @@ export const CAMPUS_HOURS_FACILITIES = [
   { key: 'student_center', label: 'Student Center' },
   { key: 'dining_hall', label: 'Dining Hall' },
   { key: 'spo', label: 'SPO' },
+  { key: 'business_office', label: 'Business Office' },
   { key: 'library', label: 'Library' },
   { key: 'chapel', label: 'Chapel' },
   { key: 'eucharist', label: 'Eucharist' },

@@ -45,6 +45,7 @@ describe('campus hours resolveDay', () => {
     { weekday: 0, facility: 'student_center', hours: 'closed' },
     { weekday: 0, facility: 'dining_hall', hours: 'closed' },
     { weekday: 0, facility: 'spo', hours: 'closed' },
+    { weekday: 0, facility: 'business_office', hours: 'closed' },
     { weekday: 0, facility: 'library', hours: 'closed' },
     { weekday: 0, facility: 'chapel', hours: 'closed' },
     { weekday: 0, facility: 'eucharist', hours: 'closed' },
