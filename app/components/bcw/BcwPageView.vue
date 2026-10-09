@@ -31,7 +31,16 @@
       :image-alt="page.section.imageAlt || page.section.title"
     />
 
-    <BcwIntro :title="page.intro.title" :body="page.intro.body" />
+    <BcwArchive v-if="page.archive" :archive="page.archive" />
+
+    <BcwIntro
+      v-else
+      :lead="page.intro.lead"
+      :title="page.intro.title"
+      :body="page.intro.body"
+      :items="page.intro.items"
+      :align="page.intro.align"
+    />
 
     <BcwCardGrid v-if="page.cards.length" :cards="page.cards" />
   </div>
@@ -43,6 +52,7 @@ import BcwHero from '~/components/bcw/BcwHero.vue'
 import BcwSectionHeader from '~/components/bcw/BcwSectionHeader.vue'
 import BcwIntro from '~/components/bcw/BcwIntro.vue'
 import BcwCardGrid from '~/components/bcw/BcwCardGrid.vue'
+import BcwArchive from '~/components/bcw/BcwArchive.vue'
 
 defineProps<{
   page: BcwPage

@@ -16,6 +16,15 @@ import BcwPageView from '~/components/bcw/BcwPageView.vue'
 
 const route = useRoute()
 const slug = computed(() => String(route.params.slug || '').trim().toLowerCase())
+
+if (slug.value === 'tools-and-resources') {
+  await navigateTo('/bcw/employee-services', { redirectCode: 301 })
+}
+
+if (slug.value === 'values') {
+  await navigateTo('/bcw', { redirectCode: 301 })
+}
+
 const page = computed(() => getBcwPage(slug.value))
 
 if (import.meta.server && !page.value) {

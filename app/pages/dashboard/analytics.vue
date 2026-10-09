@@ -6,7 +6,7 @@
         <div class="mb-6">
           <h1 class="text-2xl font-bold text-gray-900">Analytics</h1>
           <p class="mt-1 max-w-3xl text-sm text-gray-600">
-            Totals Connect can report from records it already stores. Sign-ins are not recorded, so this page does not show who logged in.
+            Totals Connect can report from records it already stores. Sign-ins are one row per person per UTC day, written when someone opens an authenticated session.
           </p>
         </div>
 
@@ -58,7 +58,7 @@
             <section class="mt-6 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
               <h2 class="text-lg font-semibold text-gray-900">Last 8 weeks</h2>
               <p class="mt-1 text-sm text-gray-600">
-                New accounts are people whose Connect profile was created. Interactions are posts, comments, and reactions.
+                New accounts are people whose Connect profile was created. Sign-ins are unique people who opened Connect. Interactions are posts, comments, and reactions.
               </p>
               <div class="mt-5 space-y-3">
                 <div v-for="week in summary.weeks" :key="week.week" class="grid grid-cols-[5.5rem_1fr] items-center gap-3">
@@ -69,6 +69,10 @@
                       <span class="text-xs text-gray-600">{{ formatCount(week.accounts) }} accounts</span>
                     </div>
                     <div class="flex items-center gap-2">
+                      <div class="h-2 rounded bg-emerald-600" :style="{ width: barWidth(week.signIns || 0, maxSignIns) }" />
+                      <span class="text-xs text-gray-600">{{ formatCount(week.signIns || 0) }} sign-ins</span>
+                    </div>
+                    <div class="flex items-center gap-2">
                       <div class="h-2 rounded bg-amber-500" :style="{ width: barWidth(week.posts + week.comments + week.reactions, maxInteractions) }" />
                       <span class="text-xs text-gray-600">
                         {{ formatCount(week.posts + week.comments + week.reactions) }} interactions
@@ -77,6 +81,29 @@
                   </div>
                 </div>
               </div>
+            </section>
+
+            <section v-if="summary.signIns" class="mt-6 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+              <h2 class="text-lg font-semibold text-gray-900">Sign-ins</h2>
+              <p class="mt-1 text-sm text-gray-600">{{ summary.signIns.note }}</p>
+              <dl class="mt-4 divide-y divide-gray-100">
+                <div class="flex items-center justify-between py-2 text-sm">
+                  <dt class="text-gray-700">Unique sign-ins, last {{ windowDays }} days</dt>
+                  <dd class="font-medium text-gray-900">{{ formatCount(pick(summary.signIns.people7, summary.signIns.people30)) }}</dd>
+                </div>
+                <div class="flex items-center justify-between py-2 text-sm">
+                  <dt class="text-gray-700">Never signed in</dt>
+                  <dd class="font-medium text-gray-900">{{ formatCount(summary.signIns.never) }}</dd>
+                </div>
+                <div
+                  v-for="role in signInRoleRows"
+                  :key="role.label"
+                  class="flex items-center justify-between py-2 text-sm"
+                >
+                  <dt class="text-gray-700">{{ role.label }}</dt>
+                  <dd class="font-medium text-gray-900">{{ formatCount(role.value) }}</dd>
+                </div>
+              </dl>
             </section>
 
             <div class="mt-6 grid gap-4 lg:grid-cols-2">
@@ -147,11 +174,20 @@ type WeekRow = {
   posts: number
   comments: number
   reactions: number
+  signIns: number
 }
 
 type AnalyticsSummary = {
   generatedAt: string
   signInsTracked: boolean
+  signIns: {
+    people7: number
+    people30: number
+    never: number
+    byRole7: Record<string, number>
+    byRole30: Record<string, number>
+    note: string
+  }
   accounts: {
     total: number
     created7: number
@@ -277,16 +313,25 @@ const otherRows = computed(() => {
   ]
 })
 
+const signInRoleRows = computed(() => {
+  const roles = windowDays.value === 7 ? summary.value?.signIns.byRole7 : summary.value?.signIns.byRole30
+  if (!roles) return []
+  return [
+    { label: 'Students who signed in', value: roles.student ?? 0 },
+    { label: 'Faculty who signed in', value: roles.faculty ?? 0 },
+    { label: 'Staff who signed in', value: roles.staff ?? 0 },
+    { label: 'Alumni who signed in', value: roles.alumni ?? 0 },
+    { label: 'Admins who signed in', value: roles.admin ?? 0 },
+  ]
+})
+
 const maxAccounts = computed(() => Math.max(1, ...(summary.value?.weeks ?? []).map((week) => week.accounts)))
+const maxSignIns = computed(() => Math.max(1, ...(summary.value?.weeks ?? []).map((week) => week.signIns || 0)))
 const maxInteractions = computed(() =>
   Math.max(1, ...(summary.value?.weeks ?? []).map((week) => week.posts + week.comments + week.reactions)),
 )
 
 const recommendations = [
-  {
-    title: 'Record sign-ins',
-    body: 'Every authenticated session already calls POST /api/connect-users/sync. Write last_sign_in_at on the user and one row per person per day. That is enough to report unique logins by week and by role, plus accounts that have never signed in. Do not treat updated_at as a login.',
-  },
   {
     title: 'Separate opening Connect from contributing',
     body: 'The people-who-interacted number only includes posts, comments, and reactions. A daily sign-in row lets a report say who opened Connect even when they did not post.',

@@ -67,4 +67,15 @@ export const SITE_SEARCH_RESOURCE_LINKS: SiteSearchResourceLink[] = [
   { label: 'Marketplace', to: '/marketplace', icon: 'i-heroicons-shopping-bag', description: 'Buy and sell' },
   { label: 'Faculty', to: '/faculty', icon: 'i-heroicons-academic-cap', description: 'Faculty hub' },
   { label: 'Staff', to: '/staff', icon: 'i-heroicons-briefcase', description: 'Staff hub' },
+  {
+    label: 'Better Christian Workplace',
+    to: '/bcw',
+    icon: 'i-lucide-heart-handshake',
+    description: 'BCW, Living Our Values',
+    children: [
+      { label: 'Initiatives', to: '/bcw/initiatives', icon: 'i-lucide-heart-handshake', description: 'BCW' },
+      { label: 'Leadership Advisory', to: '/bcw/leadership-advisory', icon: 'i-lucide-heart-handshake', description: 'BCW' },
+      { label: 'Archive', to: '/bcw/archive', icon: 'i-lucide-heart-handshake', description: 'BCW' },
+    ],
+  },
 ]

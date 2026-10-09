@@ -29,6 +29,32 @@
           <p class="mt-3 text-sm leading-relaxed text-gray-700">
             {{ card.body }}
           </p>
+          <div v-for="(section, index) in card.sections || []" :key="index" class="mt-4">
+            <h4 v-if="section.heading" class="text-sm font-bold text-gray-900">
+              {{ section.heading }}
+            </h4>
+            <p v-if="section.body" class="text-sm leading-relaxed text-gray-700" :class="section.heading ? 'mt-2' : ''">
+              {{ section.body }}
+            </p>
+            <ul v-if="section.items?.length" class="mt-2 list-disc space-y-1 pl-5 text-sm leading-snug text-gray-800">
+              <li
+                v-for="item in section.items"
+                :key="item.label"
+                :class="item.highlight ? 'bg-[#a9d55b] px-1.5 py-0.5' : ''"
+              >
+                <a
+                  v-if="item.href"
+                  :href="item.href"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  :class="item.highlight
+                    ? 'font-bold text-white no-underline'
+                    : 'text-gray-900 underline decoration-gray-400 underline-offset-2 hover:decoration-gray-900'"
+                >{{ item.label }}</a>
+                <span v-else>{{ item.label }}</span>
+              </li>
+            </ul>
+          </div>
           <NuxtLink
             v-if="card.to"
             :to="card.to"
