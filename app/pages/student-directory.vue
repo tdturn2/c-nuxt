@@ -8,7 +8,7 @@
           This directory lists current students who have chosen to share their profile on Connect.
           To add or update your listing,
           <NuxtLink
-            to="/profile/avatar"
+            to="/profile"
             class="font-medium text-[rgba(13,94,130,1)] hover:underline"
           >update your student profile</NuxtLink>.
         </p>

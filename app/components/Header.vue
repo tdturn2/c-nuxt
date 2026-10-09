@@ -395,7 +395,7 @@ const accountDropdownItems = computed<DropdownMenuItem[][]>(() => {
     }
   ],
   [
-    { label: 'Update Profile', icon: 'i-heroicons-user-circle', to: '/profile/avatar' },
+    { label: 'Update Profile', icon: 'i-heroicons-user-circle', to: '/profile' },
     ...(facultyHubAccessReady.value && canAccessFacultyHub.value
       ? [{ label: 'Faculty Publications', icon: 'i-heroicons-book-open', to: '/profile/faculty-pub' }]
       : []),

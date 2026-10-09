@@ -1,5 +1,5 @@
 <script setup lang="ts">
-await navigateTo('/profile/avatar', { replace: true })
+await navigateTo('/profile', { replace: true })
 </script>
 
 <template>

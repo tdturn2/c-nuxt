@@ -61,7 +61,7 @@
           <datalist id="home-city-options">
             <option v-for="name in citySuggestions" :key="name" :value="name" />
           </datalist>
-          <p v-if="cityQuery && !resolvedCity" class="mt-1 text-xs text-amber-700">
+          <p v-if="cityQuery && citiesForState.length && !resolvedCity" class="mt-1 text-xs text-amber-700">
             Choose a city from the suggestions for {{ region }}.
           </p>
         </div>
@@ -143,7 +143,11 @@ const canSave = computed(() => {
   return true
 })
 
+let syncingFromUser = false
+let cityRequest = 0
+
 function applyUser(user: any) {
+  syncingFromUser = true
   const nextCountry = (user?.country || '').toString().trim().toUpperCase()
   const nextRegion = (user?.region || '').toString().trim().toUpperCase()
   const nextCity = (user?.city || '').toString().trim()
@@ -151,6 +155,9 @@ function applyUser(user: any) {
   region.value = nextRegion
   cityQuery.value = nextCity
   initial.value = { country: nextCountry, region: nextRegion, city: nextCity }
+  nextTick(() => {
+    syncingFromUser = false
+  })
 }
 
 watch(meUser, (u) => {
@@ -158,7 +165,7 @@ watch(meUser, (u) => {
 }, { immediate: true })
 
 watch(country, (next, prev) => {
-  if (prev === undefined || next === prev) return
+  if (syncingFromUser || prev === undefined || next === prev) return
   if (next !== 'US') {
     region.value = ''
     cityQuery.value = ''
@@ -169,14 +176,17 @@ watch(country, (next, prev) => {
 
 watch(region, async (next, prev) => {
   if (next === prev) return
-  if (prev !== undefined) cityQuery.value = ''
+  const keepCity = syncingFromUser
+  if (!keepCity && prev !== undefined) cityQuery.value = ''
   citiesForState.value = []
   citySuggestions.value = []
   if (!isUS.value || !next) return
+  const requestId = ++cityRequest
   try {
     const res = await $fetch<{ cities: string[] }>('/api/geo/us-cities', {
       query: { state: next },
     })
+    if (requestId !== cityRequest) return
     citiesForState.value = res?.cities ?? []
     citySuggestions.value = citiesForState.value.slice(0, 40)
   } catch (e) {
