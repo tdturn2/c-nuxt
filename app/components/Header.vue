@@ -215,7 +215,7 @@ const {
 const { fetchUser } = useUsers()
 const { data: session, getCsrfToken } = useAuth()
 const { user: meUser } = useMe()
-const { canAccessFacultyHub, facultyHubAccessReady } = useAudienceHubAccess()
+const { canAccessFacultyPublications, facultyHubAccessReady } = useAudienceHubAccess()
 const { startRolePreview, pending: impersonationPending } = useImpersonation()
 const isSignedIn = computed(() => Boolean(session.value?.user?.email))
 const showRolePreviewMenu = computed(
@@ -396,7 +396,7 @@ const accountDropdownItems = computed<DropdownMenuItem[][]>(() => {
   ],
   [
     { label: 'Update Profile', icon: 'i-heroicons-user-circle', to: '/profile' },
-    ...(facultyHubAccessReady.value && canAccessFacultyHub.value
+    ...(facultyHubAccessReady.value && canAccessFacultyPublications.value
       ? [{ label: 'Faculty Publications', icon: 'i-heroicons-book-open', to: '/profile/faculty-pub' }]
       : []),
   ],

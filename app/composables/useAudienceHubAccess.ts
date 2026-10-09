@@ -1,5 +1,6 @@
-import { hasFacultyHubAccess, isFacultyHubPath } from '@shared/facultyHubAccess'
+import { hasFacultyHubAccess, hasFacultyPublicationsAccess, isFacultyHubPath } from '@shared/facultyHubAccess'
 import { hasStaffHubAccess, isStaffHubPath } from '@shared/staffHubAccess'
+import { useAuth } from '#imports'
 
 export function useAudienceHubAccess() {
   const route = useRoute()
@@ -34,6 +35,11 @@ export function useAudienceHubAccess() {
     return hasFacultyHubAccess(connectUserDoc.value)
   })
 
+  const canAccessFacultyPublications = computed(() => {
+    if (status.value !== 'authenticated') return false
+    return hasFacultyPublicationsAccess(connectUserDoc.value)
+  })
+
   const canAccessStaffHub = computed(() => {
     if (status.value !== 'authenticated') return false
     return hasStaffHubAccess(connectUserDoc.value)
@@ -57,6 +63,7 @@ export function useAudienceHubAccess() {
     isStaffHubRoute,
     isProtectedAudienceHubRoute,
     canAccessFacultyHub,
+    canAccessFacultyPublications,
     canAccessStaffHub,
     facultyHubAccessReady: audienceHubAccessReady,
     staffHubAccessReady: audienceHubAccessReady,

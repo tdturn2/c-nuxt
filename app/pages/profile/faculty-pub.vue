@@ -11,8 +11,8 @@
         <div class="text-red-800 text-sm">You must be signed in to edit your profile.</div>
       </div>
 
-      <div v-else-if="!canAccessFacultyHub" class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900 text-sm">
-        You do not have access to faculty publications. Access requires the faculty role or membership in the faculty-access or admin group.
+      <div v-else-if="!canAccessFacultyPublications" class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900 text-sm">
+        You do not have access to faculty publications. Access requires the faculty role.
       </div>
 
       <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
@@ -229,7 +229,7 @@ const PUBLICATION_TYPE_OPTIONS = [
 ]
 
 const { user: meUser, loading: authLoading, refresh } = useMe()
-const { authStatus, canAccessFacultyHub, facultyHubAccessReady } = useAudienceHubAccess()
+const { authStatus, canAccessFacultyPublications, facultyHubAccessReady } = useAudienceHubAccess()
 const config = useRuntimeConfig()
 const payloadBaseUrl = config.public.connectApi || 'http://localhost:3003'
 

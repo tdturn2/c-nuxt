@@ -318,7 +318,7 @@ watch(() => route.path, () => {
 
     <!-- Expanded: full sidebar content -->
     <template v-else>
-      <div class="flex flex-col flex-1 min-w-0 overflow-hidden w-full">
+      <div class="flex flex-col flex-1 min-w-0 overflow-hidden w-full max-md:pt-[calc(3.5rem+0.75rem)] sm:max-md:pt-[calc(3.75rem+0.75rem)]">
         <div class="flex items-center gap-1.5 px-2 pt-2 pb-1">
           <UInput
             v-model="menuSearchQuery"

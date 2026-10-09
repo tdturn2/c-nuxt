@@ -20,6 +20,12 @@ export function hasFacultyHubAccess(user: ConnectUserAccessLike | null | undefin
   return normalizeConnectGroupSlugs(user).some((slug) => FACULTY_HUB_GROUP_SLUGS.has(slug))
 }
 
+/** Profile publications editor. Faculty role only; admin and faculty-access stay on the hub. */
+export function hasFacultyPublicationsAccess(user: ConnectUserAccessLike | null | undefined): boolean {
+  if (!user) return false
+  return normalizeConnectUserRoles(user).includes('faculty')
+}
+
 export function isFacultyHubPageId(pageId: string | number, rawPages: unknown[]): boolean {
   const { pathById } = buildPagePathMap(rawPages)
   const path = pathById.get(String(pageId))
