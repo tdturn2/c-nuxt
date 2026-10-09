@@ -3,6 +3,7 @@ import { getSSOSession } from '../../utils/ssoAuth'
 import { sendFormEntryNotification } from '../../utils/sendgrid'
 import {
   normalizeFormEmailNotification,
+  normalizeFormEmailNotificationList,
   parseNotificationRecipients,
   type FormEmailNotification,
 } from '~/types/forms'
@@ -11,8 +12,10 @@ import {
   communicationsPrfNotifyEmails,
 } from '@shared/communicationsPrf'
 import {
+  applyFormMergeTags,
   buildFormResultsEmail,
   formatFormSubmittedAt,
+  htmlToPlainText,
   labeledFormAnswers,
   type FormAnswerField,
 } from '@shared/formNotificationEmail'
@@ -69,30 +72,50 @@ export default defineEventHandler(async (event) => {
   // Best-effort notification — never fail the submit if email sending fails/skips.
   const formDoc = await fetchFormDocBySlug(payloadBaseUrl, formSlug).catch(() => null)
   try {
-    const notification = resolveFormNotification(formDoc)
-    if (formSlug === COMMUNICATIONS_PRF_SLUG && notification) {
+    const notifications = resolveFormNotifications(formDoc)
+    const primary = notifications.find((item) => item.toType !== 'submitter')
+    if (formSlug === COMMUNICATIONS_PRF_SLUG && primary) {
       const title = String(answers['project-title'] || '').trim()
-      if (title) notification.subject = `Project request: ${title}`
+      if (title) primary.subject = `Project request: ${title}`
       const merged = new Set([
-        ...parseNotificationRecipients(notification.to),
+        ...parseNotificationRecipients(primary.to),
         ...communicationsPrfNotifyEmails(answers, email).map((value) => value.toLowerCase()),
       ])
-      notification.to = [...merged].join(', ')
-      notification.enabled = true
+      primary.to = [...merged].join(', ')
+      primary.enabled = true
     }
-    if (notification?.enabled && notification.to) {
-      const formTitle = String(formDoc?.title || formSlug)
-      const fields = Array.isArray(formDoc?.schema?.fields) ? formDoc.schema.fields as FormAnswerField[] : []
-      const message = buildFormResultsEmail({
-        formTitle,
-        submitterEmail: email,
-        submittedAt: formatFormSubmittedAt(res?.createdAt ?? res?.doc?.createdAt),
-        answers: labeledFormAnswers(answers, fields),
-      })
+    const formTitle = String(formDoc?.title || formSlug)
+    const fields = notificationFields(formDoc)
+    const submittedAt = formatFormSubmittedAt(res?.createdAt ?? res?.doc?.createdAt)
+    const mergeOptions = { formTitle }
+    for (const notification of notifications) {
+      const recipientTo = resolveNotificationRecipient(notification, email, answers, fields)
+      if (!notification.enabled || !recipientTo) {
+        if (notification.enabled) {
+          console.warn('[form-submit] notification enabled but has no recipients', formSlug)
+        }
+        continue
+      }
+      notification.subject = applyFormMergeTags(notification.subject || '', answers, fields, mergeOptions)
+      if (notification.fromName) {
+        notification.fromName = applyFormMergeTags(notification.fromName, answers, fields, mergeOptions).trim()
+      }
+      if (notification.replyTo === 'submitter') notification.replyTo = email
+      const message = notification.message
+        ? {
+            html: `<div style="font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5;color:#1f2937;">${applyFormMergeTags(notification.message, answers, fields, { ...mergeOptions, escapeHtml: true })}</div>`,
+            text: htmlToPlainText(applyFormMergeTags(notification.message, answers, fields, mergeOptions)),
+          }
+        : buildFormResultsEmail({
+            formTitle,
+            submitterEmail: email,
+            submittedAt,
+            answers: labeledFormAnswers(answers, fields),
+          })
       const sent = await sendFormEntryNotification({
         formTitle,
         formSlug,
-        notification,
+        notification: { ...notification, to: recipientTo },
         textBody: message.text,
         htmlBody: message.html,
         meta: { submitter: email, submissionId: res?.id ?? res?.doc?.id },
@@ -100,8 +123,6 @@ export default defineEventHandler(async (event) => {
       if (!sent.sent) {
         console.warn('[form-submit] notification not sent', sent.reason, formSlug)
       }
-    } else if (notification?.enabled) {
-      console.warn('[form-submit] notification enabled but has no recipients', formSlug)
     }
   } catch (err: any) {
     console.warn('[form-submit] notification prep failed', err?.message || err)
@@ -137,9 +158,45 @@ async function fetchFormDocBySlug(payloadBaseUrl: string, slug: string): Promise
   return Array.isArray(res?.docs) ? res.docs[0] ?? null : null
 }
 
-function resolveFormNotification(formDoc: any): FormEmailNotification | null {
-  if (!formDoc) return null
-  const raw = formDoc.emailNotification ?? formDoc.schema?.emailNotification
-  if (!raw) return null
-  return normalizeFormEmailNotification(raw, formDoc.title || formDoc.slug || '')
+function notificationFields(formDoc: any): FormAnswerField[] {
+  const schema = formDoc?.schema
+  if (Array.isArray(schema?.fields)) return schema.fields as FormAnswerField[]
+  const gravity = schema?.['0']?.fields
+  if (!Array.isArray(gravity)) return []
+  return gravity
+    .map((field: any) => ({
+      id: String(field?.id ?? '').trim(),
+      label: String(field?.label ?? '').trim(),
+      type: String(field?.type ?? '').trim(),
+    }))
+    .filter((field: FormAnswerField) => field.id)
+}
+
+function resolveNotificationRecipient(
+  notification: FormEmailNotification,
+  submitterEmail: string,
+  answers: Record<string, unknown>,
+  fields: FormAnswerField[],
+): string {
+  if (notification.toType === 'submitter') return submitterEmail
+  if (notification.toType === 'field') {
+    const lookup = String(notification.toField || '').trim()
+    if (!lookup) return ''
+    return applyFormMergeTags(`{${lookup}}`, answers, fields).trim()
+  }
+  return String(notification.to || '').trim()
+}
+
+function resolveFormNotifications(formDoc: any): FormEmailNotification[] {
+  if (!formDoc) return []
+  const title = formDoc.title || formDoc.slug || ''
+  const primary = formDoc.emailNotification ?? formDoc.schema?.emailNotification
+  const extras = [
+    ...normalizeFormEmailNotificationList(formDoc.emailNotifications, title),
+    ...normalizeFormEmailNotificationList(formDoc.schema?.emailNotifications, title),
+  ]
+  return [
+    ...(primary ? [normalizeFormEmailNotification(primary, title)] : []),
+    ...extras,
+  ]
 }

@@ -137,6 +137,66 @@ export function buildFormResultsEmail(input: {
   return { text: textLines.join('\n').trim(), html }
 }
 
+/** Replace `{Field Label}`, `{field-id}`, and Gravity `{Label:12}` tags with submitted answers. */
+export function applyFormMergeTags(
+  template: string,
+  answers: Record<string, unknown> | null | undefined,
+  fields: FormAnswerField[] = [],
+  options?: { escapeHtml?: boolean; formTitle?: string },
+): string {
+  const source = answers && typeof answers === 'object' ? answers : {}
+  const byId = new Map<string, FormAnswerField>()
+  const byLabel = new Map<string, FormAnswerField>()
+  for (const field of fields) {
+    const id = String(field.id || field.key || '').trim()
+    const label = String(field.label || '').trim().toLowerCase()
+    if (id) byId.set(id, field)
+    if (label) byLabel.set(label, field)
+  }
+
+  return String(template || '').replace(/\{([^{}]+)\}/g, (match, token: string) => {
+    const raw = String(token || '').trim()
+    if (raw.toLowerCase() === 'form_title' || raw.toLowerCase() === 'form title') {
+      const title = String(options?.formTitle || '')
+      return options?.escapeHtml ? escapeHtml(title) : title
+    }
+    if (raw.toLowerCase() === 'all_fields') {
+      const rows = labeledFormAnswers(source, fields)
+      if (!rows.length) return ''
+      if (options?.escapeHtml) {
+        return rows
+          .map((row) => `<strong>${escapeHtml(row.label)}</strong>: ${escapeHtml(row.value)}`)
+          .join('<br />')
+      }
+      return rows.map((row) => `${row.label}: ${row.value}`).join('\n')
+    }
+    const gravity = raw.match(/^(.*):\d+(?:\.\d+)?$/)
+    const lookup = (gravity ? gravity[1] : raw).trim()
+    const field = byId.get(lookup) || byLabel.get(lookup.toLowerCase())
+    if (!field) return match
+    const key = String(field.id || field.key || '').trim()
+    if (!key || !(key in source)) return ''
+    const value = formatAnswerForEmail(source[key], field).trim()
+    return options?.escapeHtml ? escapeHtml(value) : value
+  })
+}
+
+export function htmlToPlainText(html: string): string {
+  return String(html || '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 function formatAnswerForEmail(value: unknown, field?: FormAnswerField): string {
   if (typeof value === 'boolean') return value ? 'Yes' : 'No'
   if (Array.isArray(value)) {

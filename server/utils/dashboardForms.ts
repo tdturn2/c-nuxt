@@ -7,6 +7,10 @@ import {
   canAccessDashboardSection,
   type DashboardSection,
 } from '@shared/dashboardAccess'
+import {
+  normalizeFormEmailNotification,
+  normalizeFormEmailNotificationList,
+} from '../../app/types/forms'
 
 export const FORM_FIELD_TYPES = new Set([
   'text',
@@ -530,22 +534,23 @@ export function normalizeDashboardFormSchema(schema: unknown): DashboardFormSche
     rules: Array.isArray(parsed.rules) ? parsed.rules : [],
     confirmationMessage:
       typeof parsed.confirmationMessage === 'string' ? parsed.confirmationMessage.trim() : undefined,
-    emailNotification: normalizeEmailNotificationConfig(parsed.emailNotification),
+    emailNotification: parsed.emailNotification
+      ? normalizeFormEmailNotification(parsed.emailNotification, typeof parsed.title === 'string' ? parsed.title : '')
+      : undefined,
+    ...(Array.isArray(parsed.emailNotifications)
+      ? {
+          emailNotifications: normalizeFormEmailNotificationList(
+            parsed.emailNotifications,
+            typeof parsed.title === 'string' ? parsed.title : '',
+          ),
+        }
+      : {}),
   }
 }
 
-function normalizeEmailNotificationConfig(raw: unknown) {
+function normalizeEmailNotificationConfig(raw: unknown, fallbackTitle = '') {
   if (!raw || typeof raw !== 'object') return undefined
-  const src = raw as Record<string, unknown>
-  const to = typeof src.to === 'string' ? src.to.trim() : ''
-  const subject = typeof src.subject === 'string' ? src.subject.trim() : ''
-  const enabled = src.enabled === true || (src.enabled !== false && !!to)
-  return {
-    enabled,
-    to,
-    from: 'webdeveloper@asburyseminary.edu',
-    subject: subject || undefined,
-  }
+  return normalizeFormEmailNotification(raw, fallbackTitle)
 }
 
 export function normalizeFormMetadata(input: Record<string, any>) {
@@ -579,6 +584,7 @@ export function normalizeFormMetadata(input: Record<string, any>) {
   const viewerGroups = Array.isArray(input.viewerGroups) ? input.viewerGroups : []
   const emailNotification = normalizeEmailNotificationConfig(
     input.emailNotification ?? input.schema?.emailNotification,
+    typeof input.title === 'string' ? input.title : '',
   )
 
   return {

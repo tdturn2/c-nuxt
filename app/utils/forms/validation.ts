@@ -1,4 +1,9 @@
-import type { FormFieldType, FormSchemaV1 } from '~/types/forms'
+import {
+  normalizeFormEmailNotification,
+  normalizeFormEmailNotificationList,
+  type FormFieldType,
+  type FormSchemaV1,
+} from '../../types/forms'
 
 const FORM_FIELD_TYPES = new Set<FormFieldType>([
   'text',
@@ -138,18 +143,10 @@ export function validateFormSchemaV1(schema: unknown): { valid: boolean; errors:
     confirmationMessage:
       typeof schema.confirmationMessage === 'string' ? schema.confirmationMessage.trim() : undefined,
     emailNotification: isPlainObject(schema.emailNotification)
-      ? {
-          enabled: schema.emailNotification.enabled === true,
-          to: typeof schema.emailNotification.to === 'string' ? schema.emailNotification.to : '',
-          from:
-            typeof schema.emailNotification.from === 'string' && schema.emailNotification.from.trim()
-              ? schema.emailNotification.from.trim()
-              : 'webdeveloper@asburyseminary.edu',
-          subject:
-            typeof schema.emailNotification.subject === 'string'
-              ? schema.emailNotification.subject
-              : undefined,
-        }
+      ? normalizeFormEmailNotification(schema.emailNotification, schema.title)
+      : undefined,
+    emailNotifications: Array.isArray(schema.emailNotifications)
+      ? normalizeFormEmailNotificationList(schema.emailNotifications, schema.title)
       : undefined,
   }
 

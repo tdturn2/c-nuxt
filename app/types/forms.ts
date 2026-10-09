@@ -23,12 +23,29 @@ export const FORM_NOTIFICATION_FROM = 'webdeveloper@asburyseminary.edu'
 export type FormEmailNotification = {
   /** When true and `to` is set, notify on new submission. */
   enabled?: boolean
-  /** One email or comma-separated list. */
+  /** One email or comma-separated list. Ignored when `toType` is `submitter`. */
   to?: string
-  /** Always `FORM_NOTIFICATION_FROM` when saved. */
+  /**
+   * `submitter` sends to the signed-in user.
+   * `field` sends to the email entered in `toField`.
+   */
+  toType?: 'email' | 'submitter' | 'field'
+  /** Field id or label when `toType` is `field`. */
+  toField?: string
+  /** Defaults to `FORM_NOTIFICATION_FROM` when empty. */
   from?: string
-  /** Defaults to `New Entry: {form title}`. */
+  fromName?: string
+  /** Reply-To address, or `submitter` for the signed-in user. */
+  replyTo?: string
+  /** Extra recipients who are hidden from the To line. */
+  bcc?: string
+  /** Defaults to `New Entry: {form title}`. Supports `{Field Label}` merge tags. */
   subject?: string
+  /**
+   * Custom HTML body. Supports `{Field Label}` merge tags.
+   * When omitted, the standard results email is sent.
+   */
+  message?: string
 }
 
 export type FormFieldOptionV1 = {
@@ -72,6 +89,8 @@ export type FormSchemaV1 = {
   confirmationMessage?: string
   /** Persisted with schema JSON so no Payload collection field is required. */
   emailNotification?: FormEmailNotification
+  /** Extra messages, such as a confirmation to the submitter. */
+  emailNotifications?: FormEmailNotification[]
 }
 
 export type ConnectFormDefinition = {
@@ -115,13 +134,39 @@ export function normalizeFormEmailNotification(
   const src = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
   const to = typeof src.to === 'string' ? src.to.trim() : ''
   const subjectRaw = typeof src.subject === 'string' ? src.subject.trim() : ''
-  const enabled = src.enabled === true || (src.enabled !== false && to.length > 0)
+  const toType = src.toType === 'submitter' || src.toType === 'field' ? src.toType : 'email'
+  const toField = typeof src.toField === 'string' ? src.toField.trim() : ''
+  const enabled =
+    src.enabled === true ||
+    (src.enabled !== false && (to.length > 0 || toType === 'submitter' || (toType === 'field' && !!toField)))
+  const fromRaw = typeof src.from === 'string' ? src.from.trim() : ''
+  const from = parseNotificationRecipients(fromRaw)[0] || FORM_NOTIFICATION_FROM
+  const fromName = typeof src.fromName === 'string' ? src.fromName.trim() : ''
+  const replyTo = typeof src.replyTo === 'string' ? src.replyTo.trim() : ''
+  const bcc = typeof src.bcc === 'string' ? src.bcc.trim() : ''
+  const message = typeof src.message === 'string' ? src.message.trim() : ''
   return {
     enabled,
     to,
-    from: FORM_NOTIFICATION_FROM,
+    from,
     subject: subjectRaw || defaultFormNotificationSubject(fallbackTitle),
+    ...(toType === 'email' ? {} : { toType }),
+    ...(toField ? { toField } : {}),
+    ...(fromName ? { fromName } : {}),
+    ...(replyTo ? { replyTo } : {}),
+    ...(bcc ? { bcc } : {}),
+    ...(message ? { message } : {}),
   }
+}
+
+export function normalizeFormEmailNotificationList(
+  raw: unknown,
+  fallbackTitle = '',
+): FormEmailNotification[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .filter((item) => item && typeof item === 'object')
+    .map((item) => normalizeFormEmailNotification(item, fallbackTitle))
 }
 
 /** Split a to-field into unique, trimmed email addresses. */

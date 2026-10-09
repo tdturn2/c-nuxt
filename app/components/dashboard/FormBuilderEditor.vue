@@ -37,7 +37,7 @@
             <input
               type="text"
               class="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700"
-              :value="FORM_NOTIFICATION_FROM"
+              :value="form.emailNotification.from || FORM_NOTIFICATION_FROM"
               readonly
               tabindex="-1"
             >

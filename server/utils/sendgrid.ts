@@ -51,10 +51,14 @@ export async function sendFormEntryNotification(
   if (!recipients.length) {
     return { sent: false, reason: 'no valid recipients' }
   }
+  const toSet = new Set(recipients)
+  const bcc = parseNotificationRecipients(notification.bcc).filter((address) => !toSet.has(address))
 
   const subject =
     (notification.subject || '').trim() || `New Entry: ${fallbackTitle}`
-  const from = FORM_NOTIFICATION_FROM
+  const from = parseNotificationRecipients(notification.from)[0] || FORM_NOTIFICATION_FROM
+  const fromName = (notification.fromName || '').trim() || 'Asbury Connect'
+  const replyTo = parseNotificationRecipients(notification.replyTo)[0]
   const text =
     (input.textBody || '').trim() ||
     `A new entry was submitted for "${fallbackTitle}".`
@@ -67,9 +71,11 @@ export async function sendFormEntryNotification(
     personalizations: [
       {
         to: recipients.map((email) => ({ email })),
+        ...(bcc.length ? { bcc: bcc.map((email) => ({ email })) } : {}),
       },
     ],
-    from: { email: from, name: 'Asbury Connect' },
+    from: { email: from, name: fromName },
+    ...(replyTo ? { reply_to: { email: replyTo, name: fromName } } : {}),
     subject,
     content: [
       { type: 'text/plain', value: text },

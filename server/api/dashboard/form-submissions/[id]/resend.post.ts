@@ -1,5 +1,5 @@
 import { createError, defineEventHandler, getRouterParam, readBody } from 'h3'
-import { parseNotificationRecipients, type FormEmailNotification } from '~/types/forms'
+import { normalizeFormEmailNotification, parseNotificationRecipients, type FormEmailNotification } from '~/types/forms'
 import {
   buildFormResultsEmail,
   formatFormSubmittedAt,
@@ -97,9 +97,8 @@ async function fetchFormDoc(payloadBaseUrl: string, slug: string, headers: Recor
 function resolveNotification(formDoc: any): FormEmailNotification {
   const raw = formDoc?.emailNotification ?? formDoc?.schema?.emailNotification
   const src = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {}
-  return {
-    enabled: true,
-    to: typeof src.to === 'string' ? src.to : '',
-    subject: typeof src.subject === 'string' ? src.subject : '',
-  }
+  return normalizeFormEmailNotification(
+    { ...src, enabled: true },
+    formDoc?.title || formDoc?.slug || '',
+  )
 }
