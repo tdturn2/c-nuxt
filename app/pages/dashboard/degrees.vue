@@ -186,6 +186,13 @@
                           >
                             {{ bundlePending && selectedDegreeId === d.id ? 'Opening…' : 'Edit' }}
                           </button>
+                          <button
+                            type="button"
+                            class="ml-3 text-sm font-medium text-red-700 hover:underline"
+                            @click.stop="requestDeleteDegree(d)"
+                          >
+                            Delete
+                          </button>
                         </td>
                       </tr>
                     </template>
@@ -218,14 +225,22 @@
             </p>
             <p v-if="bundlePending" class="text-sm text-gray-500">Loading…</p>
           </div>
-          <button
-            v-if="selectedDegreeId != null && !bundlePending"
-            type="button"
-            class="shrink-0 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-            @click="openImportModal(selectedDegreeId)"
-          >
-            Import CSV
-          </button>
+          <div v-if="selectedDegreeId != null && !bundlePending" class="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              class="rounded-md border border-red-200 bg-white px-2.5 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50"
+              @click="requestDeleteOpenDegree"
+            >
+              Delete degree
+            </button>
+            <button
+              type="button"
+              class="rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              @click="openImportModal(selectedDegreeId)"
+            >
+              Import CSV
+            </button>
+          </div>
         </div>
       </template>
       <template #body>
@@ -1504,6 +1519,7 @@ const pendingDelete = ref<
   | { kind: 'item'; id: number; label: string }
   | { kind: 'section'; id: number; label: string }
   | { kind: 'specialization'; id: number; label: string }
+  | { kind: 'degree'; id: number; label: string }
   | null
 >(null)
 
@@ -1551,6 +1567,35 @@ function requestDeleteSection(section: { id: number; name?: string; title?: stri
   )
 }
 
+function requestDeleteOpenDegree() {
+  const degree = bundle.value?.degree
+  const id = degree?.id ?? selectedDegreeId.value
+  if (id == null) return
+  requestDeleteDegree({
+    id: Number(id),
+    name: degree?.name ?? degree?.title,
+    code: degree?.code,
+    catalogYear: degree?.catalogYear,
+  })
+}
+
+function requestDeleteDegree(degree: {
+  id: number
+  name?: string | null
+  title?: string | null
+  code?: string | null
+  catalogYear?: string | number | null
+}) {
+  const label = degreeName(degree) || `Degree #${degree.id}`
+  const year = catalogYearLabel(degree)
+  const yearBit = year && year !== '—' ? ` (${year})` : ''
+  openDeleteConfirm(
+    { kind: 'degree', id: Number(degree.id), label },
+    'Delete degree',
+    `Delete “${label}”${yearBit}? This removes its sections, courses, and concentrations, and any student degree maps for this program.`,
+  )
+}
+
 function requestDeleteSpecialization(spec: { id: number; name?: string; title?: string }) {
   const label = spec.name ?? spec.title ?? `concentration #${spec.id}`
   openDeleteConfirm(
@@ -1576,6 +1621,17 @@ async function runConfirmedDelete() {
       }
     } else if (target.kind === 'section') {
       await $fetch(`/api/degree-sections/${target.id}`, { method: 'DELETE' })
+    } else if (target.kind === 'degree') {
+      await $fetch(`/api/degrees/${target.id}`, { method: 'DELETE' })
+      if (selectedDegreeId.value === target.id) {
+        selectedDegreeId.value = null
+        bundle.value = null
+        degreeEditSlideoverOpen.value = false
+      }
+      deleteConfirmOpen.value = false
+      pendingDelete.value = null
+      await fetchDegreesList()
+      return
     } else {
       await $fetch(`/api/specializations/${target.id}`, { method: 'DELETE' })
     }

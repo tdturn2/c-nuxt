@@ -3,6 +3,17 @@ import { filterOutFacultyHubPages, hasFacultyHubAccess, isFacultyHubPageId } fro
 import { filterOutStaffHubPages, hasStaffHubAccess, isStaffHubPageId } from '@shared/staffHubAccess'
 import { loadConnectUserDocForEvent } from './connectUserAccess'
 
+export async function assertFacultyHubAccess(event: H3Event) {
+  const access = await loadAudienceHubAccess(event)
+  if (!access.facultyHubAllowed) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Faculty access is required.',
+    })
+  }
+  return access
+}
+
 export async function loadAudienceHubAccess(event: H3Event) {
   const connectUserDoc = await loadConnectUserDocForEvent(event)
   return {

@@ -58,10 +58,10 @@
             link: 'px-2 py-2 text-white/90 hover:text-white data-[state=open]:text-white hover:before:bg-white/10 data-[state=open]:before:bg-white/15',
             linkLeadingIcon: 'text-white/90 group-hover:text-white group-data-[state=open]:text-white',
             viewportWrapper: 'left-auto right-0 w-auto justify-end',
-            viewport: 'w-[min(26rem,calc(100vw-1.5rem))]',
-            content: 'w-full',
-            childList: 'gap-3 p-3',
-            childLink: 'rounded-md px-3 py-2.5 hover:bg-gray-100 hover:before:bg-transparent',
+            viewport: 'w-max max-w-[calc(100vw-1.5rem)]',
+            content: 'relative w-max',
+            childList: 'w-max grid-cols-[max-content_max-content] !gap-x-2 !gap-y-1 p-2.5',
+            childLink: 'size-auto w-max rounded-md px-2.5 py-2 hover:bg-gray-100 hover:before:bg-transparent',
             childLinkLabel: 'overflow-visible whitespace-nowrap text-clip',
             childLinkIcon: 'text-gray-500 group-hover:text-gray-800',
             linkTrailing: 'hidden',
@@ -215,6 +215,7 @@ const {
 const { fetchUser } = useUsers()
 const { data: session, getCsrfToken } = useAuth()
 const { user: meUser } = useMe()
+const { canAccessFacultyHub, facultyHubAccessReady } = useAudienceHubAccess()
 const { startRolePreview, pending: impersonationPending } = useImpersonation()
 const isSignedIn = computed(() => Boolean(session.value?.user?.email))
 const showRolePreviewMenu = computed(
@@ -395,7 +396,9 @@ const accountDropdownItems = computed<DropdownMenuItem[][]>(() => {
   ],
   [
     { label: 'Update Profile', icon: 'i-heroicons-user-circle', to: '/profile/avatar' },
-    { label: 'Faculty Publications', icon: 'i-heroicons-book-open', to: '/profile/faculty-pub' }
+    ...(facultyHubAccessReady.value && canAccessFacultyHub.value
+      ? [{ label: 'Faculty Publications', icon: 'i-heroicons-book-open', to: '/profile/faculty-pub' }]
+      : []),
   ],
   ...(showRolePreviewMenu.value
     ? [[

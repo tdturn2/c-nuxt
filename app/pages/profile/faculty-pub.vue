@@ -3,12 +3,16 @@
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <h1 class="text-2xl font-bold text-gray-900 mb-6">Faculty Publications</h1>
 
-      <div v-if="authLoading" class="text-center py-8">
-        <div class="text-gray-500">Loading profile...</div>
+      <div v-if="authLoading || (authStatus === 'authenticated' && !facultyHubAccessReady)" class="text-center py-8">
+        <div class="text-gray-500">Checking access...</div>
       </div>
 
       <div v-else-if="!meUser" class="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
         <div class="text-red-800 text-sm">You must be signed in to edit your profile.</div>
+      </div>
+
+      <div v-else-if="!canAccessFacultyHub" class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900 text-sm">
+        You do not have access to faculty publications. Access requires the faculty role or membership in the faculty-access or admin group.
       </div>
 
       <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
@@ -225,6 +229,7 @@ const PUBLICATION_TYPE_OPTIONS = [
 ]
 
 const { user: meUser, loading: authLoading, refresh } = useMe()
+const { authStatus, canAccessFacultyHub, facultyHubAccessReady } = useAudienceHubAccess()
 const config = useRuntimeConfig()
 const payloadBaseUrl = config.public.connectApi || 'http://localhost:3003'
 

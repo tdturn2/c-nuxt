@@ -1,4 +1,5 @@
 import { createError, defineEventHandler, getRouterParam } from 'h3'
+import { assertFacultyHubAccess } from '../../../utils/audienceHubPages'
 import { getSSOSession } from '../../../utils/ssoAuth'
 
 export default defineEventHandler(async (event) => {
@@ -18,6 +19,8 @@ export default defineEventHandler(async (event) => {
       statusMessage: 'Missing Payload base URL configuration'
     })
   }
+
+  await assertFacultyHubAccess(event)
 
   const { email } = await getSSOSession(event)
   if (!email) {

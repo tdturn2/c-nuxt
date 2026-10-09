@@ -6,6 +6,9 @@
           <h2 class="text-xl font-semibold text-gray-900">
             {{ planTitle }}
           </h2>
+          <p v-if="concentrationName" class="mt-0.5 text-sm font-medium text-[rgba(13,94,130,1)]">
+            {{ concentrationName }}
+          </p>
           <p v-if="degreeTotalCredits" class="mt-0.5 text-sm text-gray-500">
             Total credit hours required: {{ degreeTotalCredits }}
             <span v-if="remainingCredits != null" class="ml-3 text-gray-700">
@@ -55,18 +58,63 @@
     <div
       v-for="section in sections"
       :key="section.id"
-      class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+      class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
     >
-      <h3 class="text-lg font-semibold text-gray-900">
-        {{ section.name }}
-      </h3>
-      <p v-if="section.creditsRequired != null" class="mt-0.5 text-sm text-gray-500">
-        {{ section.creditsRequired }} credits required
-      </p>
-      <p v-if="section.description" class="mt-2 whitespace-pre-line text-sm text-gray-700">
-        {{ section.description }}
-      </p>
-      <div v-if="section.items?.length" class="mt-3 overflow-x-auto rounded-lg border border-gray-200">
+      <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+        <div class="min-w-0">
+          <h3 class="text-lg font-semibold text-gray-900">
+            {{ section.name }}
+          </h3>
+          <p v-if="section.creditsRequired != null" class="mt-0.5 text-xs text-gray-500">
+            {{ formatHours(sectionCountedHours(section)) }} of {{ formatHours(Number(section.creditsRequired)) }} hours counting
+          </p>
+        </div>
+        <span
+          v-if="section.creditsRequired != null"
+          class="inline-flex items-center rounded-full bg-[rgba(13,94,130,0.08)] px-2.5 py-1 text-xs font-semibold text-[rgba(13,94,130,1)]"
+        >
+          {{ section.creditsRequired }} credits required
+        </span>
+      </div>
+      <div
+        v-if="section.copy"
+        class="mx-5 mb-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3"
+      >
+        <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+          Requirements
+        </p>
+        <div v-if="section.copy.paragraphs.length" class="mt-1.5 space-y-2">
+          <p
+            v-for="(paragraph, index) in section.copy.paragraphs"
+            :key="index"
+            class="text-sm leading-6 text-gray-700"
+            :class="index === 0 && paragraph.length < 48 && section.copy.paragraphs.length > 1 ? 'font-medium text-gray-900' : ''"
+          >
+            {{ paragraph }}
+          </p>
+        </div>
+        <div
+          v-if="section.copy.note || section.copy.codes.length"
+          :class="section.copy.paragraphs.length ? 'mt-3 border-t border-gray-200 pt-3' : 'mt-1.5'"
+        >
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-amber-800">
+            Note
+          </p>
+          <p v-if="section.copy.note" class="mt-1 text-sm leading-6 text-gray-700">
+            {{ section.copy.note }}
+          </p>
+          <ul v-if="section.copy.codes.length" class="mt-2 flex flex-wrap gap-1.5">
+            <li
+              v-for="(code, index) in section.copy.codes"
+              :key="`${code}-${index}`"
+              class="rounded-md bg-white px-2 py-1 font-mono text-xs font-medium text-gray-800 ring-1 ring-gray-200"
+            >
+              {{ code }}
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div v-if="section.items?.length" class="overflow-x-auto border-t border-gray-200">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
@@ -82,84 +130,152 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-200 bg-white">
-            <tr
-              v-for="(item, i) in section.items"
-              :key="item.id ?? i"
-              :class="[
-                'hover:bg-gray-50 transition',
-                isItemCompleted(item) ? 'bg-emerald-50/70 border-l-4 border-l-emerald-400' : '',
-              ]"
-            >
-              <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ courseCode(item) }}</td>
-              <td class="px-4 py-3 text-sm text-gray-600">
-                <UPopover
-                  v-if="courseDescription(item)"
-                  :popper="{ placement: 'top', strategy: 'fixed' }"
-                  :content="{ align: 'start', side: 'top', sideOffset: 8 }"
+            <template v-for="row in sectionRows(section)" :key="row.key">
+              <tr v-if="row.kind === 'bucket'" class="bg-gray-50">
+                <td class="px-4 py-3 text-sm text-gray-400">—</td>
+                <td class="px-4 py-3 text-sm font-medium text-gray-900">
+                  <UPopover
+                    v-if="courseDescription(row.item)"
+                    :popper="{ placement: 'top', strategy: 'fixed' }"
+                    :content="{ align: 'start', side: 'top', sideOffset: 8 }"
+                  >
+                    <button type="button" class="inline-flex text-left hover:underline decoration-dotted decoration-gray-400">
+                      {{ courseTitle(row.item) }}
+                    </button>
+                    <template #content>
+                      <div class="max-w-[500px] p-3 rounded-md bg-white text-sm text-gray-800 shadow-lg border border-gray-200 whitespace-pre-line">
+                        {{ courseDescription(row.item) }}
+                      </div>
+                    </template>
+                  </UPopover>
+                  <span v-else>{{ courseTitle(row.item) }}</span>
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-400">—</td>
+                <td class="px-4 py-3 text-sm text-gray-700">{{ row.required != null ? formatHours(row.required) : '—' }}</td>
+                <td
+                  class="px-4 py-3 text-sm"
+                  :class="row.required != null && row.filled > row.required ? 'font-medium text-amber-700' : 'text-gray-700'"
                 >
+                  {{ bucketHoursLabel(row) }}
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-400">—</td>
+                <td class="px-4 py-3 text-sm text-gray-400">—</td>
+                <td class="px-4 py-3 text-sm text-gray-600">
+                  <div class="flex items-center justify-center">
+                    <UIcon
+                      :name="bucketComplete(row) ? 'i-heroicons-check-circle-solid' : 'i-heroicons-clock'"
+                      :class="bucketComplete(row) ? 'h-4 w-4 text-emerald-500' : 'h-4 w-4 text-gray-400'"
+                      aria-hidden="true"
+                    />
+                  </div>
+                </td>
+                <td class="px-2 py-3" />
+              </tr>
+              <tr v-else-if="row.kind === 'add'">
+                <td colspan="9" class="px-4 py-2">
                   <button
                     type="button"
-                    class="inline-flex text-left hover:underline decoration-dotted decoration-gray-400"
+                    class="inline-flex items-center gap-1.5 text-sm font-medium text-[rgba(13,94,130,1)] hover:underline"
+                    @click="$emit('edit-course', newElectiveLine(row.item))"
                   >
-                    {{ courseTitle(item) }}
+                    <UIcon name="i-heroicons-plus" class="h-4 w-4" />
+                    Add a course
                   </button>
-                  <template #content>
-                    <div
-                      class="max-w-[500px] p-3 rounded-md bg-white text-sm text-gray-800 shadow-lg border border-gray-200 whitespace-pre-line"
-                    >
-                      {{ courseDescription(item) }}
-                    </div>
-                  </template>
-                </UPopover>
-                <span v-else>{{ courseTitle(item) }}</span>
-              </td>
-              <td class="px-4 py-3 text-sm text-gray-600">{{ formattedTerm(item) }}</td>
-              <td class="px-4 py-3 text-sm text-gray-600">{{ courseCredits(item) }}</td>
-              <td class="px-4 py-3 text-sm text-gray-600">{{ courseHoursEarned(item) }}</td>
-              <td class="px-4 py-3 text-sm text-gray-600">{{ courseHoursType(item) }}</td>
-              <td class="px-4 py-3 text-sm text-gray-600">
-                <UPopover
-                  v-if="courseNotes(item)"
-                  :popper="{ placement: 'top', strategy: 'fixed' }"
-                  :content="{ align: 'start', side: 'top', sideOffset: 8 }"
-                >
-                  <button
-                    type="button"
-                    class="inline-flex items-center justify-center rounded-full p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
-                    aria-label="View notes"
+                </td>
+              </tr>
+              <tr
+                v-else
+                :class="[
+                  'hover:bg-gray-50 transition',
+                  isItemCompleted(row.item) ? 'bg-emerald-50/70 border-l-4 border-l-emerald-400' : '',
+                ]"
+              >
+                <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ courseCode(row.item) }}</td>
+                <td class="px-4 py-3 text-sm text-gray-600">
+                  <UPopover
+                    v-if="courseDescription(row.item)"
+                    :popper="{ placement: 'top', strategy: 'fixed' }"
+                    :content="{ align: 'start', side: 'top', sideOffset: 8 }"
                   >
-                    <UIcon name="i-heroicons-document-text" class="h-4 w-4" />
-                  </button>
-                  <template #content>
-                    <div
-                      class="max-w-[400px] p-3 rounded-md bg-white text-sm text-gray-800 shadow-lg border border-gray-200 whitespace-pre-line"
+                    <button
+                      type="button"
+                      class="inline-flex text-left hover:underline decoration-dotted decoration-gray-400"
                     >
-                      {{ courseNotes(item) }}
-                    </div>
-                  </template>
-                </UPopover>
-                <span v-else class="text-gray-300">—</span>
-              </td>
-              <td class="px-4 py-3 text-sm text-gray-600">
-                <div class="flex items-center justify-center">
-                  <UIcon
-                    :name="isItemCompleted(item) ? 'i-heroicons-check-circle-solid' : 'i-heroicons-clock'"
-                    :class="isItemCompleted(item) ? 'h-4 w-4 text-emerald-500' : 'h-4 w-4 text-gray-400'"
-                    aria-hidden="true"
-                  />
-                </div>
-              </td>
-              <td class="px-2 py-3 text-right">
-                <button
-                  type="button"
-                  class="inline-flex items-center justify-center rounded-full p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
-                  aria-label="Edit course"
-                  @click="$emit('edit-course', item)"
-                >
-                  <UIcon name="i-heroicons-pencil-square" class="h-4 w-4" />
-                </button>
-              </td>
-            </tr>
+                      {{ courseTitle(row.item) }}
+                    </button>
+                    <template #content>
+                      <div
+                        class="max-w-[500px] p-3 rounded-md bg-white text-sm text-gray-800 shadow-lg border border-gray-200 whitespace-pre-line"
+                      >
+                        {{ courseDescription(row.item) }}
+                      </div>
+                    </template>
+                  </UPopover>
+                  <span v-else>{{ courseTitle(row.item) }}</span>
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-600">{{ formattedTerm(row.item) }}</td>
+                <td class="px-4 py-3 text-sm text-gray-600">{{ courseCredits(row.item) }}</td>
+                <td class="px-4 py-3 text-sm text-gray-600">
+                  <span :title="countedHoursTitle(row)">
+                    {{ row.kind === 'elective' || row.kind === 'course' ? countedHoursLabel(row) : courseHoursEarned(row.item) }}
+                  </span>
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-600">{{ courseHoursType(row.item) }}</td>
+                <td class="px-4 py-3 text-sm text-gray-600">
+                  <UPopover
+                    v-if="courseNotes(row.item)"
+                    :popper="{ placement: 'top', strategy: 'fixed' }"
+                    :content="{ align: 'start', side: 'top', sideOffset: 8 }"
+                  >
+                    <button
+                      type="button"
+                      class="inline-flex items-center justify-center rounded-full p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                      aria-label="View notes"
+                    >
+                      <UIcon name="i-heroicons-document-text" class="h-4 w-4" />
+                    </button>
+                    <template #content>
+                      <div
+                        class="max-w-[400px] p-3 rounded-md bg-white text-sm text-gray-800 shadow-lg border border-gray-200 whitespace-pre-line"
+                      >
+                        {{ courseNotes(row.item) }}
+                      </div>
+                    </template>
+                  </UPopover>
+                  <span v-else class="text-gray-300">—</span>
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-600">
+                  <div class="flex items-center justify-center">
+                    <UIcon
+                      :name="isItemCompleted(row.item) ? 'i-heroicons-check-circle-solid' : 'i-heroicons-clock'"
+                      :class="isItemCompleted(row.item) ? 'h-4 w-4 text-emerald-500' : 'h-4 w-4 text-gray-400'"
+                      aria-hidden="true"
+                    />
+                  </div>
+                </td>
+                <td class="px-2 py-3 text-right">
+                  <div class="inline-flex items-center">
+                    <button
+                      v-if="row.item.electiveLine && row.item.record?.id"
+                      type="button"
+                      class="inline-flex items-center justify-center rounded-full p-1 text-gray-400 hover:text-red-700 hover:bg-red-50"
+                      aria-label="Remove course"
+                      @click="$emit('remove-course', row.item)"
+                    >
+                      <UIcon name="i-heroicons-trash" class="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      class="inline-flex items-center justify-center rounded-full p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                      aria-label="Edit course"
+                      @click="$emit('edit-course', row.item)"
+                    >
+                      <UIcon name="i-heroicons-pencil-square" class="h-4 w-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </div>
@@ -247,6 +363,18 @@
 </template>
 
 <script setup lang="ts">
+import {
+  appliedElectiveHours,
+  countTowardLimit,
+  electiveLineView,
+  isCompletedRecord,
+  electiveRecords,
+  formatHours,
+  isElectiveBucket,
+  type ElectiveRecord,
+} from '@shared/degreeMapElectives'
+import { parseSectionCopy, type SectionCopy } from '@shared/degreeMapSectionCopy'
+
 export interface DegreeItem {
   id?: number
   course?: { code?: string; title?: string; credits?: number; description?: string }
@@ -283,6 +411,7 @@ export interface DegreeSection {
 export interface DegreePlan {
   id?: number
   degree?: { name?: string; displayLabel?: string; catalogYear?: number; description?: string; totalCredits?: number }
+  specialization?: { id?: number; name?: string } | null
   sections?: DegreeSection[]
   [key: string]: any
 }
@@ -293,6 +422,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'edit-course': [item: DegreeItem]
+  'remove-course': [item: DegreeItem]
   deleted: [plan: DegreePlan]
 }>()
 
@@ -333,6 +463,8 @@ const planTitle = computed(() => {
   return d?.name ?? props.plan?.title ?? (props.plan as any)?.name ?? 'Degree Plan'
 })
 
+const concentrationName = computed(() => props.plan?.specialization?.name?.trim() || '')
+
 const catalogYear = computed(() => {
   const d = props.plan?.degree
   const v = d?.catalogYear ?? props.plan?.catalogYear ?? (props.plan as any)?.catalog_year
@@ -350,45 +482,194 @@ const planDescription = computed(() => {
   return typeof html === 'string' && html ? html : ''
 })
 
-const sections = computed<DegreeSection[]>(() => {
+const sections = computed<(DegreeSection & { copy: SectionCopy | null })[]>(() => {
   const raw = props.plan?.sections
   if (!Array.isArray(raw)) return []
   return raw
     .filter((s) => Array.isArray(s?.items) && s.items && s.items.length > 0)
     .sort((a, b) => (a?.order ?? 0) - (b?.order ?? 0))
+    .map((section) => ({ ...section, copy: parseSectionCopy(section.description) }))
 })
 
-function isHoursTypeResidential(item: DegreeItem) {
-  const raw = (item.record?.hoursType ?? item.hoursType ?? (item as any).hours_type ?? '') as string
-  if (!raw) return false
-  const v = raw.toLowerCase()
-  return v === 'residential' || v === 'r'
+type MapRow =
+  | { kind: 'course'; key: string; item: DegreeItem; counted: number; applied: number }
+  | { kind: 'bucket'; key: string; item: DegreeItem; filled: number; required: number | null }
+  | { kind: 'elective'; key: string; item: DegreeItem; counted: number; applied: number }
+  | { kind: 'add'; key: string; item: DegreeItem }
+
+function finiteLimit(value: unknown): number | null {
+  if (value == null || value === '') return null
+  const n = Number(value)
+  return Number.isFinite(n) && n >= 0 ? n : null
 }
 
-function isHoursTypeNonResidential(item: DegreeItem) {
-  const raw = (item.record?.hoursType ?? item.hoursType ?? (item as any).hours_type ?? '') as string
-  if (!raw) return false
-  const v = raw.toLowerCase()
+function bucketRequiredHours(item: DegreeItem): number | null {
+  return finiteLimit(item.credits ?? item.course?.credits)
+}
+
+function sectionCountedLines(section: DegreeSection) {
+  const pieces: { record: ElectiveRecord; applied: number; countedBeforeSection: number }[] = []
+  for (const item of section.items || []) {
+    if (isElectiveBucket(item)) {
+      const records = electiveRecords(item)
+      const capped = countTowardLimit(
+        records.map((record) => countableHours(record, item)),
+        bucketRequiredHours(item),
+      )
+      records.forEach((record, index) => {
+        pieces.push({
+          record,
+          applied: appliedElectiveHours(record) ?? 0,
+          countedBeforeSection: capped[index] ?? 0,
+        })
+      })
+    } else {
+      for (const record of trackedRecords(item)) {
+        const applied = appliedElectiveHours(record) ?? 0
+        pieces.push({ record, applied, countedBeforeSection: countableHours(record, item) })
+      }
+    }
+  }
+  const counted = countTowardLimit(
+    pieces.map((piece) => piece.countedBeforeSection),
+    finiteLimit(section.creditsRequired),
+  )
+  return pieces.map((piece, index) => ({
+    record: piece.record,
+    applied: piece.applied,
+    counted: counted[index] ?? 0,
+  }))
+}
+
+function sectionCountedHours(section: DegreeSection) {
+  return sectionCountedLines(section).reduce((sum, line) => sum + line.counted, 0)
+}
+
+function trackedRecords(item: DegreeItem): ElectiveRecord[] {
+  if (item.electiveLine) return item.record ? [item.record] : []
+  if (isElectiveBucket(item)) return electiveRecords(item)
+  return item.record ? [item.record] : []
+}
+
+function sectionRows(section: DegreeSection): MapRow[] {
+  const countedByRecord = new Map(sectionCountedLines(section).map((line) => [line.record, line]))
+  const rows: MapRow[] = []
+  for (const item of section.items || []) {
+    if (!isElectiveBucket(item)) {
+      const record = trackedRecords(item)[0]
+      const line = record ? countedByRecord.get(record) : undefined
+      rows.push({
+        kind: 'course',
+        key: `c-${item.id}`,
+        item,
+        counted: line?.counted ?? 0,
+        applied: line?.applied ?? 0,
+      })
+      continue
+    }
+    const records = electiveRecords(item)
+    const required = bucketRequiredHours(item)
+    const filled = records.reduce((sum, record) => sum + (countedByRecord.get(record)?.counted ?? 0), 0)
+    rows.push({
+      kind: 'bucket',
+      key: `b-${item.id}`,
+      item,
+      filled,
+      required,
+    })
+    records.forEach((record, index) => {
+      const line = countedByRecord.get(record)
+      rows.push({
+        kind: 'elective',
+        key: `e-${item.id}-${record.id ?? index}`,
+        item: electiveLineView(item, record) as DegreeItem,
+        counted: line?.counted ?? 0,
+        applied: line?.applied ?? 0,
+      })
+    })
+    rows.push({ kind: 'add', key: `a-${item.id}`, item })
+  }
+  return rows
+}
+
+function countableHours(record: ElectiveRecord, item: DegreeItem) {
+  const status = record.status ?? item.status
+  if (!isCompletedRecord({ status })) return 0
+  return appliedElectiveHours(record) ?? 0
+}
+
+function countedHoursLabel(row: MapRow) {
+  if (row.kind !== 'elective' && row.kind !== 'course') return '—'
+  const shown = row.counted > 0 ? row.counted : row.applied
+  if (shown <= 0) return '—'
+  return formatHours(shown)
+}
+
+function countedHoursTitle(row: MapRow) {
+  if (row.kind !== 'elective' && row.kind !== 'course') return undefined
+  if (row.applied > 0 && row.counted === 0) return 'Counts toward totals once marked completed.'
+  if (row.applied > row.counted) {
+    return `${formatHours(row.applied)} entered. ${formatHours(row.counted)} count toward this section.`
+  }
+  return undefined
+}
+
+function newElectiveLine(item: DegreeItem): DegreeItem {
+  return {
+    ...item,
+    electiveLine: true,
+    record: undefined,
+    course: undefined,
+    code: undefined,
+    title: undefined,
+    label: item.label,
+    description: undefined,
+  }
+}
+
+function bucketComplete(row: { filled: number; required: number | null }) {
+  return row.required != null && row.required > 0 && row.filled >= row.required
+}
+
+function bucketHoursLabel(row: { filled: number; required: number | null }) {
+  if (row.required == null) return formatHours(row.filled)
+  return `${formatHours(row.filled)} of ${formatHours(row.required)}`
+}
+
+function recordHoursType(record: ElectiveRecord | null | undefined) {
+  return String(record?.hoursType ?? '').trim().toLowerCase()
+}
+
+function isResidentialType(raw: string) {
+  return raw === 'residential' || raw === 'r'
+}
+
+function isNonResidentialType(raw: string) {
   return (
-    v === 'non-residential' ||
-    v === 'nonresidential' ||
-    v === 'non_residential' ||
-    v === 'online' ||
-    v === 'n'
+    raw === 'non-residential' ||
+    raw === 'nonresidential' ||
+    raw === 'non_residential' ||
+    raw === 'online' ||
+    raw === 'n'
   )
 }
 
-const totalHoursEarned = computed(() => {
-  let sum = 0
+const hourTotals = computed(() => {
+  let earned = 0
+  let residential = 0
+  let nonResidential = 0
   for (const section of sections.value) {
-    for (const item of section.items || []) {
-      const r = item.record
-      const v = r?.hoursEarned ?? item.hoursEarned
-      if (typeof v === 'number') sum += v
+    for (const line of sectionCountedLines(section)) {
+      earned += line.counted
+      const type = recordHoursType(line.record)
+      if (isResidentialType(type)) residential += line.counted
+      if (isNonResidentialType(type)) nonResidential += line.counted
     }
   }
-  return sum
+  return { earned, residential, nonResidential }
 })
+
+const totalHoursEarned = computed(() => hourTotals.value.earned)
 
 const remainingCredits = computed(() => {
   if (degreeTotalCredits.value == null) return null
@@ -411,36 +692,18 @@ const planProgress = computed(() => {
   }
 })
 
-const residentialHoursCompleted = computed(() => {
-  let sum = 0
-  for (const section of sections.value) {
-    for (const item of section.items || []) {
-      if (!isHoursTypeResidential(item)) continue
-      const v = item.record?.hoursEarned ?? item.hoursEarned
-      if (typeof v === 'number') sum += v
-    }
-  }
-  return sum
-})
+const residentialHoursCompleted = computed(() => hourTotals.value.residential)
 
-const nonResidentialHoursCompleted = computed(() => {
-  let sum = 0
-  for (const section of sections.value) {
-    for (const item of section.items || []) {
-      if (!isHoursTypeNonResidential(item)) continue
-      const v = item.record?.hoursEarned ?? item.hoursEarned
-      if (typeof v === 'number') sum += v
-    }
-  }
-  return sum
-})
+const nonResidentialHoursCompleted = computed(() => hourTotals.value.nonResidential)
 
 function courseCode(item: DegreeItem) {
+  if (item.electiveLine) return item.code || '—'
   const c = item.course
   return (c && c.code) ?? item.code ?? '—'
 }
 
 function courseTitle(item: DegreeItem) {
+  if (item.electiveLine) return item.title || item.label || 'Course'
   const c = item.course
   return (c && (c.title ?? c.description)) ?? item.label ?? item.title ?? '—'
 }
@@ -495,9 +758,10 @@ function formattedTerm(item: DegreeItem) {
 }
 
 function courseHoursEarned(item: DegreeItem) {
-  const r = item.record
-  const v = r?.hoursEarned ?? item.hoursEarned ?? null
-  return v != null ? String(v) : '—'
+  const applied = appliedElectiveHours(item.record)
+  if (applied != null) return formatHours(applied)
+  const v = item.hoursEarned ?? null
+  return v != null && v !== '' ? String(v) : '—'
 }
 
 function courseHoursType(item: DegreeItem) {
@@ -506,7 +770,7 @@ function courseHoursType(item: DegreeItem) {
   if (!raw) return '—'
   const v = raw.toLowerCase()
   if (v === 'residential' || v === 'r') return 'R'
-  if (v === 'non-residential' || v === 'nonresidential' || v === 'online' || v === 'n') return 'N'
+  if (v === 'non-residential' || v === 'nonresidential' || v === 'non_residential' || v === 'online' || v === 'n') return 'N'
   return raw
 }
 
@@ -524,9 +788,6 @@ function courseNotes(item: DegreeItem) {
 }
 
 function isItemCompleted(item: DegreeItem) {
-  const required = item.course?.credits ?? item.credits
-  const earned = item.record?.hoursEarned ?? item.hoursEarned
-  if (required == null || earned == null) return false
-  return Number(earned) >= Number(required)
+  return isCompletedRecord(item.record) || isCompletedRecord({ status: item.status })
 }
 </script>

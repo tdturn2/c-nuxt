@@ -47,6 +47,7 @@
             <UserDegreePlanBody
               :plan="plans[0]!"
               @edit-course="(item) => onEditCourse(item, plans[0]!)"
+              @remove-course="(item) => onRemoveCourse(item, plans[0]!)"
               @deleted="onPlanDeleted"
             />
           </div>
@@ -72,6 +73,7 @@
                 <UserDegreePlanBody
                   :plan="planItem"
                   @edit-course="(item) => onEditCourse(item, planItem)"
+                  @remove-course="(item) => onRemoveCourse(item, planItem)"
                   @deleted="onPlanDeleted"
                 />
               </div>
@@ -96,10 +98,14 @@
 
           <template #body>
             <div class="space-y-5">
+              <div class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-950">
+                <p>A degree map matches the catalog year in which you began your program.</p>
+                <p class="mt-1">Previous years will be added. Check back later if your catalog year is not listed yet.</p>
+              </div>
               <div>
                 <label for="degree-map-year" class="block text-sm font-medium text-gray-900">
                   <span class="mr-1.5 text-xs font-semibold text-[rgba(13,94,130,1)]">1</span>
-                  Calendar year
+                  Catalog year
                 </label>
                 <p class="mt-0.5 mb-2 text-xs text-gray-500">
                   The year you began your degree program.
@@ -156,6 +162,30 @@
                 </p>
               </div>
 
+              <div v-if="concentrationsForSelectedDegree.length">
+                <label for="degree-map-concentration" class="block text-sm font-medium text-gray-900">
+                  <span class="mr-1.5 text-xs font-semibold text-[rgba(13,94,130,1)]">3</span>
+                  Concentration
+                </label>
+                <p class="mt-0.5 mb-2 text-xs text-gray-500">
+                  This program keeps shared requirements on the degree and puts track-specific courses on a concentration.
+                </p>
+                <USelectMenu
+                  id="degree-map-concentration"
+                  v-model="selectedSpecializationId"
+                  :items="concentrationItems"
+                  value-key="value"
+                  label-key="label"
+                  color="neutral"
+                  variant="outline"
+                  size="lg"
+                  icon="i-lucide-git-branch"
+                  placeholder="Select a concentration…"
+                  :search-input="{ placeholder: 'Search concentrations…' }"
+                  class="w-full"
+                />
+              </div>
+
               <p
                 v-if="createPlanError"
                 class="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
@@ -179,7 +209,7 @@
               <button
                 type="button"
                 class="inline-flex items-center gap-2 rounded-md bg-[rgba(13,94,130,1)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgba(10,69,92,1)] disabled:opacity-50"
-                :disabled="createPlanPending || !selectedCatalogYear || !selectedDegreeId"
+                :disabled="createPlanPending || !canCreatePlan"
                 @click="submitCreatePlan"
               >
                 <UIcon v-if="createPlanPending" name="i-lucide-loader-circle" class="h-4 w-4 animate-spin" />
@@ -192,12 +222,17 @@
         <USlideover v-model:open="editSlideoverOpen" :ui="{ content: 'max-w-lg' }">
           <template #header>
             <div class="flex flex-col gap-1">
-              <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Edit course</p>
+              <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+                {{ editingItem?.electiveLine && !editingItem.record?.id ? 'Add course' : 'Edit course' }}
+              </p>
               <h3 v-if="editingItem" class="text-base font-semibold text-gray-900 truncate">
-                {{ courseTitle(editingItem) }}
+                {{ editingItem.electiveLine && !editingItem.record?.id ? (editingItem.label || 'Elective') : courseTitle(editingItem) }}
               </h3>
-              <p v-if="editingItem" class="text-xs text-gray-500">
+              <p v-if="editingItem && !(editingItem.electiveLine && !editingItem.record?.id)" class="text-xs text-gray-500">
                 {{ courseCode(editingItem) }}
+              </p>
+              <p v-else-if="editingItem?.electiveLine" class="text-xs text-gray-500">
+                Counts toward {{ editingItem.credits != null ? `${editingItem.credits} hours` : 'this elective section' }}
               </p>
             </div>
           </template>
@@ -235,27 +270,15 @@
                 <p class="text-sm font-medium text-gray-900 mb-2">Lookup course offering</p>
                 <div class="flex flex-wrap items-end gap-3">
                   <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-1">Year</label>
-                    <select
-                      v-model="courseSearchYear"
-                      class="w-28 px-2 py-1.5 text-sm text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                    >
-                      <option value="">Select</option>
-                      <option v-for="y in courseSearchYearOptions" :key="y" :value="y">
-                        {{ y }}
-                      </option>
-                    </select>
-                  </div>
-                  <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Semester</label>
                     <select
-                      v-model="courseSearchSemester"
-                      class="w-32 px-2 py-1.5 text-sm text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                      v-model="courseSearchTerm"
+                      class="w-40 px-2 py-1.5 text-sm text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                     >
                       <option value="">Select</option>
-                      <option value="FA">Fall</option>
-                      <option value="SP">Spring</option>
-                      <option value="SU">Summer</option>
+                      <option v-for="term in visibleTermOptions" :key="term.value" :value="term.value">
+                        {{ term.label }}
+                      </option>
                     </select>
                   </div>
                   <div class="flex-1 min-w-[180px]">
@@ -328,15 +351,42 @@
               </div>
 
               <div class="space-y-4">
+                <div v-if="editingItem?.electiveLine" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Course code</label>
+                    <input
+                      v-model="editForm.courseCode"
+                      type="text"
+                      class="w-full px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="e.g. NT605"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Course title</label>
+                    <input
+                      v-model="editForm.courseTitle"
+                      type="text"
+                      class="w-full px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Course title"
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Semester / Year</label>
-                  <input
+                  <select
                     v-model="editForm.term"
-                    type="text"
-                    class="w-full px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="e.g. FA24 or SP25"
-                  />
-                  <p class="mt-1 text-xs text-gray-500">Use term codes like FA24, SP25, SU26.</p>
+                    class="w-full px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                  >
+                    <option value="">Select</option>
+                    <option v-if="editForm.term && !visibleTermValues.has(editForm.term)" :value="editForm.term">
+                      {{ editForm.term }}
+                    </option>
+                    <option v-for="term in visibleTermOptions" :key="term.value" :value="term.value">
+                      {{ term.label }}
+                    </option>
+                  </select>
+                  <p class="mt-1 text-xs text-gray-500">Same semesters as Class Search, through Spring 2027.</p>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -361,7 +411,6 @@
                           type="radio"
                           value="Residential"
                           class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                          :disabled="editMode === 'regular'"
                         />
                         Residential
                       </label>
@@ -371,11 +420,11 @@
                           type="radio"
                           value="Non-Residential"
                           class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                          :disabled="editMode === 'regular'"
                         />
                         Non-Residential
                       </label>
                     </div>
+                    <p class="mt-1 text-xs text-gray-500">Looking up a class sets a default. You can change it.</p>
                   </div>
                 </div>
 
@@ -409,6 +458,15 @@
               <p v-if="editError" class="text-sm text-red-600">{{ editError }}</p>
               <div class="flex items-center justify-end gap-3">
                 <button
+                  v-if="editingItem?.electiveLine && editingItem.record?.id"
+                  type="button"
+                  class="mr-auto px-4 py-2 text-sm font-medium text-red-700 bg-white border border-red-200 rounded-md hover:bg-red-50 transition-colors disabled:opacity-50"
+                  :disabled="savingEdit"
+                  @click="removeEditingCourse"
+                >
+                  Remove course
+                </button>
+                <button
                   type="button"
                   class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
                   :disabled="savingEdit"
@@ -435,6 +493,8 @@
 
 <script setup lang="ts">
 import type { DegreeItem, DegreePlan } from '~/components/user/DegreePlanBody.vue'
+import { buildClassSearchTermOptions } from '@shared/academicTerms'
+import { appliedElectiveHours, courseSearchSeed, isElectivePlaceholderCode } from '@shared/degreeMapElectives'
 
 const { data, pending, error, refresh: refreshPlan } = await useFetch<{
   plans?: DegreePlan[]
@@ -450,7 +510,9 @@ const plans = computed(() => {
 
 function planSummaryTitle(p: DegreePlan) {
   const d = p?.degree
-  return d?.name ?? p?.title ?? (p as any)?.name ?? 'Degree Plan'
+  const base = d?.name ?? p?.title ?? (p as any)?.name ?? 'Degree Plan'
+  const concentration = p?.specialization?.name?.trim()
+  return concentration ? `${base} · ${concentration}` : base
 }
 
 async function onPlanDeleted() {
@@ -460,19 +522,29 @@ async function onPlanDeleted() {
 const createModalOpen = ref(false)
 const createPlanPending = ref(false)
 const createPlanError = ref<string | null>(null)
+type DegreeConcentration = {
+  id: number
+  name: string
+  order: number | null
+}
 type DegreeCatalogEntry = {
   id: number
   name: string
   catalogYear: string | null
+  specializations: DegreeConcentration[]
 }
 const degreeCatalog = ref<DegreeCatalogEntry[]>([])
 const selectedCatalogYear = ref('')
 const selectedDegreeId = ref('')
+const selectedSpecializationId = ref('')
+
+/** Catalog years students can start a map for. Earlier years stay in the dashboard until they are reviewed. */
+const OPEN_DEGREE_MAP_YEARS = ['2026']
 
 const catalogYearOptions = computed(() => {
   const years = new Set<string>()
   for (const d of degreeCatalog.value) {
-    if (d.catalogYear) years.add(d.catalogYear)
+    if (d.catalogYear && OPEN_DEGREE_MAP_YEARS.includes(d.catalogYear)) years.add(d.catalogYear)
   }
   return Array.from(years).sort((a, b) => Number(b) - Number(a) || b.localeCompare(a))
 })
@@ -495,8 +567,32 @@ const degreeItemsForSelectedYear = computed(() =>
   degreesForSelectedYear.value.map((d) => ({ label: d.name, value: String(d.id) })),
 )
 
+const concentrationsForSelectedDegree = computed(() => {
+  const id = Number(selectedDegreeId.value)
+  const degree = degreesForSelectedYear.value.find((d) => d.id === id)
+  return (degree?.specializations ?? [])
+    .slice()
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name))
+})
+
+const concentrationItems = computed(() =>
+  concentrationsForSelectedDegree.value.map((spec) => ({ label: spec.name, value: String(spec.id) })),
+)
+
+const canCreatePlan = computed(() => {
+  if (!selectedCatalogYear.value || !selectedDegreeId.value) return false
+  if (!concentrationsForSelectedDegree.value.length) return true
+  return concentrationsForSelectedDegree.value.some((spec) => String(spec.id) === selectedSpecializationId.value)
+})
+
 watch(selectedCatalogYear, () => {
   selectedDegreeId.value = ''
+  selectedSpecializationId.value = ''
+})
+
+watch(selectedDegreeId, () => {
+  const list = concentrationsForSelectedDegree.value
+  selectedSpecializationId.value = list.length === 1 ? String(list[0]!.id) : ''
 })
 
 function normalizeCatalogYear(value: unknown): string | null {
@@ -518,7 +614,14 @@ async function loadDegreeCatalog() {
         const id = Number(d.id)
         const name = String(d.name ?? d.title ?? `Degree #${d.id}`).trim() || `Degree #${d.id}`
         const catalogYear = normalizeCatalogYear(d.catalogYear ?? d.catalog_year)
-        return { id, name, catalogYear }
+        const specializations = (Array.isArray(d.specializations) ? d.specializations : [])
+          .map((spec: any) => ({
+            id: Number(spec?.id),
+            name: String(spec?.name ?? spec?.title ?? '').trim(),
+            order: spec?.order == null || spec?.order === '' ? null : Number(spec.order),
+          }))
+          .filter((spec: DegreeConcentration) => Number.isFinite(spec.id) && spec.name)
+        return { id, name, catalogYear, specializations }
       })
       .filter((x) => Number.isFinite(x.id))
   } catch (e: any) {
@@ -528,17 +631,18 @@ async function loadDegreeCatalog() {
 
 async function openCreatePlanModal() {
   createPlanError.value = null
-  selectedCatalogYear.value = ''
   selectedDegreeId.value = ''
+  selectedSpecializationId.value = ''
   createModalOpen.value = true
   if (!degreeCatalog.value.length) {
     await loadDegreeCatalog()
   }
+  selectedCatalogYear.value = catalogYearOptions.value.includes('2026') ? '2026' : (catalogYearOptions.value[0] ?? '')
 }
 
 async function submitCreatePlan() {
-  if (!selectedCatalogYear.value) {
-    createPlanError.value = 'Select the calendar year you began your degree program.'
+  if (!selectedCatalogYear.value || !OPEN_DEGREE_MAP_YEARS.includes(selectedCatalogYear.value)) {
+    createPlanError.value = 'Select a catalog year that is available now.'
     return
   }
   const id = Number(selectedDegreeId.value)
@@ -551,16 +655,25 @@ async function submitCreatePlan() {
     createPlanError.value = 'Select a degree program available for that calendar year.'
     return
   }
+  const specializationId = Number(selectedSpecializationId.value)
+  if (selected.specializations.length && !selected.specializations.some((spec) => spec.id === specializationId)) {
+    createPlanError.value = 'Select a concentration for this program.'
+    return
+  }
   createPlanPending.value = true
   createPlanError.value = null
   try {
     await $fetch('/api/student-degree-plans/create', {
       method: 'POST',
-      body: { degreeId: id },
+      body: {
+        degreeId: id,
+        ...(selected.specializations.length ? { specializationId } : {}),
+      },
     })
     createModalOpen.value = false
     selectedCatalogYear.value = ''
     selectedDegreeId.value = ''
+    selectedSpecializationId.value = ''
     await refreshPlan()
   } catch (e: any) {
     createPlanError.value = e?.data?.message || e?.message || 'Could not create degree map.'
@@ -579,23 +692,18 @@ interface ClassRow {
   class_credits: number
 }
 
-const courseSearchYear = ref<string>('')
-const courseSearchSemester = ref<string>('')
+const visibleTermOptions = buildClassSearchTermOptions()
+const visibleTermValues = new Set(visibleTermOptions.map((term) => term.value))
+const courseSearchTerm = ref<string>('')
 const courseSearchQuery = ref<string>('')
 const courseSearchPending = ref(false)
 const courseSearchError = ref<string | null>(null)
 const courseSearchResults = ref<ClassRow[]>([])
 const editMode = ref<'regular' | 'other'>('regular')
 
-const courseSearchYearOptions = computed(() => {
-  const current = new Date().getFullYear()
-  return [current - 1, current, current + 1, current + 2].map(String)
-})
-
 const courseSearchTermCode = computed(() => {
-  if (!courseSearchYear.value || !courseSearchSemester.value) return null
-  const yy = courseSearchYear.value.slice(-2)
-  return `${courseSearchSemester.value}${yy}`
+  const term = courseSearchTerm.value.trim().toUpperCase()
+  return visibleTermValues.has(term) ? term : null
 })
 
 const courseSearchDisabled = computed(
@@ -638,7 +746,9 @@ const editForm = ref({
   hoursType: '',
   notes: '',
   status: '',
-  offeringCode: ''
+  offeringCode: '',
+  courseCode: '',
+  courseTitle: '',
 })
 const selectedSearchFullClassId = ref<string | null>(null)
 
@@ -649,8 +759,9 @@ function onEditCourse(item: DegreeItem, ownerPlan: DegreePlan) {
   const r = (item.record ?? {}) as any
 
   editForm.value.term = (r.term ?? item.term ?? '') as string
-  const hours = r.hoursEarned ?? item.hoursEarned
-  editForm.value.hoursEarned = hours != null ? String(hours) : ''
+  const applied = appliedElectiveHours(item.record)
+  const hours = applied ?? r.hoursEarned ?? item.hoursEarned
+  editForm.value.hoursEarned = hours != null && hours !== '' ? String(hours) : ''
   const rawHoursType = String(r.hoursType ?? item.hoursType ?? '')
   const hoursTypeNorm = rawHoursType.trim().toLowerCase()
   editForm.value.hoursType =
@@ -676,11 +787,23 @@ function onEditCourse(item: DegreeItem, ownerPlan: DegreePlan) {
         ? 'active'
         : ''
 
-  const offeringCode = r?.offeringCode ?? r?.completedCourseCode ?? r?.offeringFullClassId ?? ''
+  const offeringCode = r?.offeringCode ?? r?.completedCourseCode ?? r?.offeringFullClassId ?? r?.enteredCourseCode ?? ''
   editForm.value.offeringCode = typeof offeringCode === 'string' ? offeringCode : ''
+  editForm.value.courseCode = typeof r?.enteredCourseCode === 'string' ? r.enteredCourseCode : ''
+  editForm.value.courseTitle = typeof r?.enteredCourseTitle === 'string' ? r.enteredCourseTitle : ''
   selectedSearchFullClassId.value = editForm.value.offeringCode || null
 
   editMode.value = 'regular'
+  courseSearchTerm.value = ''
+  const seedSource =
+    (typeof r?.offeringFullClassId === 'string' && r.offeringFullClassId) ||
+    (typeof r?.offeringCode === 'string' && r.offeringCode) ||
+    (typeof r?.enteredCourseCode === 'string' && r.enteredCourseCode) ||
+    item.course?.code ||
+    item.code ||
+    ''
+  const seed = courseSearchSeed(seedSource)
+  courseSearchQuery.value = seed && !isElectivePlaceholderCode(seed) ? seed : ''
   courseSearchError.value = null
   courseSearchResults.value = []
 
@@ -690,7 +813,7 @@ function onEditCourse(item: DegreeItem, ownerPlan: DegreePlan) {
 
 async function runCourseSearch() {
   if (!courseSearchTermCode.value || !courseSearchQuery.value.trim()) {
-    courseSearchError.value = 'Select a year, semester, and enter a search term.'
+    courseSearchError.value = 'Select a semester and enter a search term.'
     return
   }
 
@@ -729,6 +852,8 @@ function selectCourseFromSearch(c: ClassRow) {
   if (!c) return
   // Store full class id (e.g. OT501-W1) so it is saved to the record
   editForm.value.offeringCode = c.full_class_id ?? ''
+  editForm.value.courseCode = c.short_name || c.full_class_id || ''
+  editForm.value.courseTitle = c.short_description || ''
   selectedSearchFullClassId.value = c.full_class_id ?? null
   // Use the selected term code from the search controls
   if (courseSearchTermCode.value) {
@@ -753,6 +878,30 @@ function cancelEditCourse() {
   selectedSearchFullClassId.value = null
 }
 
+async function onRemoveCourse(item: DegreeItem, ownerPlan: DegreePlan) {
+  const recordId = item.record?.id
+  if (recordId == null) return
+  const label = item.code || item.title || item.label || 'this course'
+  if (!window.confirm(`Remove ${label} from this elective section?`)) return
+  editError.value = null
+  try {
+    await $fetch(`/api/student-course-records/${encodeURIComponent(String(recordId))}`, { method: 'DELETE' })
+    if (editingItem.value?.record?.id === recordId) cancelEditCourse()
+    await refreshPlan()
+  } catch (err: any) {
+    console.error('Failed to remove course record', err)
+    editError.value = err?.data?.message || err?.message || 'Failed to remove course.'
+    editingPlan.value = ownerPlan
+    editingItem.value = item
+    editSlideoverOpen.value = true
+  }
+}
+
+async function removeEditingCourse() {
+  if (!editingItem.value || !editingPlan.value) return
+  await onRemoveCourse(editingItem.value, editingPlan.value)
+}
+
 async function saveEditCourse() {
   if (!editingItem.value || !editingPlan.value) {
     cancelEditCourse()
@@ -771,13 +920,27 @@ async function saveEditCourse() {
     return
   }
 
-  const courseId = (item.course as any)?.id ?? item.record?.courseId ?? (item.record as any)?.course?.id ?? null
+  if (item.electiveLine && !form.courseCode.trim() && !form.offeringCode.trim()) {
+    editError.value = 'Enter a course code, or look up a class offering.'
+    return
+  }
+  if (item.electiveLine && !(Number(form.hoursEarned) > 0)) {
+    editError.value = 'Enter the hours for this course.'
+    return
+  }
+
+  const courseId = item.electiveLine
+    ? item.record?.courseId ?? (item.record as any)?.course?.id ?? null
+    : (item.course as any)?.id ?? item.record?.courseId ?? (item.record as any)?.course?.id ?? null
 
   const body = {
     planId,
     degreeSectionItemId,
+    recordId: item.electiveLine ? item.record?.id ?? undefined : undefined,
     courseId: courseId ?? undefined,
     offeringCode: form.offeringCode || undefined,
+    enteredCourseCode: item.electiveLine ? form.courseCode || null : undefined,
+    enteredCourseTitle: item.electiveLine ? form.courseTitle || null : undefined,
     term: form.term || null,
     hoursEarned: form.hoursEarned !== '' && Number.isFinite(Number(form.hoursEarned)) ? Number(form.hoursEarned) : null,
     hoursType:
