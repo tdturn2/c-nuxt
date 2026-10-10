@@ -164,7 +164,7 @@ const currentPage = ref(1)
 const DEPARTMENT_LABELS: Record<string, string> = {
   '1': 'Academic Affairs',
   '2': 'EMT',
-  '3': 'Finance and Administration',
+  '3': 'Finance and Operations',
   '4': 'Office of the President',
   '5': 'Formation',
   '6': 'Advancement'

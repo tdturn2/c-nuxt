@@ -119,7 +119,7 @@ const location = ref('')
 const departments = [
   { label: 'Academic Affairs', value: '1' },
   { label: 'EMT', value: '2' },
-  { label: 'Finance and Administration', value: '3' },
+  { label: 'Finance and Operations', value: '3' },
   { label: 'Office of the President', value: '4' },
   { label: 'Formation', value: '5' },
   { label: 'Advancement', value: '6' },
