@@ -360,10 +360,23 @@ function formatSectionLabel(slug: string): string {
   return slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 }
 
+/** Date-only strings (`YYYY-MM-DD`) are UTC midnight; parse at local noon so the calendar day stays put. */
+function parseCalendarDate(dateStr: string): Date {
+  const ymd = dateStr.slice(0, 10)
+  return new Date(/^\d{4}-\d{2}-\d{2}$/.test(ymd) ? `${ymd}T12:00:00` : dateStr)
+}
+
+function formatMonthYear(dateStr: string): string {
+  const d = parseCalendarDate(dateStr)
+  if (Number.isNaN(d.getTime())) return dateStr
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
+}
+
 function yearsEmployed(startDateStr: string): number | null {
   if (!startDateStr || startDateStr.length < 10) return null
   try {
-    const start = new Date(startDateStr.slice(0, 10)).getTime()
+    const start = parseCalendarDate(startDateStr).getTime()
+    if (Number.isNaN(start)) return null
     const now = Date.now()
     if (start > now) return null
     const years = (now - start) / (365.25 * 24 * 60 * 60 * 1000)
@@ -525,9 +538,7 @@ const aboutParagraphs = computed(() => {
 })
 
 function formatPublicationDate(dateStr: string): string {
-  const d = new Date(dateStr.length <= 10 ? `${dateStr}T12:00:00` : dateStr)
-  if (Number.isNaN(d.getTime())) return dateStr
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
+  return formatMonthYear(dateStr)
 }
 
 function publicationTypeLabel(type: unknown): string {
@@ -584,13 +595,9 @@ const employeeProfileEntries = computed(() => {
     if (key === 'department') value = DEPARTMENT_LABELS[value] ?? value
     if (key === 'section') value = formatSectionLabel(value)
     if (key === 'startDate' && value.length >= 10) {
-      try {
-        const formatted = new Date(value.slice(0, 10)).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
-        const years = yearsEmployed(value)
-        value = years != null ? `${formatted} (${years} years)` : formatted
-      } catch {
-        // keep value
-      }
+      const formatted = formatMonthYear(value)
+      const years = yearsEmployed(value)
+      value = years != null ? `${formatted} (${years} years)` : formatted
     }
     return { key, label, value }
   })
@@ -667,11 +674,7 @@ function formatSurveyValue(val: unknown, slug: string): string {
   const s = String(val).trim()
   if (!s) return ''
   if (slug.includes('date') && s.length >= 10) {
-    try {
-      return new Date(s.slice(0, 10)).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
-    } catch {
-      return s
-    }
+    return formatMonthYear(s)
   }
   if (slug === 'marital-status') {
     return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
