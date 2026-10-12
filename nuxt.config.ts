@@ -130,8 +130,6 @@ export default defineNuxtConfig({
     // Ensure API routes are not intercepted by the router.
     // Public class data: edge-cacheable so repeat loads (same term / patterns) avoid cold serverless + upstream.
     routeRules: {
-      '/classes': { redirect: { to: '/class-search', statusCode: 301 } },
-      '/classes/': { redirect: { to: '/class-search', statusCode: 301 } },
       '/api/class-list/**': {
         cors: true,
         headers: {
