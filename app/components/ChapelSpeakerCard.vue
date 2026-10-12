@@ -1,9 +1,9 @@
 <template>
   <section v-if="speakers.length" class="w-full max-w-[180px]">
-    <div class="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-      <div class="border-b border-gray-100 px-3 py-2">
-        <h2 class="text-center text-sm font-semibold text-gray-900">Chapel This Week</h2>
-      </div>
+    <div class="overflow-hidden rounded-2xl bg-gradient-to-b from-[#e7f2f6] via-white to-white shadow-md ring-1 ring-[color-mix(in_srgb,var(--color-gold)_55%,white)]">
+      <h2 class="px-3 pt-3 text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a7020]">
+        Chapel This Week
+      </h2>
 
       <UCarousel
         v-slot="{ item }"
@@ -19,36 +19,38 @@
           arrows: 'px-0.5',
           prev: 'size-7 bg-white/90 border border-gray-200 shadow-sm',
           next: 'size-7 bg-white/90 border border-gray-200 shadow-sm',
-          dots: 'mt-2 mb-2',
+          dots: 'mt-2 mb-2.5',
         }"
         class="relative mx-auto w-full"
       >
         <NuxtLink
           to="/chapel"
-          class="flex flex-col items-center px-3 pb-1 pt-3 text-center"
+          class="group flex flex-col items-center px-3 pb-1 pt-2 text-center"
         >
-          <img
-            v-if="item.photoUrl"
-            :src="item.photoUrl"
-            :alt="item.name"
-            class="aspect-square w-[112px] rounded-full border-2 border-[var(--color-gold)] object-cover object-top bg-gray-100"
-          >
-          <div
-            v-else
-            class="flex aspect-square w-[112px] items-center justify-center rounded-full border-2 border-[var(--color-gold)] bg-gray-100"
-            aria-hidden="true"
-          >
-            <UIcon name="i-lucide-user" class="h-10 w-10 text-gray-400" />
+          <div class="rounded-full p-1">
+            <img
+              v-if="item.photoUrl"
+              :src="item.photoUrl"
+              :alt="item.name"
+              class="aspect-square w-[116px] rounded-full bg-gray-100 object-cover object-top shadow-[0_10px_18px_rgba(13,94,130,0.22)] ring-[3px] ring-[var(--color-gold)] ring-offset-2 ring-offset-white"
+            >
+            <div
+              v-else
+              class="flex aspect-square w-[116px] items-center justify-center rounded-full bg-gray-100 shadow-[0_10px_18px_rgba(13,94,130,0.22)] ring-[3px] ring-[var(--color-gold)] ring-offset-2 ring-offset-white"
+              aria-hidden="true"
+            >
+              <UIcon name="i-lucide-user" class="h-10 w-10 text-gray-400" />
+            </div>
           </div>
-          <p class="mt-2 text-[11px] font-medium uppercase tracking-wide text-[rgba(13,94,130,1)]">
+          <p class="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[rgba(13,94,130,1)]">
             {{ item.weekday }}
           </p>
-          <p class="mt-0.5 line-clamp-2 text-sm font-semibold leading-snug text-gray-900">
+          <p class="mt-0.5 line-clamp-2 text-sm font-semibold leading-snug text-gray-900 group-hover:text-[rgba(13,94,130,1)]">
             {{ item.name }}
           </p>
           <p
             v-if="item.title"
-            class="mt-0.5 line-clamp-2 text-xs leading-snug text-gray-600"
+            class="mt-0.5 line-clamp-2 text-xs leading-snug text-gray-500"
           >
             {{ item.title }}
           </p>
