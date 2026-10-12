@@ -28,6 +28,7 @@ export type DashboardSection =
   | 'chapel-speakers'
   | 'jobs'
   | 'faculty-publications'
+  | 'faculty-directory'
   | 'featured-publications'
   | 'form-results'
   | 'toasts'

@@ -1,3 +1,4 @@
+import { isPublicFaculty } from '@shared/facultyDirectory'
 import { canPublishStudentProfile } from '@shared/studentProfileAccess'
 import { sortDirectoryByLastName } from '@shared/directoryNameSort'
 import { createError, defineEventHandler } from 'h3'
@@ -25,7 +26,7 @@ function hasAlumniPermission(user: any): boolean {
 
 function isDirectoryVisible(user: any): boolean {
   const roles = rolesOf(user)
-  if (roles.includes('staff') || roles.includes('faculty') || roles.includes('admin')) return true
+  if (roles.includes('staff') || roles.includes('admin') || isPublicFaculty(user)) return true
   if (hasAlumniPermission(user)) return true
   if (roles.includes('student')) {
     return canPublishStudentProfile({ roles, studentOptIn: user?.studentOptIn })
@@ -36,7 +37,7 @@ function isDirectoryVisible(user: any): boolean {
 function roleLabels(user: any): string[] {
   const roles = rolesOf(user)
   const labels: string[] = []
-  if (roles.includes('faculty')) labels.push('Faculty')
+  if (isPublicFaculty(user)) labels.push('Faculty')
   if (roles.includes('staff')) labels.push('Staff')
   if (roles.includes('student') && canPublishStudentProfile({ roles, studentOptIn: user?.studentOptIn })) {
     labels.push('Student')

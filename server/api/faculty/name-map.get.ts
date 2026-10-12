@@ -1,5 +1,6 @@
 // GET /api/faculty/name-map — lightweight map of normalized instructor names to faculty info.
 // Keyed by lowercase "last, first" to match Instructure's instructor format.
+import { isPublicFaculty } from '@shared/facultyDirectory'
 import { defineEventHandler, createError, setResponseHeader } from 'h3'
 import { normalizeUserAvatar, resolveConnectApiUrl } from '../../utils/connectApi'
 
@@ -150,8 +151,7 @@ export default defineEventHandler(async (event) => {
     }) as { docs?: any[] }
 
     const allDocs = response?.docs ?? []
-    const roles = (r: unknown): string[] => (Array.isArray(r) ? r.map(String) : [])
-    const facultyDocs = allDocs.filter((user: any) => roles(user?.roles).includes('faculty'))
+    const facultyDocs = allDocs.filter((user: any) => isPublicFaculty(user))
 
     const map: Record<string, { id: number; name: string; username: string | null; employeeTitle: string | null; avatarUrl: string | null }> = {}
 
@@ -173,8 +173,7 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Cache for 1 hour — faculty list rarely changes
-    setResponseHeader(event, 'Cache-Control', 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=600')
+    setResponseHeader(event, 'Cache-Control', 'public, max-age=60, s-maxage=60')
 
     return map
   } catch (err: any) {

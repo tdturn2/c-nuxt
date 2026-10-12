@@ -46,6 +46,9 @@ export default defineEventHandler(async (event) => {
   if (body.email !== undefined) payloadBody.email = toTrimmed(body.email).toLowerCase()
   if (body.employeeTitle !== undefined) payloadBody.employeeTitle = toTrimmed(body.employeeTitle)
   if (body.phone !== undefined) payloadBody.phone = toTrimmed(body.phone)
+  if (body.hideFromFacultyDirectory !== undefined) {
+    payloadBody.hideFromFacultyDirectory = Boolean(body.hideFromFacultyDirectory)
+  }
   if (body.roles !== undefined) payloadBody.roles = toRoleArray(body.roles)
   if (body.groups !== undefined) payloadBody.groups = toIdArray(body.groups)
   if (body.avatarConnectUserMedia !== undefined) payloadBody.avatarConnectUserMedia = body.avatarConnectUserMedia

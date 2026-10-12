@@ -203,6 +203,7 @@
 </template>
 
 <script setup lang="ts">
+import { isPublicFaculty } from '@shared/facultyDirectory'
 import { formatHomeLocation } from '@shared/geo'
 
 const route = useRoute()
@@ -246,6 +247,7 @@ const employeeData = ref<{
   department: string | null
   section: string | null
   roles?: string[] | null
+  hideFromFacultyDirectory?: boolean
   publications: Array<{
     id: string
     type: string
@@ -264,10 +266,7 @@ const employeeData = ref<{
   }>
 } | null>(null)
 
-const isFaculty = computed(() => {
-  const roles = employeeData.value?.roles ?? []
-  return Array.isArray(roles) && roles.some((role) => String(role).toLowerCase() === 'faculty')
-})
+const isFaculty = computed(() => isPublicFaculty(employeeData.value))
 
 const homeLocationLabel = computed(() =>
   formatHomeLocation({

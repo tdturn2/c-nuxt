@@ -1,5 +1,6 @@
-// GET employees: connect-users with role staff or faculty.
+// GET employees: connect-users with role staff, or faculty who are listed in the faculty directory.
 import { sortDirectoryByLastName } from '@shared/directoryNameSort'
+import { isPublicFaculty } from '@shared/facultyDirectory'
 import { defineEventHandler, createError } from 'h3'
 import { normalizeUserAvatar, resolveConnectApiUrl } from '../../utils/connectApi'
 
@@ -16,7 +17,7 @@ export default defineEventHandler(async () => {
     const roles = (r: unknown): string[] => (Array.isArray(r) ? r.map(String) : [])
     const docs = allDocs.filter((user: any) => {
       const r = roles(user?.roles)
-      return r.includes('staff') || r.includes('faculty')
+      return r.includes('staff') || isPublicFaculty(user)
     })
 
     const employees = docs.map((user: any) => ({

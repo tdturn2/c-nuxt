@@ -270,6 +270,7 @@
 </template>
 
 <script setup lang="ts">
+import { isPublicFaculty } from '@shared/facultyDirectory'
 import { formatHomeLocation } from '@shared/geo'
 
 const route = useRoute()
@@ -322,6 +323,7 @@ const user = ref<{
   department?: string | null
   section?: string | null
   alumniOptIn?: boolean
+  hideFromFacultyDirectory?: boolean
   studentOptIn?: boolean
   alumniDegrees?: Array<{ degree?: string | null; graduationYear?: number | string | null }> | null
   alumniContact?: {
@@ -420,17 +422,14 @@ const profilePublications = computed(() => {
   })
 })
 
-const isFaculty = computed(() => {
-  const roles = Array.isArray(user.value?.roles) ? user.value.roles : []
-  return roles.some((role) => String(role).toLowerCase() === 'faculty')
-})
+const isFaculty = computed(() => isPublicFaculty(user.value))
 
 const profileEyebrow = computed(() => {
   const roles = Array.isArray(user.value?.roles)
     ? user.value!.roles.map((role) => String(role).toLowerCase())
     : []
-  // Priority when someone has multiple roles: faculty > employee > student > alumni
-  if (roles.includes('faculty') || isFaculty.value) return 'Faculty profile'
+  // Priority when someone has multiple roles: public faculty > employee > student > alumni
+  if (isFaculty.value) return 'Faculty profile'
   if (roles.includes('staff') || roles.includes('employee')) return 'Employee profile'
   if (roles.includes('student')) return 'Student profile'
   if (roles.includes('alumni')) return 'Alumni profile'

@@ -1,5 +1,6 @@
-// GET faculty: connect-users with role faculty.
+// GET faculty: connect-users with the faculty role who are listed in the directory.
 import { sortDirectoryByLastName } from '@shared/directoryNameSort'
+import { isPublicFaculty } from '@shared/facultyDirectory'
 import { defineEventHandler, createError } from 'h3'
 import { normalizeUserAvatar, resolveConnectApiUrl } from '../../utils/connectApi'
 
@@ -13,8 +14,7 @@ export default defineEventHandler(async () => {
     }) as { docs?: any[] }
 
     const allDocs = response?.docs ?? []
-    const roles = (r: unknown): string[] => (Array.isArray(r) ? r.map(String) : [])
-    const docs = allDocs.filter((user: any) => roles(user?.roles).includes('faculty'))
+    const docs = allDocs.filter((user: any) => isPublicFaculty(user))
 
     const faculty = docs.map((user: any) => ({
       id: user.id,

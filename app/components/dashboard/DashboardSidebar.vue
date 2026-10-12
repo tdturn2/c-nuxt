@@ -75,6 +75,7 @@ const allItems: NavItem[] = [
   { label: 'Chapel Speakers', to: '/dashboard/chapel-speakers', icon: 'i-lucide-user-round-pen', section: 'chapel-speakers' },
   { label: 'Toast Manager', to: '/dashboard/toasts', icon: 'i-lucide-bell-ring', section: 'toasts' },
   { label: 'Jobs Manager', to: '/dashboard/jobs', icon: 'i-lucide-briefcase', section: 'jobs' },
+  { label: 'Faculty Directory', to: '/dashboard/faculty-directory', icon: 'i-lucide-user-round-x', section: 'faculty-directory' },
   { label: 'Faculty Publications', to: '/dashboard/faculty-publications', icon: 'i-lucide-book-open', section: 'faculty-publications' },
   { label: 'Featured Publications', to: '/dashboard/featured-publications', icon: 'i-lucide-star', section: 'featured-publications' },
 ]

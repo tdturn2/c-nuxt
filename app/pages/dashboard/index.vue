@@ -225,6 +225,13 @@ const sections: Array<{
     section: 'jobs',
   },
   {
+    title: 'Faculty Directory',
+    description: 'Hide people with faculty access who are not teaching faculty.',
+    to: '/dashboard/faculty-directory',
+    icon: 'i-lucide-user-round-x',
+    section: 'faculty-directory',
+  },
+  {
     title: 'Faculty Publications',
     description: 'Manage publication records for faculty members.',
     to: '/dashboard/faculty-publications',
