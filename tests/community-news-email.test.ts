@@ -20,6 +20,8 @@ describe('community news email', () => {
 
     expect(html).toContain('Chapel Speakers this Week')
     expect(html).toContain('Eucharist Schedule')
+    expect(html).toContain('12:10pm, Estes Chapel')
+    expect(html).not.toContain('padding:14px 20px')
     expect(html).toContain('Dr. Maria Kenney')
     expect(html).toContain('https://connect.asburyseminary.edu/community-news-header.jpg')
     expect(html).toContain('https://connect.asburyseminary.edu/api/connect-user-media/file/maria.jpg')

@@ -21,6 +21,8 @@ export default defineEventHandler(async (event) => {
       audience?: any
       images?: any
       imagesConnectUserMedia?: any
+      author?: string | number
+      connectUserId?: string | number
     }
 
     const { email } = await getSSOSession(event)
@@ -42,6 +44,8 @@ export default defineEventHandler(async (event) => {
     if (body.mentions !== undefined) payload.mentions = body.mentions
     if (body.categories !== undefined) payload.categories = body.categories
     if (body.audience !== undefined) payload.audience = body.audience
+    if (body.author !== undefined) payload.author = body.author
+    if (body.connectUserId !== undefined) payload.connectUserId = body.connectUserId
     if (body.imagesConnectUserMedia !== undefined) {
       payload.imagesConnectUserMedia = body.imagesConnectUserMedia
     } else if (body.images !== undefined) {

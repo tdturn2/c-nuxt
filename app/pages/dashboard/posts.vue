@@ -66,10 +66,20 @@
                 </tr>
                 <tr v-for="post in filteredPosts" :key="post.id" class="border-t border-gray-200">
                   <td class="max-w-xl px-4 py-3 text-gray-900">
-                    <p v-if="isPinned(post)" class="mb-1 text-xs font-semibold uppercase tracking-wide text-[rgba(13,94,130,1)]">
-                      Pinned
-                    </p>
-                    <p class="line-clamp-2 whitespace-pre-line">{{ postText(post) || '—' }}</p>
+                    <div class="flex items-start gap-3">
+                      <img
+                        v-if="postPreviewUrl(post)"
+                        :src="postPreviewUrl(post)"
+                        alt=""
+                        class="h-12 w-16 shrink-0 rounded border border-gray-200 bg-gray-50 object-cover"
+                      >
+                      <div class="min-w-0">
+                        <p v-if="isPinned(post)" class="mb-1 text-xs font-semibold uppercase tracking-wide text-[rgba(13,94,130,1)]">
+                          Pinned
+                        </p>
+                        <p class="line-clamp-2 whitespace-pre-line">{{ postText(post) || '—' }}</p>
+                      </div>
+                    </div>
                   </td>
                   <td class="whitespace-nowrap px-4 py-3 text-gray-700">{{ post.author?.name || post.author?.email || '—' }}</td>
                   <td class="px-4 py-3 text-gray-700">{{ audienceLabel(post.audience) }}</td>
@@ -99,12 +109,13 @@
       v-model:open="createOpen"
       title="Create a post"
       description="Create a new post for the homepage timeline."
-      :ui="{ content: 'max-w-3xl', body: 'p-6' }"
+      :ui="{ content: 'max-w-3xl', body: 'max-h-[85vh] overflow-y-auto p-6' }"
     >
       <template #body>
         <AddPost
           v-if="createOpen"
           allow-post-as
+          embedded
           rich-editor
           @post-created="handlePostCreated"
           @cancel="createOpen = false"
@@ -115,74 +126,27 @@
     <UModal
       v-model:open="editOpen"
       title="Edit post"
-      description="Update this post's content, audience, and notification settings."
-      :ui="{ content: 'max-w-3xl', body: 'p-6' }"
+      description="Update the author, content, images, audience, and notification settings."
+      :ui="{ content: 'max-w-3xl', body: 'max-h-[85vh] overflow-y-auto p-6' }"
     >
       <template #body>
-        <form class="space-y-4" @submit.prevent="savePost">
-          <div>
-            <label class="mb-2 block text-sm font-medium text-gray-700">Content</label>
-            <DashboardRichTextEditor
-              v-if="editOpen"
-              :key="`edit-post-${editingId ?? 'none'}-${editEditorMountKey}`"
-              v-model="editForm.contentTipTap"
-              placeholder="Write a post…"
-            />
-          </div>
-          <div>
-            <DashboardPostAudienceSelect v-model="editForm.audiences" />
-          </div>
-
-          <div class="rounded-md border border-gray-200 bg-gray-50 p-3 space-y-3">
-            <label class="flex items-start gap-2">
-              <input
-                v-model="editForm.pinned"
-                type="checkbox"
-                class="mt-0.5 h-4 w-4 rounded border-gray-300 text-[rgba(13,94,130,1)] focus:ring-[rgba(13,94,130,1)]"
-              >
-              <span>
-                <span class="block text-sm font-medium text-gray-700">Pin to top of timeline</span>
-                <span class="block text-xs text-gray-500">
-                  Pinned posts stay at the top of the homepage feed until you unpin them.
-                </span>
-              </span>
-            </label>
-            <label class="flex items-start gap-2">
-              <input
-                v-model="editForm.addToNotifications"
-                type="checkbox"
-                class="mt-0.5 h-4 w-4 rounded border-gray-300 text-[rgba(13,94,130,1)] focus:ring-[rgba(13,94,130,1)]"
-              >
-              <span>
-                <span class="block text-sm font-medium text-gray-700">Show in notifications bar</span>
-                <span class="block text-xs text-gray-500">
-                  Surfaces this post under “Updates” in the notification bell. Automatically drops off {{ notificationTtlDays }} days after it was posted.
-                </span>
-              </span>
-            </label>
-          </div>
-
-          <div class="flex justify-end gap-3">
-            <button type="button" class="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" @click="editOpen = false">Cancel</button>
-            <button type="submit" :disabled="saving || !canSaveEdit" class="rounded-md bg-[rgba(13,94,130,1)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
-              {{ saving ? 'Saving...' : 'Save post' }}
-            </button>
-          </div>
-        </form>
+        <AddPost
+          v-if="editOpen && editingPost"
+          :key="String(editingPost.id)"
+          :post="editingPost"
+          allow-post-as
+          embedded
+          rich-editor
+          @post-updated="handlePostUpdated"
+          @cancel="editOpen = false"
+        />
       </template>
     </UModal>
   </div>
 </template>
 
 <script setup lang="ts">
-import {
-  cloneTipTapDoc,
-  INITIAL_TIPTAP_DOC,
-  lexicalToTipTap,
-  tipTapDocHasMeaningfulText,
-  tipTapToLexical,
-} from '~/utils/tiptap/lexicalTipTap'
-import { postAudienceLabel, selectedAudiencesFromPost, serializePostAudience } from '~/utils/postAudience'
+import { postAudienceLabel } from '~/utils/postAudience'
 
 const { mePending, canAccessSection } = useDashboardAccess()
 const canManageDashboard = computed(() => canAccessSection('posts'))
@@ -200,23 +164,11 @@ const posts = computed<any[]>(() => Array.isArray(postsData.value?.docs) ? posts
 const search = ref('')
 const createOpen = ref(false)
 const editOpen = ref(false)
-const saving = ref(false)
 const error = ref('')
 const success = ref('')
-const editingId = ref<number | string | null>(null)
+const editingPost = ref<any | null>(null)
 const pinningId = ref<number | string | null>(null)
 const notificationTtlDays = NOTIFICATION_UPDATE_TTL_DAYS
-const editEditorMountKey = ref(0)
-const editForm = reactive({
-  contentTipTap: cloneTipTapDoc(INITIAL_TIPTAP_DOC),
-  audiences: [] as string[],
-  pinned: false,
-  addToNotifications: false,
-  /** Categories preserved across edit other than `priority` and `pinned`. */
-  otherCategories: [] as string[],
-})
-
-const canSaveEdit = computed(() => tipTapDocHasMeaningfulText(editForm.contentTipTap))
 
 watch(canManageDashboard, (allowed) => {
   if (allowed && !postsData.value) refreshPosts()
@@ -231,6 +183,11 @@ const filteredPosts = computed(() => {
       )
   return [...list].sort((a, b) => Number(isPinned(b)) - Number(isPinned(a)))
 })
+
+function postPreviewUrl(post: any): string {
+  const image = post?.images?.[0]?.image
+  return typeof image?.url === 'string' ? image.url : ''
+}
 
 function postText(post: any): string {
   const collect = (node: any): string => {
@@ -273,27 +230,10 @@ function notificationLabel(post: any): string {
   return `Until ${expiresAt.toLocaleDateString()}`
 }
 
-function buildEditCategories(): string[] {
-  return [
-    ...editForm.otherCategories,
-    ...(editForm.pinned ? ['pinned'] : []),
-    ...(editForm.addToNotifications ? ['priority'] : []),
-  ]
-}
-
 function openEdit(post: any) {
   error.value = ''
   success.value = ''
-  editingId.value = post.id
-  editForm.contentTipTap = lexicalToTipTap(post.content)
-  editEditorMountKey.value += 1
-  editForm.audiences = selectedAudiencesFromPost(post.audience)
-
-  const categories = postCategories(post)
-  editForm.otherCategories = categories.filter((c) => c !== 'priority' && c !== 'pinned')
-  editForm.pinned = categories.includes('pinned')
-  editForm.addToNotifications = categories.includes('priority')
-
+  editingPost.value = post
   editOpen.value = true
 }
 
@@ -303,28 +243,11 @@ async function handlePostCreated() {
   await refreshPosts()
 }
 
-async function savePost() {
-  if (!editingId.value || !tipTapDocHasMeaningfulText(editForm.contentTipTap)) return
-  saving.value = true
-  error.value = ''
-  success.value = ''
-  try {
-    await $fetch(`/api/posts/${editingId.value}`, {
-      method: 'PATCH',
-      body: {
-        content: tipTapToLexical(editForm.contentTipTap),
-        audience: serializePostAudience(editForm.audiences),
-        categories: buildEditCategories(),
-      },
-    })
-    editOpen.value = false
-    success.value = 'Post updated.'
-    await refreshPosts()
-  } catch (err: any) {
-    error.value = err?.data?.statusMessage || err?.statusMessage || 'Failed to update post.'
-  } finally {
-    saving.value = false
-  }
+async function handlePostUpdated() {
+  editOpen.value = false
+  editingPost.value = null
+  success.value = 'Post updated.'
+  await refreshPosts()
 }
 
 const pinOrUnpinPost = async (post: any) => {

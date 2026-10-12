@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+  <div :class="embedded ? '' : 'bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6'">
     <form @submit.prevent="handleSubmit" class="space-y-4">
       <div v-if="allowPostAs">
         <label class="mb-2 block text-sm font-medium text-gray-700">
@@ -194,8 +194,8 @@
           :disabled="submitting || !canSubmit"
           class="px-4 py-2 text-sm font-medium text-white bg-[rgba(13,94,130,1)] rounded-md hover:bg-[rgba(10,69,92,1)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[rgba(13,94,130,1)] disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <span v-if="submitting">Posting...</span>
-          <span v-else>Post</span>
+          <span v-if="submitting">{{ post ? 'Saving...' : 'Posting...' }}</span>
+          <span v-else>{{ post ? 'Save post' : 'Post' }}</span>
         </button>
       </div>
     </form>
@@ -241,17 +241,20 @@ import {
   cloneTipTapDoc,
   extractUrlsFromTipTap,
   INITIAL_TIPTAP_DOC,
+  lexicalToTipTap,
   tipTapDocHasMeaningfulText,
   tipTapToLexical,
 } from '~/utils/tiptap/lexicalTipTap'
 import { selectedAudiencesFromPost, serializePostAudience } from '~/utils/postAudience'
 
 const { status } = useAuth()
+const { currentUserId } = useMe()
 const { searchUsers, createLexicalContentWithMentions } = useMentions()
 const { fetchPreview } = useLinkPreview()
 
 const emit = defineEmits<{
   postCreated: []
+  postUpdated: []
   cancel: []
 }>()
 
@@ -261,6 +264,10 @@ const props = defineProps<{
   allowPostAs?: boolean
   /** Use the pages-style rich text editor instead of a plain textarea. */
   richEditor?: boolean
+  /** Drop the card chrome when this form sits inside a dialog. */
+  embedded?: boolean
+  /** Existing post. When set, the form saves an update instead of creating. */
+  post?: any | null
 }>()
 
 type AuthorOption = { id: string; label: string }
@@ -341,11 +348,66 @@ const notificationTtlDays = NOTIFICATION_UPDATE_TTL_DAYS
  * known values may be sent. Expiry is enforced client-side from the post's createdAt
  * (see NOTIFICATION_UPDATE_TTL_DAYS in useNotifications).
  */
+const preservedCategories = ref<string[]>([])
+
 function buildPostCategories(): string[] {
-  const categories: string[] = []
+  const categories = [...preservedCategories.value]
   if (pinToTimeline.value) categories.push('pinned')
   if (addToNotifications.value) categories.push('priority')
-  return categories
+  return [...new Set(categories)]
+}
+
+function postImageSelections(post: any): SelectedImage[] {
+  const raw = Array.isArray(post?.images) && post.images.length
+    ? post.images
+    : Array.isArray(post?.imagesConnectUserMedia)
+      ? post.imagesConnectUserMedia
+      : []
+  return raw.flatMap((img: any, index: number) => {
+    const media = img?.image && typeof img.image === 'object' ? img.image : null
+    const id = Number(media?.id ?? (typeof img?.image === 'number' || typeof img?.image === 'string' ? img.image : NaN))
+    const url = typeof media?.url === 'string' ? media.url : typeof img?.url === 'string' ? img.url : ''
+    if (!Number.isFinite(id) || id <= 0) return []
+    return [{
+      key: `existing-${id}-${index}`,
+      previewUrl: url,
+      alt: typeof media?.alt === 'string' && media.alt.trim() ? media.alt : 'Post image',
+      mediaId: id,
+      fromGallery: true,
+    }]
+  })
+}
+
+function syncAuthorFromPost(post: any) {
+  const id = post?.author?.id
+  if (id == null || id === '') {
+    selectedAuthorOption.value = undefined
+    return
+  }
+  const idString = String(id)
+  const match = authorSelectItems.value.find((item) => item.id === idString)
+  const name = String(post.author?.name || '').trim()
+  const email = String(post.author?.email || '').trim()
+  selectedAuthorOption.value = match || {
+    id: idString,
+    label: name && email ? `${name} (${email})` : name || email || `User #${idString}`,
+  }
+}
+
+function applyPost(post: any) {
+  contentTipTap.value = lexicalToTipTap(post?.content)
+  form.value.content = ''
+  selectedAudiences.value = selectedAudiencesFromPost(post?.audience)
+  const categories = Array.isArray(post?.categories) ? post.categories.map(String) : []
+  preservedCategories.value = categories.filter((category) => category !== 'pinned' && category !== 'priority')
+  pinToTimeline.value = categories.includes('pinned')
+  addToNotifications.value = categories.includes('priority')
+  selectedImages.value.forEach((img) => {
+    if (img.file && img.previewUrl) URL.revokeObjectURL(img.previewUrl)
+  })
+  selectedImages.value = postImageSelections(post)
+  syncAuthorFromPost(post)
+  error.value = null
 }
 const imageInputRef = ref<HTMLInputElement | null>(null)
 type SelectedImage = {
@@ -635,22 +697,37 @@ const handleSubmit = async () => {
       }
     }
 
+    if (selectedImages.value.length > 0 && imagesConnectUserMedia.length === 0) {
+      throw new Error('No valid image IDs were resolved from your selected images')
+    }
+
     const payload: Record<string, any> = {
       content,
       audience
     }
     const authorId = resolveSelectedAuthorId()
-    if (props.allowPostAs && authorId != null) {
+      ?? (props.post && props.allowPostAs && isYourselfSelected() ? Number(currentUserId.value) || null : null)
+    if (props.allowPostAs && authorId != null && authorId > 0) {
       payload.author = authorId
       payload.connectUserId = authorId
     }
     const categories = buildPostCategories()
-    if (categories.length > 0) {
-      payload.categories = categories
-    }
-    if (imagesConnectUserMedia.length > 0) {
+    if (props.post) payload.categories = categories
+    else if (categories.length > 0) payload.categories = categories
+    if (props.post || imagesConnectUserMedia.length > 0) {
       payload.imagesConnectUserMedia = imagesConnectUserMedia
       payload.images = imagesConnectUserMedia
+    }
+
+    if (props.post?.id != null) {
+      await $fetch(`/api/posts/${props.post.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: payload,
+      })
+      emit('postUpdated')
+      return
     }
 
     const response = await $fetch('/api/posts', {
@@ -667,7 +744,7 @@ const handleSubmit = async () => {
       emit('postCreated')
     }
   } catch (err: any) {
-    error.value = err.data?.message || 'Failed to create post. Please try again.'
+    error.value = err.data?.message || err.data?.statusMessage || err.message || (props.post ? 'Failed to update post. Please try again.' : 'Failed to create post. Please try again.')
     console.error('Error creating post:', err)
   } finally {
     submitting.value = false
@@ -678,6 +755,7 @@ const resetForm = () => {
   selectedImages.value.forEach((img) => {
     if (img.file && img.previewUrl) URL.revokeObjectURL(img.previewUrl)
   })
+  preservedCategories.value = []
   form.value = {
     content: ''
   }
@@ -693,6 +771,26 @@ const resetForm = () => {
   galleryError.value = null
   error.value = null
 }
+
+function isYourselfSelected(): boolean {
+  const raw = selectedAuthorOption.value as AuthorOption | string | number | null | undefined
+  if (raw == null) return false
+  if (typeof raw === 'string') return raw.trim() === ''
+  if (typeof raw === 'object' && 'id' in raw) return String(raw.id).trim() === ''
+  return false
+}
+
+watch(
+  () => props.post,
+  (post) => {
+    if (post) applyPost(post)
+  },
+  { immediate: true },
+)
+
+watch(authorOptions, () => {
+  if (props.post) syncAuthorFromPost(props.post)
+})
 
 watch(
   () => props.richEditor

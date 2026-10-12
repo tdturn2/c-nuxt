@@ -68,16 +68,22 @@ function speakerRow(speaker: CommunityNewsSpeaker, origin: string): string {
     </tr>`
 }
 
-function eucharistRow(item: CommunityNewsEucharist): string {
-  const extra = item.extra
-    ? `<div style="margin-top:2px;font-size:14px;line-height:20px;color:#4b5563;">${escapeHtml(item.extra)}</div>`
-    : ''
+function eucharistRows(items: CommunityNewsEucharist[]): string {
+  if (!items.length) {
+    return `<tr><td style="padding:8px 20px 16px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#4b5563;">No Eucharist schedule for this week.</td></tr>`
+  }
+  const rows = items.map((item) => {
+    const detail = [item.detail, item.extra].filter(Boolean).join(', ')
+    return `
+      <tr>
+        <td style="padding:1px 16px 1px 0;font-size:14px;line-height:20px;color:#4b5563;white-space:nowrap;vertical-align:top;">${escapeHtml(item.dateLabel)}</td>
+        <td style="padding:1px 0;font-size:14px;line-height:20px;font-weight:bold;color:#111827;vertical-align:top;">${escapeHtml(detail)}</td>
+      </tr>`
+  }).join('')
   return `
     <tr>
-      <td style="padding:14px 20px;border-top:1px solid #e5e7eb;font-family:Arial,Helvetica,sans-serif;">
-        <div style="font-size:15px;line-height:22px;color:#111827;">${escapeHtml(item.dateLabel)}</div>
-        <div style="margin-top:2px;font-size:16px;line-height:22px;font-weight:bold;color:#111827;">${escapeHtml(item.detail)}</div>
-        ${extra}
+      <td style="padding:4px 20px 16px;font-family:Arial,Helvetica,sans-serif;">
+        <table role="presentation" cellpadding="0" cellspacing="0" width="100%">${rows}</table>
       </td>
     </tr>`
 }
@@ -98,9 +104,7 @@ export function buildCommunityNewsEmailHtml(input: CommunityNewsEmailInput): str
   const speakers = input.speakers.length
     ? input.speakers.map((speaker) => speakerRow(speaker, origin)).join('')
     : `<tr><td style="padding:16px 20px;border-top:1px solid #e5e7eb;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#4b5563;">No chapel speakers are scheduled for this week.</td></tr>`
-  const eucharist = input.eucharist.length
-    ? input.eucharist.map((item) => eucharistRow(item)).join('')
-    : `<tr><td style="padding:16px 20px;border-top:1px solid #e5e7eb;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#4b5563;">No Eucharist schedule for this week.</td></tr>`
+  const eucharist = eucharistRows(input.eucharist)
   const slides = input.slides.map((slide) => slideRow(slide, origin)).join('')
 
   return `<!DOCTYPE html>
@@ -132,7 +136,7 @@ export function buildCommunityNewsEmailHtml(input: CommunityNewsEmailInput): str
           </tr>
           ${speakers}
           <tr>
-            <td style="padding:28px 20px 0;font-family:Arial,Helvetica,sans-serif;font-size:22px;line-height:28px;font-weight:bold;color:#111827;">
+            <td style="padding:18px 20px 0;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:22px;font-weight:bold;color:#111827;">
               Eucharist Schedule
             </td>
           </tr>

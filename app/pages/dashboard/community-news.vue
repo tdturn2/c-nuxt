@@ -133,9 +133,9 @@ function eucharistDateLabel(dateStr: string): string {
   const date = new Date(`${dateStr.slice(0, 10)}T12:00:00Z`)
   if (Number.isNaN(date.getTime())) return dateStr
   return date.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: '2-digit',
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
     timeZone: 'UTC',
   })
 }
