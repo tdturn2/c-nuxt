@@ -1,5 +1,6 @@
 import { createError, defineEventHandler, getRouterParam, readBody } from 'h3'
 import { normalizeFormEmailNotification, parseNotificationRecipients, type FormEmailNotification } from '~/types/forms'
+import { appendFormAttachmentSummary } from '@shared/formEmailAttachments'
 import {
   buildFormResultsEmail,
   formatFormSubmittedAt,
@@ -7,6 +8,7 @@ import {
   type FormAnswerField,
 } from '@shared/formNotificationEmail'
 import { sendFormEntryNotification } from '../../../../utils/sendgrid'
+import { loadFormEmailAttachments } from '../../../../utils/formSubmissionAttachments'
 import { getDashboardPayloadHeaders, requireDashboardStaff, toProxyError } from '../../../../utils/dashboardForms'
 
 type ResendBody = {
@@ -54,13 +56,32 @@ export default defineEventHandler(async (event) => {
   const answers = submission.answers && typeof submission.answers === 'object'
     ? submission.answers as Record<string, unknown>
     : {}
-  const email = buildFormResultsEmail({
-    formTitle,
-    submitterEmail: String(submission.email || ''),
-    submittedAt: formatFormSubmittedAt(submission.createdAt),
-    answers: labeledFormAnswers(answers, fields),
-    resent: true,
-  })
+  let files: Awaited<ReturnType<typeof loadFormEmailAttachments>>['files'] = []
+  let omitted: string[] = []
+  try {
+    const loaded = await loadFormEmailAttachments({
+      payloadBaseUrl: auth.payloadBaseUrl,
+      submissionId: id,
+      headers,
+    })
+    files = loaded.files
+    omitted = loaded.omitted
+  } catch (err: any) {
+    console.warn('[form-resend] attachments skipped', err?.message || err)
+  }
+  const email = appendFormAttachmentSummary(
+    buildFormResultsEmail({
+      formTitle,
+      submitterEmail: String(submission.email || ''),
+      submittedAt: formatFormSubmittedAt(submission.createdAt),
+      answers: labeledFormAnswers(answers, fields),
+      resent: true,
+    }),
+    {
+      attached: files.map((file) => file.filename),
+      omitted,
+    },
+  )
 
   const notification = resolveNotification(formDoc)
   const sent = await sendFormEntryNotification({
@@ -70,6 +91,7 @@ export default defineEventHandler(async (event) => {
     toOverride,
     textBody: email.text,
     htmlBody: email.html,
+    attachments: files,
     meta: { resend: true, submissionId: id, actor: auth.email },
   })
 

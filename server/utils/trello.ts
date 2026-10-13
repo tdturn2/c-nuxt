@@ -52,9 +52,46 @@ export async function createCommunicationsTrelloCard(input: {
     desc: card.desc,
   })
   if (card.due) params.set('due', card.due)
-  if (members.length) params.set('idMembers', members.join(','))
 
-  const res = await fetch(`https://api.trello.com/1/cards?${params.toString()}`, { method: 'POST' })
+  // Members stay off this request. Trello returns 400 Invalid objectId for the
+  // whole create when any idMembers value is not a member id, and then no card exists.
+  const created = await postTrelloForm('cards', params)
+  if (!created?.id) return null
+
+  await tagTrelloCardMembers(created.id, members, config)
+  return created
+}
+
+async function tagTrelloCardMembers(
+  cardId: string,
+  memberIds: string[],
+  config: TrelloConfig,
+): Promise<void> {
+  for (const memberId of memberIds) {
+    const params = new URLSearchParams({
+      key: config.key,
+      token: config.token,
+      value: memberId,
+    })
+    const res = await fetch(`https://api.trello.com/1/cards/${cardId}/idMembers`, {
+      method: 'POST',
+      body: params,
+    })
+    if (!res.ok) {
+      const message = await res.text().catch(() => '')
+      console.warn('[trello] member tag failed', res.status, message.slice(0, 200))
+    }
+  }
+}
+
+async function postTrelloForm(
+  path: string,
+  params: URLSearchParams,
+): Promise<{ id: string; url: string } | null> {
+  const res = await fetch(`https://api.trello.com/1/${path}`, {
+    method: 'POST',
+    body: params,
+  })
   const body = await res.json().catch(() => null) as { id?: string; url?: string; message?: string } | null
   if (!res.ok || !body?.id) {
     console.warn('[trello] card create failed', res.status, body?.message || '')

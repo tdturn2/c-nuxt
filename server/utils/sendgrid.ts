@@ -6,6 +6,13 @@ import {
   type FormEmailNotification,
 } from '~/types/forms'
 
+export type FormNotificationAttachment = {
+  filename: string
+  mimeType: string
+  /** Base64-encoded file contents. */
+  content: string
+}
+
 export type SendFormNotificationInput = {
   formTitle?: string
   formSlug?: string
@@ -13,6 +20,7 @@ export type SendFormNotificationInput = {
   /** Plain-text and/or HTML body pieces for the new entry. */
   textBody?: string
   htmlBody?: string
+  attachments?: FormNotificationAttachment[]
   /** Extra context for logs / future Personalizations. */
   meta?: Record<string, unknown>
   /**
@@ -81,6 +89,16 @@ export async function sendFormEntryNotification(
       { type: 'text/plain', value: text },
       { type: 'text/html', value: html },
     ],
+    ...(input.attachments?.length
+      ? {
+          attachments: input.attachments.map((file) => ({
+            content: file.content,
+            filename: file.filename || 'attachment',
+            type: file.mimeType || 'application/octet-stream',
+            disposition: 'attachment',
+          })),
+        }
+      : {}),
     tracking_settings: {
       click_tracking: { enable: false, enable_text: false },
       open_tracking: { enable: false },

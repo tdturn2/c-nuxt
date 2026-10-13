@@ -78,6 +78,7 @@ import ConnectFormRenderer from '~/components/forms/ConnectFormRenderer.vue'
 import type { FormSchemaV1 } from '~/types/forms'
 import { normalizeApiError } from '~/utils/forms/apiError'
 import { applyProductAndTotalAnswers } from '~/utils/forms/productFields'
+import { submitFormEntry } from '~/utils/forms/submitFormEntry'
 import { validateAnswersAgainstSchema, validateFormSchemaV1 } from '~/utils/forms/validation'
 
 type PayloadFindResponse<T> = { docs?: T[] }
@@ -338,34 +339,18 @@ async function handleSubmit(payload: { answers: Record<string, unknown>; files: 
   submitting.value = true
   try {
     const normalizedAnswers = normalizeAnswersForSubmit(schema, payload.answers, payload.visibleFieldKeys || [])
-    const submitted: any = await $fetch('/api/form-submissions/submit', {
-      method: 'POST',
-      body: {
-        formSlug: formDoc.value.slug,
-        answers: normalizedAnswers,
-        rootSubmissionId: formDoc.value.editableMode === 'versioned' ? rootSubmissionId.value : undefined,
+    const submitted = await submitFormEntry({
+      formSlug: String(formDoc.value.slug || ''),
+      answers: normalizedAnswers,
+      files: payload.files,
+      rootSubmissionId: formDoc.value.editableMode === 'versioned' ? rootSubmissionId.value : undefined,
+      onUploadProgress: (fieldKey, percent) => {
+        uploadProgress.value[fieldKey] = percent
       },
     })
 
-    const id = submitted?.submissionId ?? submitted?.doc?.id ?? submitted?.id ?? null
-    submissionId.value = id
+    submissionId.value = submitted?.submissionId ?? submitted?.doc?.id ?? submitted?.id ?? null
     trelloCardUrl.value = String(submitted?.trelloCardUrl || '')
-
-    // Upload files after submit
-    const fileEntries = Object.entries(payload.files || {}).filter(([, f]) => !!f) as Array<[string, File]>
-    for (const [fieldKey, file] of fileEntries) {
-      if (!id) break
-      uploadProgress.value[fieldKey] = 10
-      const fd = new FormData()
-      fd.set('formSlug', String(formDoc.value.slug || ''))
-      fd.set('submissionId', String(id))
-      fd.set('fieldKey', String(fieldKey))
-      if (submitted?.trelloCardId) fd.set('trelloCardId', String(submitted.trelloCardId))
-      fd.set('file', file)
-      await $fetch('/api/form-uploads/upload', { method: 'POST', body: fd })
-      uploadProgress.value[fieldKey] = 100
-    }
-
     success.value = true
   } catch (e: any) {
     submitError.value = normalizeApiError(e, 'Failed to submit.').message

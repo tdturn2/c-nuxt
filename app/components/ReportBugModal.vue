@@ -39,6 +39,7 @@
 import ConnectFormRenderer from '~/components/forms/ConnectFormRenderer.vue'
 import { normalizeApiError } from '~/utils/forms/apiError'
 import { applyProductAndTotalAnswers } from '~/utils/forms/productFields'
+import { submitFormEntry } from '~/utils/forms/submitFormEntry'
 import { validateAnswersAgainstSchema, validateFormSchemaV1 } from '~/utils/forms/validation'
 
 const REPORT_A_BUG_FORM_SLUG = 'report-a-bug'
@@ -184,27 +185,15 @@ async function submit(payload: {
   submitting.value = true
   try {
     const normalizedAnswers = normalizeAnswersForSubmit(payload.answers, payload.visibleFieldKeys || [])
-    const submitted: any = await $fetch('/api/form-submissions/submit', {
-      method: 'POST',
-      body: {
-        formSlug: formDoc.value.slug || REPORT_A_BUG_FORM_SLUG,
-        answers: normalizedAnswers,
+    const submitted = await submitFormEntry({
+      formSlug: String(formDoc.value.slug || REPORT_A_BUG_FORM_SLUG),
+      answers: normalizedAnswers,
+      files: payload.files,
+      onUploadProgress: (fieldKey, percent) => {
+        uploadProgress.value[fieldKey] = percent
       },
     })
-    const id = submitted?.submissionId ?? submitted?.doc?.id ?? submitted?.id ?? null
-    submissionId.value = id
-    const files = Object.entries(payload.files || {}).filter(([, f]) => !!f) as Array<[string, File]>
-    for (const [fieldKey, file] of files) {
-      if (!id) break
-      uploadProgress.value[fieldKey] = 10
-      const fd = new FormData()
-      fd.set('formSlug', String(formDoc.value.slug || REPORT_A_BUG_FORM_SLUG))
-      fd.set('submissionId', String(id))
-      fd.set('fieldKey', String(fieldKey))
-      fd.set('file', file)
-      await $fetch('/api/form-uploads/upload', { method: 'POST', body: fd })
-      uploadProgress.value[fieldKey] = 100
-    }
+    submissionId.value = submitted?.submissionId ?? submitted?.doc?.id ?? submitted?.id ?? null
     success.value = true
   } catch (e: any) {
     submitError.value = normalizeApiError(e, 'Failed to submit form.').message

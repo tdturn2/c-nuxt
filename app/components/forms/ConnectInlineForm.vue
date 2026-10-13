@@ -32,6 +32,7 @@
 import ConnectFormRenderer from '~/components/forms/ConnectFormRenderer.vue'
 import { normalizeApiError } from '~/utils/forms/apiError'
 import { applyProductAndTotalAnswers } from '~/utils/forms/productFields'
+import { submitFormEntry } from '~/utils/forms/submitFormEntry'
 import { validateAnswersAgainstSchema, validateFormSchemaV1 } from '~/utils/forms/validation'
 
 const props = defineProps<{
@@ -161,26 +162,14 @@ async function submit(payload: { answers: Record<string, unknown>; files: Record
   submitting.value = true
   try {
     const normalizedAnswers = normalizeAnswersForSubmit(payload.answers, payload.visibleFieldKeys || [])
-    const submitted: any = await $fetch('/api/form-submissions/submit', {
-      method: 'POST',
-      body: {
-        formSlug: formDoc.value.slug,
-        answers: normalizedAnswers,
+    await submitFormEntry({
+      formSlug: String(formDoc.value.slug || ''),
+      answers: normalizedAnswers,
+      files: payload.files,
+      onUploadProgress: (fieldKey, percent) => {
+        uploadProgress.value[fieldKey] = percent
       },
     })
-    const id = submitted?.submissionId ?? submitted?.doc?.id ?? submitted?.id ?? null
-    const files = Object.entries(payload.files || {}).filter(([, f]) => !!f) as Array<[string, File]>
-    for (const [fieldKey, file] of files) {
-      if (!id) break
-      uploadProgress.value[fieldKey] = 10
-      const fd = new FormData()
-      fd.set('formSlug', String(formDoc.value.slug || ''))
-      fd.set('submissionId', String(id))
-      fd.set('fieldKey', String(fieldKey))
-      fd.set('file', file)
-      await $fetch('/api/form-uploads/upload', { method: 'POST', body: fd })
-      uploadProgress.value[fieldKey] = 100
-    }
     success.value = true
   } catch (e: any) {
     submitError.value = normalizeApiError(e, 'Failed to submit form.').message
