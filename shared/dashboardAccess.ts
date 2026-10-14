@@ -12,6 +12,7 @@ import {
 
 export const CHAPEL_PODCAST_GROUP_SLUG = 'chapel-podcast'
 export const JOBS_MANAGER_GROUP_SLUG = 'jobs-manager'
+export const ACADEMIC_ADVISOR_GROUP_SLUG = 'academic-advisor'
 
 export type DashboardSection =
   | 'home'
@@ -34,12 +35,14 @@ export type DashboardSection =
   | 'toasts'
   | 'analytics'
   | 'community-news'
+  | 'student-degree-maps'
 
 /** Sections a non-admin group may use. Unlisted sections are admin-only. */
 export const DASHBOARD_SECTION_GROUPS: Partial<Record<DashboardSection, readonly string[]>> = {
   chapel: [CHAPEL_PODCAST_GROUP_SLUG],
   'chapel-speakers': [CHAPEL_PODCAST_GROUP_SLUG],
   jobs: [JOBS_MANAGER_GROUP_SLUG],
+  'student-degree-maps': [ACADEMIC_ADVISOR_GROUP_SLUG],
 }
 
 function userHasAnySectionGroup(user: ConnectUserAccessLike | null | undefined): boolean {

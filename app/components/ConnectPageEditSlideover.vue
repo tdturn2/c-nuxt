@@ -255,7 +255,7 @@
           >
             <span class="text-sm font-semibold text-gray-900">Page media library</span>
             <p class="text-xs text-gray-500 mt-0.5">
-              Upload PDFs and images. For <strong class="font-semibold text-gray-800">inline photos</strong>, use the image button in the content toolbar (uploads here and inserts the image). You can still copy a file URL to use as a regular link.
+              Upload PDFs, images, and Excel files (.xls, .xlsx). For <strong class="font-semibold text-gray-800">inline photos</strong>, use the image button in the content toolbar (uploads here and inserts the image). You can still copy a file URL to use as a regular link.
             </p>
           </summary>
           <div class="border-t border-gray-100 px-4 pb-4 pt-3">
@@ -266,7 +266,7 @@
                 v-model="assetUploadAlt"
                 type="text"
                 class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[rgba(13,94,130,1)] focus:outline-none focus:ring-1 focus:ring-[rgba(13,94,130,1)]"
-                placeholder="Stored as alt in Payload; leave blank to use a name from the file"
+                placeholder="Leave blank to use a name from the file"
               >
             </div>
             <div class="sm:col-span-2 relative z-10">
@@ -277,7 +277,7 @@
                   ref="assetFileInputRef"
                   type="file"
                   class="sr-only"
-                  accept="application/pdf,.pdf,image/*"
+                  accept="application/pdf,.pdf,image/*,.xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   @change="onAssetFileInputChange"
                 >
                 <label
@@ -293,7 +293,7 @@
                   <span class="truncate">{{ selectedAssetFileLabel || 'No file selected' }}</span>
                 </div>
               </div>
-              <p class="mt-1 text-xs text-gray-500">PDFs and images supported; other types allowed if Payload accepts them.</p>
+              <p class="mt-1 text-xs text-gray-500">PDFs, images, and Excel files (.xls and .xlsx).</p>
             </div>
             <div class="sm:col-span-2 flex flex-wrap items-center gap-2">
               <button
@@ -439,7 +439,7 @@
               <p class="mt-2 text-xs text-gray-600 leading-relaxed">
                 Use <code class="text-[11px]">@connect-faq</code> JSON (below) for FAQ-style accordions with plain-text answers.
                 Video lists and other embeds remain <strong class="font-semibold text-gray-800">paragraph text</strong> (<code class="text-[11px]">@connect-…</code>).
-                Pasting multi-line JSON may split across lines; on <strong class="font-semibold text-gray-800">Save</strong> it is merged so Payload stores valid JSON.
+                Pasting multi-line JSON may split across lines; on <strong class="font-semibold text-gray-800">Save</strong> it is merged into valid JSON.
                 Optional FAQ <code class="text-[11px]">id</code> enables deep links (<code class="text-[11px]">/your/page#billing</code>).
               </p>
               <p class="mt-2 text-[11px] font-semibold text-gray-700">Video list</p>

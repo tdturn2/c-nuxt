@@ -147,7 +147,7 @@
             </table>
           </div>
 
-          <UModal v-model:open="modalOpen" :ui="{ content: 'max-w-3xl' }">
+          <UModal v-model:open="modalOpen" :ui="{ content: 'max-w-5xl' }">
             <template #header>
               <h2 class="text-base font-semibold text-gray-900">
                 {{ editingId ? 'Edit job' : 'Add job' }}
@@ -231,11 +231,9 @@
                     <label class="mb-1 block text-sm font-medium text-gray-700">
                       Description <span class="text-red-500">*</span>
                     </label>
-                    <textarea
+                    <DashboardJobDescriptionEditor
+                      :key="descriptionEditorKey"
                       v-model="form.description"
-                      required
-                      rows="8"
-                      class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[rgba(13,94,130,1)] focus:outline-none focus:ring-1 focus:ring-[rgba(13,94,130,1)]"
                     />
                   </div>
                   <div class="sm:col-span-2">
@@ -415,7 +413,34 @@ const searchQuery = ref('')
 const statusFilter = ref('')
 const modalOpen = ref(false)
 const editingId = ref<string | number | null>(null)
+const descriptionEditorKey = ref(0)
 const form = ref<JobForm>(emptyForm())
+
+function descriptionToEditorHtml(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  if (/<[a-z][\s\S]*>/i.test(trimmed)) return trimmed
+  return trimmed
+    .split(/\n{2,}/)
+    .map((block) => {
+      const escaped = block
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>')
+      return `<p>${escaped}</p>`
+    })
+    .join('')
+}
+
+function descriptionHasText(html: string) {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim().length > 0
+}
 
 const filteredJobs = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
@@ -487,6 +512,7 @@ async function loadJobs() {
 
 function openCreateModal() {
   editingId.value = null
+  descriptionEditorKey.value += 1
   form.value = emptyForm()
   formError.value = ''
   modalOpen.value = true
@@ -494,6 +520,7 @@ function openCreateModal() {
 
 function startEdit(job: Job) {
   editingId.value = job.id ?? null
+  descriptionEditorKey.value += 1
   form.value = {
     status: (['pending', 'published', 'inactive'].includes(String(job.status))
       ? String(job.status)
@@ -503,7 +530,7 @@ function startEdit(job: Job) {
     remotePosition: Boolean(job.remotePosition),
     jobType: job.jobType || '',
     jobCategory: job.jobCategory || '',
-    description: job.description || '',
+    description: descriptionToEditorHtml(job.description || ''),
     applicationEmailOrUrl: job.applicationEmailOrUrl || '',
     companyName: job.companyName || '',
     companyWebsite: job.companyWebsite || '',
@@ -525,7 +552,7 @@ function closeModal() {
 async function saveJob() {
   formError.value = ''
   const payload = toPayload(form.value)
-  if (!payload.jobTitle || !payload.companyName || !payload.description) {
+  if (!payload.jobTitle || !payload.companyName || !descriptionHasText(payload.description)) {
     formError.value = 'Job title, company name, and description are required.'
     return
   }

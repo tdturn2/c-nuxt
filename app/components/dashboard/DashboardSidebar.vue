@@ -57,6 +57,7 @@ const allItems: NavItem[] = [
   { label: 'Docs / Pages', to: '/dashboard/docs', icon: 'i-lucide-file-text', section: 'docs' },
   { label: 'Media', to: '/dashboard/media', icon: 'i-lucide-folder-open', section: 'media' },
   { label: 'Degree Builder', to: '/dashboard/degrees', icon: 'i-lucide-graduation-cap', section: 'degrees' },
+  { label: 'Student Degree Maps', to: '/dashboard/student-degree-maps', icon: 'i-lucide-map', section: 'student-degree-maps' },
   {
     label: 'Forms Builder',
     to: '/dashboard/forms',

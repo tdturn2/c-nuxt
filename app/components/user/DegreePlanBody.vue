@@ -126,7 +126,7 @@
               <th class="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Hours<br />Type</th>
               <th class="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Notes</th>
               <th class="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
-              <th class="px-2 py-2 text-right text-xs font-semibold text-gray-700 uppercase"></th>
+              <th v-if="!readonly" class="px-2 py-2 text-right text-xs font-semibold text-gray-700 uppercase"></th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-200 bg-white">
@@ -169,20 +169,22 @@
                     />
                   </div>
                 </td>
-                <td class="px-2 py-3" />
+                <td v-if="!readonly" class="px-2 py-3" />
               </tr>
-              <tr v-else-if="row.kind === 'add'">
-                <td colspan="9" class="px-4 py-2">
-                  <button
-                    type="button"
-                    class="inline-flex items-center gap-1.5 text-sm font-medium text-[rgba(13,94,130,1)] hover:underline"
-                    @click="$emit('edit-course', newElectiveLine(row.item))"
-                  >
-                    <UIcon name="i-heroicons-plus" class="h-4 w-4" />
-                    Add a course
-                  </button>
-                </td>
-              </tr>
+              <template v-else-if="row.kind === 'add'">
+                <tr v-if="!readonly">
+                  <td colspan="9" class="px-4 py-2">
+                    <button
+                      type="button"
+                      class="inline-flex items-center gap-1.5 text-sm font-medium text-[rgba(13,94,130,1)] hover:underline"
+                      @click="$emit('edit-course', newElectiveLine(row.item))"
+                    >
+                      <UIcon name="i-heroicons-plus" class="h-4 w-4" />
+                      Add a course
+                    </button>
+                  </td>
+                </tr>
+              </template>
               <tr
                 v-else
                 :class="[
@@ -253,7 +255,7 @@
                     />
                   </div>
                 </td>
-                <td class="px-2 py-3 text-right">
+                <td v-if="!readonly" class="px-2 py-3 text-right">
                   <div class="inline-flex items-center">
                     <button
                       v-if="row.item.electiveLine && row.item.record?.id"
@@ -281,7 +283,7 @@
       </div>
     </div>
 
-    <div class="rounded-lg border-2 border-red-200 bg-red-50 p-5 shadow-sm">
+    <div v-if="!readonly" class="rounded-lg border-2 border-red-200 bg-red-50 p-5 shadow-sm">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div class="min-w-0">
           <h3 class="flex items-center gap-2 text-base font-semibold text-red-800">
@@ -418,7 +420,10 @@ export interface DegreePlan {
 
 const props = defineProps<{
   plan: DegreePlan
+  readonly?: boolean
 }>()
+
+const readonly = computed(() => props.readonly === true)
 
 const emit = defineEmits<{
   'edit-course': [item: DegreeItem]

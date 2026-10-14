@@ -1275,6 +1275,13 @@ function isImageHref(href: string): boolean {
   return /\.(?:jpe?g|png|gif|webp|avif|svg|bmp)$/i.test(path)
 }
 
+/** Office files and /api media must load as real requests. Client routing has no page for them and shows a 404. */
+function isDirectFileHref(href: string): boolean {
+  const path = (href.split(/[?#]/)[0] || '').trim()
+  if (path.startsWith('/api/')) return true
+  return /\.(?:docx?|xlsx?|pptx?|csv|txt|rtf|zip|odt|ods|odp)$/i.test(path)
+}
+
 function onContentClick(event: MouseEvent) {
   if (!import.meta.client) return
   if (event.defaultPrevented) return
@@ -1331,7 +1338,7 @@ function onContentClick(event: MouseEvent) {
   if (/^https?:\/\//i.test(href)) {
     try {
       const url = new URL(href)
-      if (url.origin === window.location.origin) {
+      if (url.origin === window.location.origin && !isDirectFileHref(url.pathname)) {
         event.preventDefault()
         navigateTo(`${url.pathname}${url.search}${url.hash}`)
       }
@@ -1340,6 +1347,7 @@ function onContentClick(event: MouseEvent) {
   }
 
   if (!href.startsWith('/')) return
+  if (isDirectFileHref(href)) return
 
   event.preventDefault()
   navigateTo(href)

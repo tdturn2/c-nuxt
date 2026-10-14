@@ -148,6 +148,13 @@ const sections: Array<{
     section: 'degrees',
   },
   {
+    title: 'Student Degree Maps',
+    description: 'Look up a student who has started a degree map and review their progress.',
+    to: '/dashboard/student-degree-maps',
+    icon: 'i-lucide-map',
+    section: 'student-degree-maps',
+  },
+  {
     title: 'Forms Builder',
     description: 'Create and manage schema-driven Connect forms.',
     to: '/dashboard/forms',
