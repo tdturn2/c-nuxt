@@ -89,16 +89,29 @@ const callbackUrl = computed(() => {
   const fallback = '/'
   if (!value || typeof value !== 'string') return fallback
   // Keep redirects on-origin only and preserve deep links.
-  if (value.startsWith('/')) return value
-  try {
-    const parsed = new URL(value, window.location.origin)
-    if (parsed.origin === window.location.origin) {
-      return `${parsed.pathname}${parsed.search}${parsed.hash}`
+  let target = fallback
+  if (value.startsWith('/')) target = value
+  else {
+    try {
+      const parsed = new URL(value, window.location.origin)
+      if (parsed.origin === window.location.origin) {
+        target = `${parsed.pathname}${parsed.search}${parsed.hash}`
+      }
+    } catch {
+      target = fallback
     }
-  } catch {
-    // fall through
   }
-  return fallback
+  if (target === fallback || target.includes('?')) return target
+  // Auth redirects sometimes leave the original query beside callbackUrl
+  // instead of inside it, which drops filters such as ?school=.
+  const extra = new URLSearchParams()
+  for (const [key, rawValue] of Object.entries(route.query)) {
+    if (key === 'callbackUrl' || key === 'error' || key === 'code') continue
+    const item = Array.isArray(rawValue) ? rawValue[0] : rawValue
+    if (typeof item === 'string' && item) extra.set(key, item)
+  }
+  const query = extra.toString()
+  return query ? `${target}?${query}` : target
 })
 
 // Get CSRF token on mount
