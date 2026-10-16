@@ -8,12 +8,20 @@ export default defineEventHandler(async () => {
   const connectApiUrl = resolveConnectApiUrl()
 
   try {
-    const response = await $fetch(`${connectApiUrl}/api/connect-users`, {
-      headers: { 'Content-Type': 'application/json' },
-      query: { limit: 500, depth: 1 },
-    }) as { docs?: any[] }
-
-    const allDocs = response?.docs ?? []
+    // The user list is paged. A single page of 500 drops later names (Bryan Blankenship
+    // was just past that cutoff) before the staff/faculty filter runs.
+    const allDocs: any[] = []
+    let page = 1
+    let totalPages = 1
+    do {
+      const response = await $fetch<{ docs?: any[]; totalPages?: number }>(`${connectApiUrl}/api/connect-users`, {
+        headers: { 'Content-Type': 'application/json' },
+        query: { limit: 500, page, depth: 1 },
+      })
+      allDocs.push(...(response?.docs ?? []))
+      totalPages = Number(response?.totalPages) || 1
+      page += 1
+    } while (page <= totalPages && page <= 20)
     const roles = (r: unknown): string[] => (Array.isArray(r) ? r.map(String) : [])
     const docs = allDocs.filter((user: any) => {
       const r = roles(user?.roles)
