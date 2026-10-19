@@ -145,12 +145,18 @@ export default defineEventHandler(async (event) => {
   const connectApiUrl = resolveConnectApiUrl()
 
   try {
-    const response = await $fetch(`${connectApiUrl}/api/connect-users`, {
-      headers: { 'Content-Type': 'application/json' },
-      query: { limit: 500, depth: 1 },
-    }) as { docs?: any[] }
-
-    const allDocs = response?.docs ?? []
+    const allDocs: any[] = []
+    let page = 1
+    let totalPages = 1
+    do {
+      const response = await $fetch<{ docs?: any[]; totalPages?: number }>(`${connectApiUrl}/api/connect-users`, {
+        headers: { 'Content-Type': 'application/json' },
+        query: { limit: 500, page, depth: 1 },
+      })
+      allDocs.push(...(response?.docs ?? []))
+      totalPages = Number(response?.totalPages) || 1
+      page += 1
+    } while (page <= totalPages && page <= 20)
     const facultyDocs = allDocs.filter((user: any) => isPublicFaculty(user))
 
     const map: Record<string, { id: number; name: string; username: string | null; employeeTitle: string | null; avatarUrl: string | null }> = {}

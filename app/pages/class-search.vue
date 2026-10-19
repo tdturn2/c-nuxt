@@ -157,7 +157,10 @@
                     :faculty="lookupFaculty(c.instructor)!"
                     :display-name="formatInstructor(c.instructor)"
                   />
-                  <span v-else>{{ formatInstructor(c.instructor) }}</span>
+                  <span v-else class="inline-flex items-center gap-2.5">
+                    <span class="h-8 w-8 shrink-0 rounded-full bg-gray-200" aria-hidden="true" />
+                    {{ formatInstructor(c.instructor) }}
+                  </span>
                 </p>
                 <p class="mt-0.5 text-xs text-gray-500">{{ c.delivery_method }} · {{ c.location }}</p>
                 <div class="mt-2">
@@ -210,14 +213,32 @@
 
         <!-- Desktop: table with horizontal scroll on small viewports -->
         <div class="hidden md:block overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-          <table class="min-w-[42rem] w-full divide-y divide-gray-200">
+          <table class="min-w-[56rem] w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
               <tr>
                 <th class="w-10 px-2 py-3" aria-label="Expand" />
-                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Course</th>
+                <th class="px-4 py-3 text-left" :aria-sort="ariaSort('course')">
+                  <button type="button" class="inline-flex items-center gap-1 text-xs font-semibold text-gray-700 uppercase tracking-wider hover:text-gray-900" @click="toggleSort('course')">
+                    Course
+                    <UIcon v-if="sortKey === 'course' && sortDir === 'asc'" name="i-lucide-chevron-up" class="h-3.5 w-3.5" />
+                    <UIcon v-else-if="sortKey === 'course'" name="i-lucide-chevron-down" class="h-3.5 w-3.5" />
+                  </button>
+                </th>
                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Section</th>
-                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Title</th>
-                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Instructor</th>
+                <th class="px-4 py-3 text-left" :aria-sort="ariaSort('title')">
+                  <button type="button" class="inline-flex items-center gap-1 text-xs font-semibold text-gray-700 uppercase tracking-wider hover:text-gray-900" @click="toggleSort('title')">
+                    Title
+                    <UIcon v-if="sortKey === 'title' && sortDir === 'asc'" name="i-lucide-chevron-up" class="h-3.5 w-3.5" />
+                    <UIcon v-else-if="sortKey === 'title'" name="i-lucide-chevron-down" class="h-3.5 w-3.5" />
+                  </button>
+                </th>
+                <th class="whitespace-nowrap px-4 py-3 text-left" :aria-sort="ariaSort('instructor')">
+                  <button type="button" class="inline-flex items-center gap-1 text-xs font-semibold text-gray-700 uppercase tracking-wider hover:text-gray-900" @click="toggleSort('instructor')">
+                    Instructor
+                    <UIcon v-if="sortKey === 'instructor' && sortDir === 'asc'" name="i-lucide-chevron-up" class="h-3.5 w-3.5" />
+                    <UIcon v-else-if="sortKey === 'instructor'" name="i-lucide-chevron-down" class="h-3.5 w-3.5" />
+                  </button>
+                </th>
                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Delivery</th>
                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Location</th>
                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Credits</th>
@@ -242,9 +263,9 @@
                 </td>
                 <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ c.short_name }}</td>
                 <td class="px-4 py-3 text-sm text-gray-600">{{ c.section }}</td>
-                <td class="px-4 py-3 text-sm text-gray-900 max-w-xs" :title="c.short_description">
-                  <div class="flex items-center gap-1 min-w-0">
-                    <p class="truncate">{{ c.short_description }}</p>
+                <td class="max-w-xs px-4 py-3 text-sm text-gray-900">
+                  <div class="flex items-center gap-1.5">
+                    <p class="min-w-0 leading-snug">{{ c.short_description }}</p>
                     <UTooltip
                       v-if="courseOfferingBadge(c)"
                       :text="courseOfferingBadge(c)!.label"
@@ -258,13 +279,16 @@
                     </UTooltip>
                   </div>
                 </td>
-                <td class="px-4 py-3 text-sm text-gray-600">
+                <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
                   <FacultyHoverCard
                     v-if="lookupFaculty(c.instructor)"
                     :faculty="lookupFaculty(c.instructor)!"
                     :display-name="formatInstructor(c.instructor)"
                   />
-                  <span v-else>{{ formatInstructor(c.instructor) }}</span>
+                  <span v-else class="inline-flex items-center gap-2.5">
+                    <span class="h-8 w-8 shrink-0 rounded-full bg-gray-200" aria-hidden="true" />
+                    {{ formatInstructor(c.instructor) }}
+                  </span>
                 </td>
                 <td class="px-4 py-3 text-sm text-gray-600">{{ c.delivery_method }}</td>
                 <td class="px-4 py-3 text-sm text-gray-600">{{ c.location }}</td>
@@ -401,6 +425,23 @@ type OfferingPattern = {
   pattern: 'annual' | 'every_other_year' | 'rare' | 'irregular'
   risk: 'low' | 'medium' | 'high'
 }
+type ClassSortKey = 'course' | 'title' | 'instructor'
+const sortKey = ref<ClassSortKey>('course')
+const sortDir = ref<'asc' | 'desc'>('asc')
+
+function toggleSort(key: ClassSortKey) {
+  if (sortKey.value === key) sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+  else {
+    sortKey.value = key
+    sortDir.value = 'asc'
+  }
+}
+
+function ariaSort(key: ClassSortKey): 'ascending' | 'descending' | 'none' {
+  if (sortKey.value !== key) return 'none'
+  return sortDir.value === 'asc' ? 'ascending' : 'descending'
+}
+
 const expandedId = ref<string | null>(null)
 function toggleExpand(id: string) {
   expandedId.value = expandedId.value === id ? null : id
@@ -538,14 +579,31 @@ const filteredClasses = computed(() => {
     .toLowerCase()
     .split(/\s+/)
     .filter(Boolean)
-  if (words.length === 0) return list
-  return list.filter((c: ClassRow) => {
-    const course = (c.short_name ?? '').toLowerCase()
-    const title = (c.short_description ?? '').toLowerCase()
-    const instructor = (c.instructor ?? '').toLowerCase()
-    const location = (c.location ?? '').toLowerCase()
-    const searchable = [course, title, instructor, location].join(' ')
-    return words.every((word) => searchable.includes(word))
+  if (words.length > 0) {
+    list = list.filter((c: ClassRow) => {
+      const course = (c.short_name ?? '').toLowerCase()
+      const title = (c.short_description ?? '').toLowerCase()
+      const instructor = (c.instructor ?? '').toLowerCase()
+      const location = (c.location ?? '').toLowerCase()
+      const searchable = [course, title, instructor, location].join(' ')
+      return words.every((word) => searchable.includes(word))
+    })
+  }
+  const dir = sortDir.value === 'asc' ? 1 : -1
+  return [...list].sort((a, b) => {
+    const value = (row: ClassRow) =>
+      sortKey.value === 'course'
+        ? (row.short_name ?? '')
+        : sortKey.value === 'title'
+          ? (row.short_description ?? '')
+          : (row.instructor ?? '')
+    const left = value(a)
+    const right = value(b)
+    const primary = left.localeCompare(right, undefined, { numeric: true, sensitivity: 'base' })
+    if (primary) return primary * dir
+    const course = (a.short_name ?? '').localeCompare(b.short_name ?? '', undefined, { numeric: true, sensitivity: 'base' })
+    if (course) return course
+    return (a.section ?? '').localeCompare(b.section ?? '', undefined, { numeric: true, sensitivity: 'base' })
   })
 })
 const offeringPatterns = computed<Record<string, OfferingPattern>>(
@@ -566,7 +624,7 @@ const rangeEnd = computed(() =>
   Math.min(currentPage.value * PAGE_SIZE, filteredClasses.value.length)
 )
 
-watch([searchQuery, () => selectedCategory.value, () => selectedFaculty.value, () => selectedLocation.value], () => {
+watch([searchQuery, () => selectedCategory.value, () => selectedFaculty.value, () => selectedLocation.value, sortKey, sortDir], () => {
   currentPage.value = 1
 })
 

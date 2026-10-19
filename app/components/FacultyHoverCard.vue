@@ -1,14 +1,15 @@
 <template>
   <UPopover :delay-open="300" :delay-close="100" mode="hover">
-    <span class="inline-flex items-center gap-1.5 cursor-default text-[rgba(13,94,130,1)]">
+    <span class="inline-flex items-center gap-2.5 cursor-default text-[rgba(13,94,130,1)]">
       <img
         v-if="faculty.avatarUrl"
         :src="faculty.avatarUrl"
         :alt="faculty.name"
-        class="w-8 h-8 rounded-full object-cover"
+        class="w-8 h-8 shrink-0 rounded-full object-cover"
         width="32"
         height="32"
       >
+      <span v-else class="w-8 h-8 shrink-0 rounded-full bg-gray-200" aria-hidden="true" />
       {{ displayName }}
     </span>
     <template #content>

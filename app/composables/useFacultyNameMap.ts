@@ -22,7 +22,7 @@ export function useFacultyNameMap() {
   function lookupFaculty(rawInstructor: string): FacultyInfo | null {
     const map = facultyNameMap.value
     if (!map || !rawInstructor?.trim()) return null
-    const key = rawInstructor.trim().toLowerCase()
+    const key = rawInstructor.trim().toLowerCase().replace(/\./g, '')
     if (map[key]) return map[key]
     const [last, first] = key.split(',').map((part) => part.trim())
     if (last && first) {
