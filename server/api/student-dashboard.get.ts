@@ -3,7 +3,7 @@ import { getStudentDashboardData } from '../utils/instructure'
 import { getSSOSession } from '../utils/ssoAuth'
 
 export default defineEventHandler(async (event) => {
-  const { email } = await getSSOSession(event)
+  const { email, canvasLoginId } = await getSSOSession(event)
 
   if (!email) {
     throw createError({
@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    return await getStudentDashboardData(email)
+    return await getStudentDashboardData(email, canvasLoginId)
   } catch (error: any) {
     // Preserve upstream status/statusMessage so client sees the real Canvas failure.
     if (error?.statusCode || error?.statusMessage) {

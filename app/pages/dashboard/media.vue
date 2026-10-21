@@ -45,7 +45,7 @@
             class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
           >
             <h2 class="text-sm font-semibold text-gray-900">Upload page asset</h2>
-            <p class="mt-0.5 text-xs text-gray-500">Images, PDFs, and common office documents. The file URL is copied after upload.</p>
+            <p class="mt-0.5 text-xs text-gray-500">Images, PDFs, and common office documents, including PowerPoint. The file URL is copied after upload.</p>
             <div class="mt-3 grid gap-3 sm:grid-cols-2">
               <input
                 v-model="uploadAlt"
@@ -237,6 +237,10 @@ import {
 } from '~/utils/dashboardMedia'
 
 const PAGE_SIZE = 48
+/** Stay under the ~4.5 MB Vercel/Nitro request-body limit. Larger files PUT directly to S3. */
+const PROXY_UPLOAD_MAX_BYTES = 3 * 1024 * 1024
+/** Keep in sync with connect-api PAGE_ASSET_MAX_BYTES. */
+const PAGE_ASSET_MAX_BYTES = 200 * 1024 * 1024
 
 const { mePending, canAccessSection } = useDashboardAccess()
 const canManageDashboard = computed(() => canAccessSection('media'))
@@ -333,24 +337,80 @@ async function copyUrl(doc: DashboardMediaDoc) {
   }
 }
 
+function uploadErrorMessage(err: any, fallback: string) {
+  return err?.data?.statusMessage || err?.data?.error || err?.statusMessage || err?.message || fallback
+}
+
+async function uploadPageAssetDirect(file: File, alt: string) {
+  const signed = await $fetch<{ uploadUrl?: string; filename?: string; contentType?: string }>(
+    '/api/connect-pages-media/presign',
+    {
+      method: 'POST',
+      body: {
+        filename: file.name,
+        contentType: file.type || 'application/octet-stream',
+        filesize: file.size,
+        ...(alt ? { alt } : {}),
+      },
+    },
+  )
+  if (!signed?.uploadUrl || !signed?.filename) {
+    throw new Error('Upload URL was not returned')
+  }
+
+  const contentType = signed.contentType || file.type || 'application/octet-stream'
+  const putRes = await fetch(signed.uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': contentType },
+    body: file,
+  })
+  if (!putRes.ok) {
+    const detail = await putRes.text().catch(() => '')
+    throw new Error(
+      detail
+        ? `Storage upload failed (${putRes.status}): ${detail.slice(0, 200)}`
+        : `Storage upload failed (${putRes.status})`,
+    )
+  }
+
+  return $fetch<{ filename?: string; url?: string }>('/api/connect-pages-media/complete', {
+    method: 'POST',
+    body: {
+      filename: signed.filename,
+      originalFilename: file.name,
+      contentType,
+      ...(alt ? { alt } : {}),
+    },
+  })
+}
+
 async function uploadPageAsset() {
   const file = uploadInputRef.value?.files?.[0]
   if (!file) {
     error.value = 'Choose a file first.'
     return
   }
+  if (file.size > PAGE_ASSET_MAX_BYTES) {
+    error.value = 'File is too large. Maximum upload size is 200 MB.'
+    return
+  }
   uploading.value = true
   error.value = ''
   success.value = ''
   try {
-    const body = new FormData()
-    body.append('file', file)
     const alt = uploadAlt.value.trim()
-    if (alt) body.append('alt', alt)
-    const res = await $fetch<{ filename?: string; url?: string }>('/api/connect-pages-media/upload', {
-      method: 'POST',
-      body,
-    })
+    let res: { filename?: string; url?: string }
+    if (file.size > PROXY_UPLOAD_MAX_BYTES) {
+      res = await uploadPageAssetDirect(file, alt)
+    } else {
+      const body = new FormData()
+      body.append('file', file)
+      if (alt) body.append('alt', alt)
+      res = await $fetch<{ filename?: string; url?: string }>('/api/connect-pages-media/upload', {
+        method: 'POST',
+        body,
+      })
+    }
     if (res.url) await navigator.clipboard.writeText(res.url).catch(() => undefined)
     uploadAlt.value = ''
     if (uploadInputRef.value) uploadInputRef.value.value = ''
@@ -359,7 +419,7 @@ async function uploadPageAsset() {
     success.value = `Uploaded “${res.filename || file.name}”.`
     clearNoticeSoon()
   } catch (err: any) {
-    error.value = err?.data?.statusMessage || err?.statusMessage || err?.message || 'Upload failed.'
+    error.value = uploadErrorMessage(err, 'Upload failed.')
   } finally {
     uploading.value = false
   }

@@ -1,4 +1,5 @@
 import { NuxtAuthHandler } from '#auth'
+import { canvasLoginIdFromEntra, canvasLoginIdFromProfile, fetchEntraDirectoryIdentity } from '../../utils/entra'
 import { syncUserToPayload } from '../../utils/syncUser'
 
 const authSecret = useRuntimeConfig().authSecret
@@ -49,10 +50,29 @@ export default NuxtAuthHandler({
       return true
     },
     async jwt({ token, account, profile, user }) {
+      const tokenAny = token as any
+
+      if (account?.access_token) {
+        try {
+          const identity = await fetchEntraDirectoryIdentity(account.access_token)
+          tokenAny.mailNickname = identity.mailNickname
+          tokenAny.onPremisesSamAccountName = identity.onPremisesSamAccountName
+          if (identity.canvasLoginId) {
+            tokenAny.canvasLoginId = identity.canvasLoginId
+          }
+        } catch (error) {
+          console.error('[Auth] Failed to load Entra mail nickname / SAM account name:', error)
+        }
+      }
+
       // Extract groups from profile if available
       let groups: string[] | null = null
       if (profile) {
         const profileAny = profile as any
+        const profileLoginId = canvasLoginIdFromProfile(profileAny)
+        if (profileLoginId && !tokenAny.canvasLoginId) {
+          tokenAny.canvasLoginId = profileLoginId
+        }
         
         // Log all profile keys to see what's available
         console.log('[Auth] Profile keys:', Object.keys(profileAny))
@@ -93,11 +113,19 @@ export default NuxtAuthHandler({
       
       // Store user info in token (this is essential)
       if (user) {
+        const userAny = user as any
         token.user = {
           id: user.id,
           name: user.name,
           email: user.email,
           image: user.image
+        }
+        if (!tokenAny.canvasLoginId) {
+          tokenAny.canvasLoginId = canvasLoginIdFromEntra({
+            sAMAccountName: userAny.sAMAccountName,
+            mailNickname: userAny.mailNickname,
+            onPremisesSamAccountName: userAny.onPremisesSamAccountName
+          })
         }
         
         // Sync user to PayloadCMS (only on first sign-in when account is present)
@@ -110,6 +138,14 @@ export default NuxtAuthHandler({
             image: user.image || null,
             groups: groups || null
           })
+        }
+      }
+
+      if (!tokenAny.canvasLoginId) {
+        const email = tokenAny.user?.email || (user as any)?.email
+        if (typeof email === 'string' && email.includes('@')) {
+          const localPart = email.slice(0, email.indexOf('@')).trim()
+          if (localPart) tokenAny.canvasLoginId = localPart
         }
       }
       
@@ -138,6 +174,7 @@ export default NuxtAuthHandler({
       if (tokenAny.groups) {
         (session as any).groups = tokenAny.groups
       }
+      ;(session as any).canvasLoginId = tokenAny.canvasLoginId || null
       
       return session
     }
@@ -150,7 +187,7 @@ export default NuxtAuthHandler({
       wellKnown: `https://login.microsoftonline.com/${useRuntimeConfig().azureAdTenantId}/v2.0/.well-known/openid-configuration`,
       authorization: {
         params: {
-          scope: 'openid profile email GroupMember.Read.All',
+          scope: 'openid profile email User.Read GroupMember.Read.All',
           response_type: 'code',
           response_mode: 'query'
         }
@@ -182,6 +219,11 @@ export default NuxtAuthHandler({
           // Include groups if present - pass through all profile data for jwt callback
           groups: groups,
           sAMAccountName: profile.sAMAccountName,
+          mailNickname: profile.mailNickname || profile.mailnickname,
+          onPremisesSamAccountName:
+            profile.onPremisesSamAccountName ||
+            profile.onprem_sam_account_name ||
+            profile.onpremisesamaccountname,
           // Pass through entire profile for jwt callback to access all fields
           _raw: profile
         }

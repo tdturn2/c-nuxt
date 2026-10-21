@@ -315,6 +315,99 @@ async function findCanvasUserByEmail(email: string): Promise<CanvasUser | null> 
   return null
 }
 
+async function canvasUserOrNull(path: string): Promise<CanvasUser | null> {
+  try {
+    const user = await canvasFetch<CanvasUser>(path)
+    return user?.id ? user : null
+  } catch (error: any) {
+    if ([400, 404].includes(error?.statusCode)) return null
+    throw error
+  }
+}
+
+/**
+ * Resolve a Canvas user the same way SAML does: by login / SIS id.
+ * Do not match Canvas primary_email here — users can change that preference.
+ */
+async function findCanvasUserByLogin(loginId: string): Promise<CanvasUser> {
+  const login = loginId.trim()
+  if (!login) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Canvas login id is required'
+    })
+  }
+
+  const encoded = encodeURIComponent(login)
+  const bySisLogin = await canvasUserOrNull(`/api/v1/users/sis_login_id:${encoded}`)
+  if (bySisLogin) return bySisLogin
+
+  const bySisUser = await canvasUserOrNull(`/api/v1/users/sis_user_id:${encoded}`)
+  if (bySisUser) return bySisUser
+
+  try {
+    const users = await canvasFetch<CanvasUser[]>('/api/v1/accounts/self/users', {
+      search_term: login
+    })
+    const exactMatches = (users || []).filter((user) => {
+      return (user.login_id || '').toLowerCase() === login.toLowerCase()
+    })
+
+    if (exactMatches.length === 1) return exactMatches[0]
+    if (exactMatches.length > 1) {
+      throw createError({
+        statusCode: 409,
+        statusMessage: 'Multiple Canvas users found for this login'
+      })
+    }
+  } catch (error: any) {
+    if (error?.statusCode === 409) throw error
+    if (![401, 403, 404].includes(error?.statusCode)) throw error
+  }
+
+  throw createError({
+    statusCode: 404,
+    statusMessage: 'No Canvas user found for this login'
+  })
+}
+
+async function findCanvasUserByLoginOrNull(loginId: string): Promise<CanvasUser | null> {
+  try {
+    return await findCanvasUserByLogin(loginId)
+  } catch (error: any) {
+    if ([400, 404].includes(error?.statusCode)) return null
+    throw error
+  }
+}
+
+async function resolveCanvasUser(input: {
+  canvasLoginId?: string | null
+  email?: string | null
+}): Promise<CanvasUser | null> {
+  const login = input.canvasLoginId?.trim() || ''
+  const email = input.email?.trim() || ''
+  const localPart = email.includes('@') ? email.slice(0, email.indexOf('@')).trim() : ''
+  const tried = new Set<string>()
+
+  if (login) {
+    tried.add(login.toLowerCase())
+    const byLogin = await findCanvasUserByLoginOrNull(login)
+    if (byLogin) return byLogin
+  }
+
+  if (email) {
+    const byEmail = await findCanvasUserByEmail(email)
+    if (byEmail) return byEmail
+  }
+
+  if (localPart && !tried.has(localPart.toLowerCase())) {
+    const byLocalPart = await findCanvasUserByLoginOrNull(localPart)
+    if (byLocalPart) return byLocalPart
+  }
+
+  return null
+}
+
 function canvasSectionLinks(canvasBaseUrl: string): StudentDashboardData['meta']['links'] {
   return {
     courses: `${canvasBaseUrl}/courses`,
@@ -399,9 +492,12 @@ function estimateCurrentGpa(courses: StudentDashboardData['courses']): number | 
   return Number((total / count).toFixed(2))
 }
 
-export async function getStudentDashboardData(email: string): Promise<StudentDashboardData> {
+export async function getStudentDashboardData(
+  email: string,
+  canvasLoginId?: string | null
+): Promise<StudentDashboardData> {
   const canvasBaseUrl = getCanvasConfig().baseUrl
-  const user = await findCanvasUserByEmail(email)
+  const user = await resolveCanvasUser({ canvasLoginId, email })
   if (!user) return emptyStudentDashboard(email, canvasBaseUrl)
 
   let enrollments: CanvasEnrollmentWithCourse[] = []

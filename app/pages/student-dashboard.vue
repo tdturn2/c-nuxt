@@ -6,7 +6,7 @@
         <header class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 class="text-2xl font-bold text-gray-900">Student Dashboard</h1>
-            <p class="text-sm text-gray-600">Courses and deadlines — Canvas data appears when an account is found for your email.</p>
+            <p class="text-sm text-gray-600">Courses and deadlines from your Canvas account.</p>
           </div>
           <p class="text-xs text-gray-500">
             Updated: {{ generatedAtLabel }}
@@ -32,7 +32,7 @@
             v-if="canvasUnavailable"
             class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
           >
-            No Canvas account was found for your email. Class planner, class search, and degree map still work. Canvas courses and deadlines will show here if you have a Canvas account.
+            No Canvas account was found for your login. Class planner, class search, and degree map still work. Canvas courses and deadlines will show here if you have a Canvas account.
           </div>
 
           <template v-if="!canvasUnavailable">
