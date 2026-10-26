@@ -14,30 +14,17 @@ type CanvasUser = {
   primary_email?: string
 }
 
-type CanvasEnrollment = {
+type CanvasDashboardCourse = {
   id: number
-  enrollment_state?: string
-  course_id?: number
-  course?: {
-    id: number
-    name?: string
-    course_code?: string
-    html_url?: string | null
-    image_download_url?: string | null
-    image?: string | null
-  }
-  grades?: {
-    current_score?: number | null
-    current_grade?: string | null
-    final_score?: number | null
-    final_grade?: string | null
-  } | null
-  computed_current_score?: number | null
-  computed_current_grade?: string | null
-}
-
-type CanvasEnrollmentWithCourse = CanvasEnrollment & {
-  course?: CanvasEnrollment['course']
+  name?: string
+  course_code?: string
+  html_url?: string | null
+  image_download_url?: string | null
+  enrollments?: Array<{
+    type?: string
+    computed_current_score?: number | null
+    computed_current_grade?: string | null
+  }>
 }
 
 type CanvasTodo = {
@@ -207,6 +194,21 @@ function getCanvasConfig(): CanvasApiConfig {
   }
 }
 
+function canvasQuery(query?: Record<string, any>): Record<string, any> | undefined {
+  if (!query) return undefined
+  const encoded: Record<string, any> = {}
+  for (const [key, value] of Object.entries(query)) {
+    if (Array.isArray(value)) {
+      // Canvas treats repeated keys as a single value unless the key uses [].
+      // ofetch repeats `state=active&state=invited`, which returns an empty 200.
+      encoded[key.endsWith('[]') ? key : `${key}[]`] = value
+    } else {
+      encoded[key] = value
+    }
+  }
+  return encoded
+}
+
 async function canvasFetch<T>(path: string, query?: Record<string, any>): Promise<T> {
   const cfg = getCanvasConfig()
   const headers = {
@@ -215,7 +217,7 @@ async function canvasFetch<T>(path: string, query?: Record<string, any>): Promis
   }
 
   try {
-    return await $fetch<T>(`${cfg.baseUrl}${path}`, { headers, query })
+    return await $fetch<T>(`${cfg.baseUrl}${path}`, { headers, query: canvasQuery(query) })
   } catch (error: any) {
     const statusCode = error?.statusCode || error?.status || 500
     if (statusCode === 401 || statusCode === 403) {
@@ -235,45 +237,6 @@ async function canvasFetch<T>(path: string, query?: Record<string, any>): Promis
         `Canvas request failed at ${path}`
     })
   }
-}
-
-async function canvasFetchCourse(courseId: number): Promise<CanvasEnrollment['course'] | null> {
-  try {
-    const course = await canvasFetch<CanvasEnrollment['course']>(`/api/v1/courses/${courseId}`, {
-      include: ['course_image']
-    })
-    return course || null
-  } catch {
-    return null
-  }
-}
-
-async function hydrateMissingCourses(
-  enrollments: CanvasEnrollmentWithCourse[]
-): Promise<CanvasEnrollmentWithCourse[]> {
-  const missingCourseIds = Array.from(
-    new Set(
-      enrollments
-        .filter((e) => !e.course?.name && e.course_id)
-        .map((e) => Number(e.course_id))
-        .filter((id) => Number.isFinite(id))
-    )
-  )
-
-  if (!missingCourseIds.length) return enrollments
-
-  const fetchedById = new Map<number, CanvasEnrollment['course'] | null>()
-  await Promise.all(
-    missingCourseIds.map(async (courseId) => {
-      fetchedById.set(courseId, await canvasFetchCourse(courseId))
-    })
-  )
-
-  return enrollments.map((enrollment) => {
-    if (enrollment.course?.name || !enrollment.course_id) return enrollment
-    const fetched = fetchedById.get(Number(enrollment.course_id))
-    return fetched ? { ...enrollment, course: fetched } : enrollment
-  })
 }
 
 async function findCanvasUserByEmail(email: string): Promise<CanvasUser | null> {
@@ -500,43 +463,32 @@ export async function getStudentDashboardData(
   const user = await resolveCanvasUser({ canvasLoginId, email })
   if (!user) return emptyStudentDashboard(email, canvasBaseUrl)
 
-  let enrollments: CanvasEnrollmentWithCourse[] = []
-  try {
-    enrollments = await canvasFetch<CanvasEnrollmentWithCourse[]>(
-      `/api/v1/users/${user.id}/enrollments`,
-      {
-        include: ['course'],
-        state: ['active', 'invited'],
-        per_page: 100
-      }
-    )
-  } catch (error: any) {
-    // Some tenants reject array query serialization. Retry with minimal query.
-    if (![400, 422, 500, 502].includes(error?.statusCode)) throw error
-    enrollments = await canvasFetch<CanvasEnrollmentWithCourse[]>(
-      `/api/v1/users/${user.id}/enrollments`,
-      {
-        include: ['course'],
-        per_page: 100
-      }
-    )
-  }
-  enrollments = await hydrateMissingCourses(enrollments || [])
+  // enrollment_state=active is Canvas's current-course list. The enrollments
+  // API also returns old courses whose enrollment was never concluded.
+  const listedCourses = await canvasFetch<CanvasDashboardCourse[]>(
+    `/api/v1/users/${user.id}/courses`,
+    {
+      enrollment_state: 'active',
+      include: ['total_scores', 'course_image'],
+      per_page: 100
+    }
+  )
 
-  const courses: StudentDashboardData['courses'] = (enrollments || []).map((enrollment) => ({
-    id: enrollment.course?.id ?? enrollment.course_id ?? null,
-    name: enrollment.course?.name || 'Unknown course',
-    code: enrollment.course?.course_code || null,
-    url: enrollment.course?.html_url || null,
-    imageUrl: enrollment.course?.image_download_url || enrollment.course?.image || null,
-    currentScore: parseNumber(
-      enrollment.grades?.current_score ?? enrollment.computed_current_score ?? null
-    ),
-    currentGrade:
-      enrollment.grades?.current_grade ??
-      enrollment.computed_current_grade ??
-      null
-  }))
+  const courses: StudentDashboardData['courses'] = (listedCourses || []).map((course) => {
+    const enrollment =
+      course.enrollments?.find((item) => item.type === 'student') ||
+      course.enrollments?.[0]
+
+    return {
+      id: course.id ?? null,
+      name: course.name || 'Unknown course',
+      code: course.course_code || null,
+      url: course.html_url || `${canvasBaseUrl}/courses/${course.id}`,
+      imageUrl: course.image_download_url || null,
+      currentScore: parseNumber(enrollment?.computed_current_score ?? null),
+      currentGrade: enrollment?.computed_current_grade ?? null
+    }
+  })
 
   const averageGrade = computeAverageGrade(courses)
   const currentGpa = estimateCurrentGpa(courses)
@@ -552,15 +504,26 @@ export async function getStudentDashboardData(
   endOfWeek.setDate(endOfWeek.getDate() + 6)
   endOfWeek.setHours(23, 59, 59, 999)
 
+  // These routes 403/404 for another user id. as_user_id reads them as the student.
+  // Conversations without it returns the API token owner's inbox.
+  const asStudent = { as_user_id: user.id }
   const [plannerItemsResult, todoResult, messagesResult, calendarResult] = await Promise.allSettled([
-    canvasFetch<CanvasPlannerItem[]>(`/api/v1/users/${user.id}/planner/items`, {
+    canvasFetch<CanvasPlannerItem[]>(`/api/v1/users/self/planner/items`, {
+      ...asStudent,
       start_date: startOfWeek.toISOString(),
       end_date: endOfWeek.toISOString(),
       per_page: 100
     }),
-    canvasFetch<CanvasTodo[]>(`/api/v1/users/${user.id}/todo`, { per_page: 50 }),
-    canvasFetch<CanvasConversation[]>(`/api/v1/conversations`, { scope: 'unread', per_page: 10 }),
-    canvasFetch<CanvasUpcomingEvent[]>(`/api/v1/users/${user.id}/upcoming_events`, { per_page: 10 })
+    canvasFetch<CanvasTodo[]>(`/api/v1/users/self/todo`, { ...asStudent, per_page: 50 }),
+    canvasFetch<CanvasConversation[]>(`/api/v1/conversations`, {
+      ...asStudent,
+      scope: 'unread',
+      per_page: 10
+    }),
+    canvasFetch<CanvasUpcomingEvent[]>(`/api/v1/users/self/upcoming_events`, {
+      ...asStudent,
+      per_page: 10
+    })
   ])
 
   const plannerItems = plannerItemsResult.status === 'fulfilled' ? plannerItemsResult.value : []
