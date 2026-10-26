@@ -384,6 +384,7 @@ import {
   resolveHomeSliderHref,
   type HomeSliderLinkType,
 } from '@shared/homeSlider'
+import { toBrowserMediaUrl } from '@shared/mediaUrls'
 import type { DashboardSliderItem } from '~/composables/useDashboardContent'
 import { mediaIsImage } from '~/utils/dashboardMedia'
 
@@ -611,18 +612,9 @@ function mediaLabel(asset: any) {
   return alt || filename || `Asset #${asset?.id}`
 }
 
-function pagesMediaBrowserUrl(raw: unknown): string | null {
-  if (typeof raw !== 'string') return null
-  const input = raw.trim()
-  if (!input) return null
-  const match = input.match(/\/api\/connect-pages-media\/file\/([^/?#]+)/i)
-  if (match?.[1]) return `/api/connect-pages-media/file/${encodeURIComponent(match[1])}`
-  return input
-}
-
 function mediaPreviewUrl(image: any): string | null {
   if (!image || typeof image !== 'object') return null
-  return pagesMediaBrowserUrl(image._normalizedUrl || image.url || image.file?.url || null)
+  return toBrowserMediaUrl(image._normalizedUrl || image.url || image.file?.url || null)
 }
 
 function slidePreviewUrl(item: DashboardSliderItem): string | null {
