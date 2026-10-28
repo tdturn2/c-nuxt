@@ -7,6 +7,9 @@ describe('toBrowserMediaUrl', () => {
       '/api/connect-user-media/file/jeff.jpg',
     )
     expect(toBrowserMediaUrl('/api/media/file/legacy.png')).toBe('/api/connect-user-media/file/legacy.png')
+    expect(toBrowserMediaUrl('http://localhost:3003/api/connect-marketplace-media/file/table.jpg')).toBe(
+      '/api/connect-marketplace-media/file/table.jpg',
+    )
   })
 
   it('adds a display width only for resizable media proxies', () => {

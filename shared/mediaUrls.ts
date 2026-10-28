@@ -21,10 +21,13 @@ export function toBrowserMediaUrl(urlRaw: unknown): string | null {
   const comicsMedia = input.match(/\/api\/connect-keeners-comics\/file\/([^/?#]+)/i)
   if (comicsMedia?.[1]) return `/api/connect-keeners-comics/file/${comicsMedia[1]}`
 
+  const marketplaceMedia = input.match(/\/api\/connect-marketplace-media\/file\/([^/?#]+)/i)
+  if (marketplaceMedia?.[1]) return `/api/connect-marketplace-media/file/${marketplaceMedia[1]}`
+
   return input
 }
 
-const RESIZABLE_MEDIA = /\/api\/(?:connect-user-media|connect-pages-media)\/file\//i
+const RESIZABLE_MEDIA = /\/api\/(?:connect-user-media|connect-pages-media|connect-marketplace-media)\/file\//i
 
 /** Same-origin media URL plus a display width. The file route resizes and caches that variant. */
 export function mediaDisplayUrl(urlRaw: unknown, width?: number): string | null {

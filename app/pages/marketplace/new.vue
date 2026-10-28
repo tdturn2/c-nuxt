@@ -34,13 +34,7 @@
 
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Description <span class="text-red-500">*</span></label>
-              <textarea
-                v-model="form.description"
-                required
-                rows="5"
-                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[rgba(13,94,130,1)] focus:outline-none focus:ring-1 focus:ring-[rgba(13,94,130,1)]"
-                placeholder="Describe condition, pickup details, etc."
-              />
+              <ConnectFaqAnswerEditor v-model="descriptionDoc" />
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -84,14 +78,24 @@
 
           <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm space-y-4">
             <h2 class="text-lg font-semibold text-gray-900">Images</h2>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              class="block w-full text-sm text-gray-700"
-              @change="onFilesSelected"
-            />
-            <p class="text-xs text-gray-500">Upload up to 10 images.</p>
+            <div>
+              <input
+                id="marketplace-images"
+                type="file"
+                accept="image/*"
+                multiple
+                class="sr-only"
+                @change="onFilesSelected"
+              />
+              <label
+                for="marketplace-images"
+                class="inline-flex cursor-pointer items-center gap-2 rounded-md bg-[rgba(13,94,130,1)] px-3 py-2 text-sm font-medium text-white hover:bg-[rgba(10,69,92,1)]"
+              >
+                <UIcon name="i-heroicons-photo" class="h-4 w-4" />
+                Choose images
+              </label>
+              <p class="mt-2 text-xs text-gray-500">Upload up to 10 images.</p>
+            </div>
 
             <div v-if="selectedFiles.length" class="space-y-2">
               <div
@@ -121,16 +125,22 @@
 </template>
 
 <script setup lang="ts">
+import {
+  emptyMarketplaceDescriptionDoc,
+  marketplaceDescriptionText,
+  marketplaceDescriptionToHtml,
+} from '~/utils/marketplaceDescription'
+
 const router = useRouter()
 
 const form = ref({
   title: '',
-  description: '',
   category: '',
   listingType: 'sale',
   priceType: 'amount' as 'amount' | 'free' | 'contact',
   price: null as number | null,
 })
+const descriptionDoc = ref(emptyMarketplaceDescriptionDoc())
 
 const selectedFiles = ref<Array<{ id: string; file: File }>>([])
 const uploadedMediaIds = ref<number[]>([])
@@ -155,6 +165,7 @@ function onFilesSelected(event: Event) {
     file,
   }))
   uploadedMediaIds.value = []
+  input.value = ''
 }
 
 function fileStatus(index: number): string {
@@ -189,7 +200,8 @@ async function onSubmit() {
   submitting.value = true
 
   try {
-    if (!form.value.title.trim() || !form.value.description.trim() || !form.value.category) {
+    const description = marketplaceDescriptionToHtml(descriptionDoc.value)
+    if (!form.value.title.trim() || !marketplaceDescriptionText(description) || !form.value.category) {
       throw new Error('Please complete all required fields.')
     }
     if (showListingType.value && !form.value.listingType) {
@@ -205,7 +217,7 @@ async function onSubmit() {
 
     const payload: Record<string, unknown> = {
       title: form.value.title.trim(),
-      description: form.value.description.trim(),
+      description,
       category: form.value.category,
       listingType: showListingType.value ? form.value.listingType : 'sale',
       priceType: form.value.priceType,

@@ -3,14 +3,16 @@
     <LeftColumn />
     <main class="flex-1 min-w-0 overflow-y-auto">
       <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 class="text-2xl font-bold text-gray-900 mb-2">Marketplace</h1>
-        <p class="text-sm text-gray-600 mb-6">
-          Buy, sell, and rent within the Asbury community.
-        </p>
-        <div class="mb-4 flex justify-end">
+        <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 class="text-2xl font-bold text-gray-900">Marketplace</h1>
+            <p class="mt-1 text-sm text-gray-600">
+              Buy, sell, and rent within the Asbury community.
+            </p>
+          </div>
           <NuxtLink
             to="/marketplace/new"
-            class="rounded-md bg-[rgba(13,94,130,1)] px-3 py-2 text-sm font-medium text-white hover:bg-[rgba(10,69,92,1)] transition-colors"
+            class="inline-flex w-fit rounded-md bg-[rgba(13,94,130,1)] px-3 py-2 text-sm font-medium text-white hover:bg-[rgba(10,69,92,1)] transition-colors"
           >
             Create Listing
           </NuxtLink>
@@ -80,47 +82,94 @@
             <article
               v-for="listing in docs"
               :key="listing.id"
-              class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden"
+              class="flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:border-gray-300 hover:shadow-md"
             >
-              <div class="h-40 bg-gray-100 overflow-hidden flex items-center justify-center">
+              <NuxtLink :to="`/marketplace/${listing.id}`" class="relative block aspect-[4/3] bg-gray-100">
                 <img
-                  v-if="firstMediaUrl(listing)"
-                  :src="firstMediaUrl(listing)!"
+                  v-if="coverImage(listing)"
+                  :src="coverImage(listing)!"
                   :alt="listing.title"
-                  class="w-full h-full object-cover"
+                  class="h-full w-full object-cover"
                 />
-                <span v-else class="text-gray-400 text-sm">No image</span>
+                <div v-else class="flex h-full w-full items-center justify-center bg-gradient-to-br from-gray-50 to-gray-200">
+                  <UIcon name="i-heroicons-photo" class="h-10 w-10 text-gray-300" />
+                </div>
+                <span class="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-xs font-medium text-gray-800 shadow-sm">
+                  {{ formatListingType(listing.listingType) }}
+                </span>
+                <span
+                  v-if="imageUrls(listing).length > 1"
+                  class="absolute bottom-3 right-3 rounded-full bg-gray-900/75 px-2 py-0.5 text-xs font-medium text-white"
+                >
+                  {{ imageUrls(listing).length }} photos
+                </span>
+              </NuxtLink>
+
+              <div v-if="imageUrls(listing).length > 1" class="flex gap-1.5 overflow-x-auto px-3 pt-3">
+                <img
+                  v-for="(src, index) in imageUrls(listing)"
+                  :key="`${listing.id}-photo-${index}`"
+                  :src="src"
+                  :alt="`${listing.title} photo ${index + 1}`"
+                  class="h-14 w-14 shrink-0 rounded-md object-cover ring-1 ring-gray-200"
+                  :class="index === 0 ? 'ring-2 ring-[rgba(13,94,130,1)]' : ''"
+                />
               </div>
 
-              <div class="p-4">
-                <div class="flex items-start justify-between gap-2">
+              <div class="flex flex-1 flex-col p-4">
+                <div class="flex items-start justify-between gap-3">
                   <NuxtLink :to="`/marketplace/${listing.id}`" class="font-semibold text-gray-900 line-clamp-2 hover:text-[rgba(13,94,130,1)]">
                     {{ listing.title }}
                   </NuxtLink>
-                  <span class="text-xs rounded-full px-2 py-0.5 bg-gray-100 text-gray-600 shrink-0">
-                    {{ formatListingType(listing.listingType) }}
-                  </span>
+                  <p class="shrink-0 text-base font-semibold text-[rgba(13,94,130,1)]">{{ formatPrice(listing) }}</p>
                 </div>
-                <p class="mt-2 text-sm text-gray-600 line-clamp-3">{{ listing.description }}</p>
+                <p class="mt-1 text-xs font-medium uppercase tracking-wide text-gray-500">{{ formatCategory(listing.category) }}</p>
+                <p class="mt-2 text-sm text-gray-600 line-clamp-2">{{ descriptionPreview(listing.description) }}</p>
 
-                <div class="mt-3 flex items-center justify-between">
-                  <p class="font-semibold text-[rgba(13,94,130,1)]">{{ formatPrice(listing) }}</p>
-                  <p class="text-xs text-gray-500 capitalize">{{ listing.category }}</p>
-                </div>
-                <div v-if="isOwner(listing)" class="mt-3 flex items-center justify-end gap-2">
+                <div class="mt-4 flex items-center justify-between gap-2 border-t border-gray-100 pt-3">
                   <NuxtLink
-                    :to="`/marketplace/${listing.id}/edit`"
-                    class="text-xs rounded border border-gray-300 px-2 py-1 text-gray-700 hover:bg-gray-50"
+                    v-if="authorProfile(listing)"
+                    :to="authorProfile(listing)!"
+                    class="flex min-w-0 items-center gap-2"
                   >
-                    Edit
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 text-xs font-semibold text-gray-600">
+                      <img
+                        v-if="authorAvatar(listing)"
+                        :src="authorAvatar(listing)!"
+                        :alt="authorName(listing)"
+                        class="h-full w-full object-cover"
+                      />
+                      <template v-else>{{ authorInitial(listing) }}</template>
+                    </span>
+                    <span class="min-w-0">
+                      <span class="block truncate text-sm font-medium text-gray-900 hover:text-[rgba(13,94,130,1)]">{{ authorName(listing) }}</span>
+                      <span v-if="formatPosted(listing.createdAt)" class="block text-xs text-gray-500">{{ formatPosted(listing.createdAt) }}</span>
+                    </span>
                   </NuxtLink>
-                  <button
-                    type="button"
-                    class="text-xs rounded border border-red-200 px-2 py-1 text-red-700 hover:bg-red-50"
-                    @click="deleteListing(listing.id)"
-                  >
-                    Delete
-                  </button>
+                  <div v-else class="flex min-w-0 items-center gap-2">
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 text-xs font-semibold text-gray-600">
+                      {{ authorInitial(listing) }}
+                    </span>
+                    <span class="min-w-0">
+                      <span class="block truncate text-sm font-medium text-gray-900">{{ authorName(listing) }}</span>
+                      <span v-if="formatPosted(listing.createdAt)" class="block text-xs text-gray-500">{{ formatPosted(listing.createdAt) }}</span>
+                    </span>
+                  </div>
+                  <div v-if="isOwner(listing)" class="flex shrink-0 items-center gap-1">
+                    <NuxtLink
+                      :to="`/marketplace/${listing.id}/edit`"
+                      class="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+                    >
+                      Edit
+                    </NuxtLink>
+                    <button
+                      type="button"
+                      class="rounded border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50"
+                      @click="deleteListing(listing.id)"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
               </div>
             </article>
@@ -153,11 +202,20 @@
 
 <script setup lang="ts">
 import { watchDebounced } from '@vueuse/core'
+import { mediaDisplayUrl } from '@shared/mediaUrls'
+import { marketplaceDescriptionText } from '~/utils/marketplaceDescription'
 
 type MarketplaceMedia = { id: number; url?: string | null } | number
+type MarketplaceAuthor = {
+  id?: number
+  name?: string | null
+  email?: string | null
+  avatar?: { url?: string | null } | number | null
+  avatarConnectUserMedia?: { url?: string | null } | number | null
+}
 type MarketplaceListing = {
   id: number
-  author?: { id?: number } | number
+  author?: MarketplaceAuthor | number
   title: string
   description: string
   priceType: 'amount' | 'free' | 'contact'
@@ -166,6 +224,7 @@ type MarketplaceListing = {
   listingType: 'sale' | 'rent' | 'short_term_rental'
   status?: 'active' | 'sold' | 'archived'
   media?: MarketplaceMedia[] | null
+  createdAt?: string | null
 }
 type MarketplaceResponse = {
   docs: MarketplaceListing[]
@@ -256,11 +315,63 @@ watch(page, () => {
   loadListings()
 })
 
-function firstMediaUrl(listing: MarketplaceListing): string | null {
-  if (!Array.isArray(listing.media) || listing.media.length === 0) return null
-  const first = listing.media[0]
-  if (typeof first === 'number') return null
-  return first.url || null
+function imageUrls(listing: MarketplaceListing): string[] {
+  if (!Array.isArray(listing.media)) return []
+  return listing.media
+    .map((media) => {
+      if (!media || typeof media === 'number') return null
+      return mediaDisplayUrl(media.url, 800)
+    })
+    .filter((url): url is string => Boolean(url))
+}
+
+function coverImage(listing: MarketplaceListing): string | null {
+  return imageUrls(listing)[0] || null
+}
+
+function listingAuthor(listing: MarketplaceListing): MarketplaceAuthor | null {
+  if (!listing.author || typeof listing.author === 'number') return null
+  return listing.author
+}
+
+function authorName(listing: MarketplaceListing): string {
+  return listingAuthor(listing)?.name?.trim() || 'Community member'
+}
+
+function authorInitial(listing: MarketplaceListing): string {
+  return authorName(listing).charAt(0).toUpperCase() || '?'
+}
+
+function authorAvatar(listing: MarketplaceListing): string | null {
+  const author = listingAuthor(listing)
+  if (!author) return null
+  const preferred = author.avatarConnectUserMedia
+  const legacy = author.avatar
+  const raw =
+    (preferred && typeof preferred === 'object' ? preferred.url : null) ||
+    (legacy && typeof legacy === 'object' ? legacy.url : null)
+  return mediaDisplayUrl(raw, 96)
+}
+
+function authorProfile(listing: MarketplaceListing): string | null {
+  const email = listingAuthor(listing)?.email
+  const username = email?.split('@')[0]?.trim()
+  return username ? `/user/${encodeURIComponent(username)}` : null
+}
+
+function formatPosted(value?: string | null): string {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date)
+}
+
+function descriptionPreview(value: string): string {
+  return marketplaceDescriptionText(value)
+}
+
+function formatCategory(category: string): string {
+  return categoryOptions.find((option) => option.value === category)?.label || category
 }
 
 function formatPrice(listing: MarketplaceListing): string {

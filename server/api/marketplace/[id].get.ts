@@ -1,4 +1,5 @@
 import { createError, defineEventHandler, getRouterParam } from 'h3'
+import { toBrowserMediaUrl } from '../../utils/connectApi'
 import { getSSOSession } from '../../utils/ssoAuth'
 
 export default defineEventHandler(async (event) => {
@@ -18,8 +19,8 @@ export default defineEventHandler(async (event) => {
 
     if (Array.isArray(doc?.media)) {
       doc.media = doc.media.map((media: any) => {
-        if (media && typeof media === 'object' && typeof media.url === 'string' && !media.url.startsWith('http')) {
-          media.url = media.url.startsWith('/') ? `${payloadBaseUrl}${media.url}` : `${payloadBaseUrl}/${media.url}`
+        if (media && typeof media === 'object' && typeof media.url === 'string') {
+          media.url = toBrowserMediaUrl(media.url)
         }
         return media
       })

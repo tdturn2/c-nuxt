@@ -1,12 +1,12 @@
 <template>
   <div class="mt-1 overflow-hidden rounded-md border border-gray-300 bg-white">
     <div class="flex flex-wrap gap-0.5 border-b border-gray-200 bg-gray-50 px-1 py-1">
-      <UButton icon="i-lucide-bold" color="neutral" variant="ghost" size="xs" title="Bold" @mousedown.prevent="exec('bold')" />
-      <UButton icon="i-lucide-italic" color="neutral" variant="ghost" size="xs" title="Italic" @mousedown.prevent="exec('italic')" />
-      <UButton icon="i-lucide-underline" color="neutral" variant="ghost" size="xs" title="Underline" @mousedown.prevent="exec('underline')" />
-      <UButton icon="i-lucide-list" color="neutral" variant="ghost" size="xs" title="Bulleted list" @mousedown.prevent="exec('insertUnorderedList')" />
-      <UButton icon="i-lucide-list-ordered" color="neutral" variant="ghost" size="xs" title="Numbered list" @mousedown.prevent="exec('insertOrderedList')" />
-      <UButton icon="i-lucide-link" color="neutral" variant="ghost" size="xs" title="Link" @mousedown.prevent="applyLink" />
+      <UButton type="button" icon="i-lucide-bold" color="neutral" variant="ghost" size="xs" title="Bold" @mousedown.prevent="exec('bold')" />
+      <UButton type="button" icon="i-lucide-italic" color="neutral" variant="ghost" size="xs" title="Italic" @mousedown.prevent="exec('italic')" />
+      <UButton type="button" icon="i-lucide-underline" color="neutral" variant="ghost" size="xs" title="Underline" @mousedown.prevent="exec('underline')" />
+      <UButton type="button" icon="i-lucide-list" color="neutral" variant="ghost" size="xs" title="Bulleted list" @mousedown.prevent="exec('insertUnorderedList')" />
+      <UButton type="button" icon="i-lucide-list-ordered" color="neutral" variant="ghost" size="xs" title="Numbered list" @mousedown.prevent="exec('insertOrderedList')" />
+      <UButton type="button" icon="i-lucide-link" color="neutral" variant="ghost" size="xs" title="Link" @mousedown.prevent="applyLink" />
     </div>
     <div
       ref="fieldRef"

@@ -23,7 +23,11 @@
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-              <textarea v-model="form.description" rows="5" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+              <ConnectFaqAnswerEditor
+                v-if="descriptionReady"
+                :key="descriptionKey"
+                v-model="descriptionDoc"
+              />
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <select v-model="form.category" class="rounded-md border border-gray-300 px-3 py-2 text-sm bg-white">
@@ -80,14 +84,24 @@
             </div>
             <p v-else class="text-sm text-gray-500">No images currently attached.</p>
 
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              class="block w-full text-sm text-gray-700"
-              @change="onFilesSelected"
-            />
-            <p class="text-xs text-gray-500">Add up to 10 total images.</p>
+            <div>
+              <input
+                id="marketplace-edit-images"
+                type="file"
+                accept="image/*"
+                multiple
+                class="sr-only"
+                @change="onFilesSelected"
+              />
+              <label
+                for="marketplace-edit-images"
+                class="inline-flex cursor-pointer items-center gap-2 rounded-md bg-[rgba(13,94,130,1)] px-3 py-2 text-sm font-medium text-white hover:bg-[rgba(10,69,92,1)]"
+              >
+                <UIcon name="i-heroicons-photo" class="h-4 w-4" />
+                Choose images
+              </label>
+              <p class="mt-2 text-xs text-gray-500">Add up to 10 total images.</p>
+            </div>
 
             <div v-if="selectedFiles.length" class="space-y-2">
               <div
@@ -118,6 +132,12 @@
 </template>
 
 <script setup lang="ts">
+import {
+  emptyMarketplaceDescriptionDoc,
+  marketplaceDescriptionDocFromStored,
+  marketplaceDescriptionToHtml,
+} from '~/utils/marketplaceDescription'
+
 const route = useRoute()
 const router = useRouter()
 const id = computed(() => String(route.params.id || ''))
@@ -140,13 +160,15 @@ const { data, pending, error } = await useLazyFetch<MarketplaceListing>(() => `/
 
 const form = ref({
   title: '',
-  description: '',
   category: 'other',
   listingType: 'sale' as 'sale' | 'rent' | 'short_term_rental',
   priceType: 'amount' as 'amount' | 'free' | 'contact',
   price: null as number | null,
   status: 'active' as 'active' | 'sold' | 'archived',
 })
+const descriptionDoc = ref(emptyMarketplaceDescriptionDoc())
+const descriptionReady = ref(false)
+const descriptionKey = ref(0)
 
 const showListingType = computed(() => form.value.category === 'housing')
 const mediaDraft = ref<Array<{ id: number; filename?: string; url?: string }>>([])
@@ -167,13 +189,15 @@ watch(data, (doc) => {
 
   form.value = {
     title: doc.title || '',
-    description: doc.description || '',
     category: doc.category || 'other',
     listingType: doc.listingType || 'sale',
     priceType: doc.priceType || 'amount',
     price: typeof doc.price === 'number' ? doc.price : null,
     status: doc.status || 'active',
   }
+  descriptionDoc.value = marketplaceDescriptionDocFromStored(doc.description)
+  descriptionKey.value += 1
+  descriptionReady.value = true
   mediaDraft.value = existingMedia
   selectedFiles.value = []
   uploadedMediaIds.value = []
@@ -211,6 +235,7 @@ function onFilesSelected(event: Event) {
     file,
   }))
   uploadedMediaIds.value = []
+  input.value = ''
 }
 
 function moveSelectedFile(index: number, direction: -1 | 1) {
@@ -269,6 +294,7 @@ async function onSubmit() {
       method: 'PATCH',
       body: {
         ...form.value,
+        description: marketplaceDescriptionToHtml(descriptionDoc.value),
         listingType: showListingType.value ? form.value.listingType : 'sale',
         price: form.value.priceType === 'amount' ? (form.value.price ?? 0) : null,
         media: mergedMediaIds,
