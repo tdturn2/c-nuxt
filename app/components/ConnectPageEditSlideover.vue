@@ -4,6 +4,7 @@
     :modal="false"
     :ui="{ content: form.layout === 'html' ? 'max-w-4xl w-full' : 'max-w-3xl w-full', body: 'overflow-y-auto min-h-0' }"
     @update:open="(v) => !v && resetEditor()"
+    @after:enter="contentEditorsReady = true"
   >
     <template #header>
       <div class="flex flex-col gap-0.5">
@@ -404,7 +405,6 @@
             </p>
           </summary>
           <div class="border-t border-gray-100 px-4 pb-4 pt-3">
-          <!-- v-if: @tiptap/vue-3 creates the editor in onMounted; if USlideover keeps this in DOM while closed, it was initializing with invalid/empty doc and never picking up loaded content. -->
           <input
             :id="docsImageFileInputId"
             ref="docsImageFileInputRef"
@@ -415,32 +415,137 @@
             aria-hidden="true"
             @change="onDocsImageFileInputChange"
           >
-          <UEditor
-            ref="docsBodyUEditorRef"
-            v-if="editorOpen"
-            :key="`docs-ue-${editingId ?? 'new'}-${docsEditorMountKey}`"
-            v-slot="{ editor }"
-            v-model="docsBodyEditorModel"
-            content-type="json"
-            :extensions="editorExtensions"
-            placeholder="Write page content…"
-            class="w-full min-h-[220px] connect-docs-editor"
-          >
-            <UEditorToolbar
-              :editor="editor"
-              :items="editorToolbarItems"
-              class="border-b border-gray-200 sticky top-0 inset-x-0 bg-white/95 backdrop-blur z-10 overflow-x-auto"
-            />
-            <UEditorDragHandle :editor="editor" />
-          </UEditor>
+          <div class="mb-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              class="rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-800 hover:bg-gray-50"
+              @click="addContentSection()"
+            >
+              Add content
+            </button>
+            <button
+              type="button"
+              class="rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-800 hover:bg-gray-50"
+              @click="addFaqSection()"
+            >
+              Add FAQ
+            </button>
+          </div>
+          <div v-if="editorOpen" :key="docsEditorMountKey" class="space-y-4">
+            <section
+              v-for="(section, index) in pageSections"
+              :key="section.uid"
+              class="rounded-lg border border-gray-200 bg-gray-50"
+            >
+              <div class="flex items-center justify-between gap-2 border-b border-gray-200 px-3 py-2">
+                <p class="text-sm font-semibold text-gray-900">
+                  {{ section.type === 'faq' ? 'FAQ' : 'Content' }}
+                </p>
+                <div class="flex shrink-0 gap-1">
+                  <button
+                    type="button"
+                    class="rounded-md px-2 py-1 text-xs font-medium text-gray-700 hover:bg-white disabled:opacity-40"
+                    :disabled="index === 0"
+                    @click="moveSection(index, -1)"
+                  >
+                    Up
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded-md px-2 py-1 text-xs font-medium text-gray-700 hover:bg-white disabled:opacity-40"
+                    :disabled="index === pageSections.length - 1"
+                    @click="moveSection(index, 1)"
+                  >
+                    Down
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded-md px-2 py-1 text-xs font-medium text-red-700 hover:bg-white"
+                    @click="removeSection(index)"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+              <div class="space-y-3 p-3">
+                <ConnectContentSectionEditor
+                  v-if="section.type === 'content' && contentEditorsReady"
+                  :doc="section.doc"
+                  :toolbar-items="editorToolbarItems"
+                  @update:doc="section.doc = $event"
+                  @focus="activeSectionEditor = $event"
+                />
+                <template v-else>
+                  <label class="block text-xs font-medium text-gray-700">
+                    Header
+                    <input
+                      v-model="section.header"
+                      type="text"
+                      autocomplete="off"
+                      placeholder="Optional, such as Ceremony"
+                      class="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-base font-semibold text-gray-900"
+                    >
+                  </label>
+                  <div
+                    v-for="(item, itemIndex) in section.items"
+                    :key="item.uid || `${section.uid}-${itemIndex}`"
+                    class="space-y-2 rounded-lg border border-gray-200 bg-white p-3"
+                  >
+                    <div class="flex items-start justify-between gap-2">
+                      <label class="block min-w-0 flex-1 text-xs font-medium text-gray-700">
+                        Question
+                        <input
+                          :value="item.question"
+                          type="text"
+                          autocomplete="off"
+                          class="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-base font-semibold text-gray-900"
+                          @input="onFaqQuestionInput(item, $event)"
+                        >
+                      </label>
+                      <button
+                        type="button"
+                        class="mt-5 shrink-0 rounded-md px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
+                        @click="removeFaqItem(section, itemIndex)"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <div class="block text-xs font-medium text-gray-700">
+                      Answer
+                      <ConnectFaqAnswerEditor
+                        :model-value="item.answerDoc"
+                        :fallback-answer="item.answer"
+                        @update:model-value="item.answerDoc = $event"
+                      />
+                    </div>
+                    <label class="block text-xs font-medium text-gray-700">
+                      Anchor
+                      <input
+                        v-model="item.id"
+                        type="text"
+                        placeholder="optional, for a link to this question"
+                        class="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+                      >
+                    </label>
+                  </div>
+                  <button
+                    type="button"
+                    class="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-800 hover:bg-gray-50"
+                    @click="addFaqItem(section)"
+                  >
+                    Add question
+                  </button>
+                </template>
+              </div>
+            </section>
+          </div>
           <div class="mt-3 space-y-2">
             <details class="rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
-              <summary class="cursor-pointer text-xs font-semibold text-gray-700">Special blocks in content (videos, Vimeo, FAQ, forms)</summary>
+              <summary class="cursor-pointer text-xs font-semibold text-gray-700">Special blocks in content (videos, Vimeo, forms)</summary>
               <p class="mt-2 text-xs text-gray-600 leading-relaxed">
-                Use <code class="text-[11px]">@connect-faq</code> JSON (below) for FAQ-style accordions with plain-text answers.
+                Use <strong class="font-semibold text-gray-800">Add content</strong> or <strong class="font-semibold text-gray-800">Add FAQ</strong>. An FAQ section can have a header, such as Ceremony.
                 Video lists and other embeds remain <strong class="font-semibold text-gray-800">paragraph text</strong> (<code class="text-[11px]">@connect-…</code>).
                 Pasting multi-line JSON may split across lines; on <strong class="font-semibold text-gray-800">Save</strong> it is merged into valid JSON.
-                Optional FAQ <code class="text-[11px]">id</code> enables deep links (<code class="text-[11px]">/your/page#billing</code>).
               </p>
               <p class="mt-2 text-[11px] font-semibold text-gray-700">Video list</p>
               <pre class="mt-1 text-[11px] leading-snug overflow-auto max-h-32 whitespace-pre-wrap rounded border border-gray-200 bg-white p-2">@connect-videos [{"title":"Welcome","vimeoId":"123456789"}]</pre>
@@ -448,18 +553,6 @@
               <pre class="mt-1 text-[11px] leading-snug overflow-auto max-h-24 whitespace-pre-wrap rounded border border-gray-200 bg-white p-2">@connect-vimeo-video {"title":"Welcome","vimeoId":"123456789"}</pre>
               <p class="mt-3 text-[11px] font-semibold text-gray-700">Vimeo collection (bottom-right resizable iframe)</p>
               <pre class="mt-1 text-[11px] leading-snug overflow-auto max-h-24 whitespace-pre-wrap rounded border border-gray-200 bg-white p-2">@connect-vimeo-collection {"title":"MDiv Video Library","url":"https://vimeo.com/showcase/1234567"}</pre>
-              <p class="mt-3 text-[11px] font-semibold text-gray-700">FAQ accordion (plain text JSON — legacy)</p>
-              <pre class="mt-1 text-[11px] leading-snug overflow-auto max-h-40 whitespace-pre-wrap rounded border border-gray-200 bg-white p-2">@connect-faq [
-  {
-  "question": "Who can use this?",
-  "answer": "Anyone with access.\n\nSecond paragraph if you use a blank line.",
-  "id": "who"
-  },
-  {
-  "question": "Where do I go for help?",
-  "answer": "See the IT portal."
-  }
-]</pre>
               <p class="mt-3 text-[11px] font-semibold text-gray-700">Inline form embed</p>
               <pre class="mt-1 text-[11px] leading-snug overflow-auto max-h-24 whitespace-pre-wrap rounded border border-gray-200 bg-white p-2">@connect-form {"slug":"new-student-intake"}</pre>
             </details>
@@ -531,8 +624,8 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, unref, watch } from 'vue'
-import { TableKit } from '@tiptap/extension-table'
+import { shallowRef } from 'vue'
+import type { Editor } from '@tiptap/vue-3'
 import { fetchAllConnectPages, getConnectPageBreadcrumbLabel } from '~/composables/useConnectPagesTree'
 import { CONNECT_PAGE_CATEGORIES, type ConnectPageCategory } from '~/composables/useConnectPagesTree'
 import { buildPagePathMap } from '~/composables/useConnectPagesTree'
@@ -543,6 +636,14 @@ import {
   connectMagicMergeSeparator,
   isConnectJsonMagic,
 } from '~/utils/connectMagicBlocks'
+import {
+  connectFaqMagicToAccordion,
+  lexicalChildrenToPageSections,
+  sectionsToTipTapDoc,
+  type ConnectFaqItem,
+  type ConnectFaqSection,
+  type ConnectPageSection,
+} from '~/utils/connectFaq'
 import {
   lexicalAccordionToTipTap,
   tipTapAccordionToLexical,
@@ -796,18 +897,8 @@ const docsImageFileInputId = useId()
 const docsImageFileInputRef = ref<HTMLInputElement | null>(null)
 const docsImageUploadPending = ref(false)
 
-const editorExtensions = [
-  TableKit.configure({
-    table: {
-      resizable: true,
-      allowTableNodeSelection: true,
-    },
-  }),
-]
-
 function runTableCommand(command: string, attrs?: Record<string, unknown>) {
-  const inst = docsBodyUEditorRef.value as any
-  const editor = inst?.editor != null ? unref(inst.editor) : null
+  const editor = activeSectionEditor.value
   if (!editor || editor.isDestroyed) return
   const chain = editor.chain().focus()
   const fn = chain[command]
@@ -893,8 +984,38 @@ const INITIAL_TIPTAP_DOC = {
   content: [{ type: 'paragraph', content: [] }],
 } as const
 
+function emptyContentSection(): ConnectPageSection {
+  return {
+    type: 'content',
+    uid: `content-${Math.random().toString(36).slice(2, 10)}`,
+    doc: JSON.parse(JSON.stringify(INITIAL_TIPTAP_DOC)),
+  }
+}
+
+function emptyFaqSection(): ConnectFaqSection {
+  return {
+    type: 'faq',
+    uid: `faq-${Math.random().toString(36).slice(2, 10)}`,
+    header: '',
+    items: [{
+      question: '',
+      answer: '',
+      id: '',
+      uid: `q-${Math.random().toString(36).slice(2, 10)}`,
+    }],
+  }
+}
+
+const contentEditorsReady = ref(false)
+
 watch(editorOpen, (open) => {
-  if (!open) return
+  if (!open) {
+    contentEditorsReady.value = false
+    return
+  }
+  void nextTick(() => {
+    if (editorOpen.value) contentEditorsReady.value = true
+  })
   if (props.canManage) refreshConnectPagesMedia()
   if (!props.sectionOptions) connectUserFetch.execute()
   refreshEmployees()
@@ -910,7 +1031,8 @@ const form = ref<{ title: string; slug: string; parentId: string; sectionId: str
   navCategory: '',
   layout: 'standard',
 })
-const contentTipTap = ref<any>(JSON.parse(JSON.stringify(INITIAL_TIPTAP_DOC)))
+const pageSections = ref<ConnectPageSection[]>([emptyContentSection()])
+const activeSectionEditor = shallowRef<Editor | null>(null)
 const customHtml = ref('')
 const htmlPreviewDoc = computed(() => {
   const inner = customHtml.value.trim() || '<p style="color:#6b7280;font-family:system-ui,sans-serif">Nothing to preview yet.</p>'
@@ -918,8 +1040,6 @@ const htmlPreviewDoc = computed(() => {
 })
 /** Bumps when opening the slide-over so UEditor remounts with the loaded TipTap doc (avoids stale ProseMirror state). */
 const docsEditorMountKey = ref(0)
-/** Nuxt UI `Editor` exposes `editor` (TipTap instance); used to force `setContent` after mount (see watch below). */
-const docsBodyUEditorRef = ref<any>(null)
 const savePending = ref(false)
 const saveError = ref<string | null>(null)
 
@@ -932,7 +1052,8 @@ const contactSearch = ref('')
 function clearEditorDraft() {
   editingId.value = null
   form.value = { title: '', slug: '', parentId: '', sectionId: '', navCategory: '', layout: 'standard' }
-  contentTipTap.value = JSON.parse(JSON.stringify(INITIAL_TIPTAP_DOC))
+  pageSections.value = [emptyContentSection()]
+  activeSectionEditor.value = null
   customHtml.value = ''
   contactsHeading.value = ''
   contactIds.value = []
@@ -1004,52 +1125,6 @@ function extractLexicalFromConnectPageDoc(doc: any): any | null {
   return null
 }
 
-/** TipTap/prose mirror + UEditor choke on reactive proxies and some codeBlock payloads; always pass a plain JSON tree. */
-function plainTipTapJsonClone(doc: unknown): any {
-  return JSON.parse(JSON.stringify(doc))
-}
-
-/**
- * ProseMirror throws on `{ type: 'text', text: '' }` (RangeError: Empty text nodes are not allowed).
- * Also drop custom accordion nodes until TipTap schema registers them (unknown types blank the editor).
- */
-function sanitizeTipTapJsonForProseMirror(input: unknown): any {
-  const unknownBlockTypes = new Set([
-    'connectAccordion',
-    'connectAccordionItem',
-    'connectAccordionItemTitle',
-    'connectAccordionItemBody',
-  ])
-  const walk = (n: any): any => {
-    if (n == null || typeof n !== 'object') return n
-    if (n.type === 'text') {
-      const t = n.text != null ? String(n.text) : ''
-      if (t.length === 0) return null
-      return { ...n, text: t }
-    }
-    if (Array.isArray(n)) return n.map(walk).filter((x) => x != null)
-    if (typeof n.type === 'string' && unknownBlockTypes.has(n.type)) return null
-    const out: any = { ...n }
-    if (Array.isArray(n.content)) out.content = n.content.map(walk).filter((x: any) => x != null)
-    return out
-  }
-  return walk(JSON.parse(JSON.stringify(input)))
-}
-
-/**
- * Nuxt UI `UEditor` forwards `modelValue` into `useEditor({ content })`. A Vue reactive proxy there often
- * prevents ProseMirror from building the document (blank editor). This computed always yields a plain JSON
- * clone for the wrapper while `contentTipTap` stays the canonical ref for save / collapse logic.
- */
-const docsBodyEditorModel = computed({
-  get() {
-    return sanitizeTipTapJsonForProseMirror(plainTipTapJsonClone(contentTipTap.value ?? INITIAL_TIPTAP_DOC))
-  },
-  set(v: any) {
-    contentTipTap.value = v
-  },
-})
-
 function tipTapDocHasMeaningfulText(doc: any): boolean {
   const walk = (nodes: any[] | undefined): boolean => {
     if (!Array.isArray(nodes)) return false
@@ -1092,27 +1167,26 @@ async function openEdit(p: ConnectPage) {
     ? p.contacts.map((c: any) => (typeof c === 'object' && c ? String(c.id ?? '') : String(c ?? ''))).filter((v: string) => v.length > 0)
     : []
 
-  let tipTapDoc: any = JSON.parse(JSON.stringify(INITIAL_TIPTAP_DOC))
   try {
     const full = await $fetch<any>(`/api/connect-pages/${encodeURIComponent(String(p.id))}`, {
       query: { depth: 2 },
     })
     const lexical = extractLexicalFromConnectPageDoc(full)
-    tipTapDoc = lexical ? lexicalToTipTap(lexical) : JSON.parse(JSON.stringify(INITIAL_TIPTAP_DOC))
+    if (lexical) lexicalToTipTap(lexical)
     const layout = String(full?.layout || p.layout || 'standard').toLowerCase() === 'html' ? 'html' : 'standard'
     form.value.layout = layout
     customHtml.value = typeof full?.customHtml === 'string' ? full.customHtml : (typeof p.customHtml === 'string' ? p.customHtml : '')
   } catch {
     const lexical = extractLexicalFromConnectPageDoc(p)
-    tipTapDoc = lexical ? lexicalToTipTap(lexical) : JSON.parse(JSON.stringify(INITIAL_TIPTAP_DOC))
+    if (lexical) lexicalToTipTap(lexical)
     form.value.layout = String(p.layout || 'standard').toLowerCase() === 'html' ? 'html' : 'standard'
     customHtml.value = typeof p.customHtml === 'string' ? p.customHtml : ''
   }
-  if (!tipTapDocHasMeaningfulText(tipTapDoc)) {
+  if (!pageSectionsHaveBody(pageSections.value)) {
     const fallback = extractLexicalFromConnectPageDoc(p)
-    if (fallback) tipTapDoc = lexicalToTipTap(fallback)
+    if (fallback) lexicalToTipTap(fallback)
   }
-  contentTipTap.value = plainTipTapJsonClone(tipTapDoc)
+  if (!pageSections.value.length) pageSections.value = [emptyContentSection()]
   docsEditorMountKey.value += 1
   editorOpen.value = true
   if (props.syncRouteQuery) {
@@ -1232,6 +1306,10 @@ function lexicalToTipTap(lexical: any): any {
        * setContent fail or render blank, which wipes the whole editor. Use a normal paragraph so
        * authors always see and edit the magic line; save still collapses to Lexical `code` in Payload.
        */
+      if (/^\s*@connect-faq\b/i.test(text)) {
+        const accordion = connectFaqMagicToAccordion(text)
+        if (accordion) return [accordion]
+      }
       if (/^\s*@connect-(faq|videos)\b/i.test(text)) {
         return [
           {
@@ -1293,6 +1371,11 @@ function lexicalToTipTap(lexical: any): any {
     }
 
     if (node.type === 'paragraph') {
+      const plain = lexicalPlainFromNodes(node.children || []).trim()
+      if (/^\s*@connect-faq\b/i.test(plain)) {
+        const accordion = connectFaqMagicToAccordion(plain)
+        if (accordion) return [accordion]
+      }
       const content = (node.children || []).flatMap(convert)
       return [{ type: 'paragraph', content: content.length ? content : [] }]
     }
@@ -1347,27 +1430,24 @@ function lexicalToTipTap(lexical: any): any {
     return []
   }
 
-  const content = lexical.root.children.flatMap(convert)
-  return {
-    type: 'doc',
-    content: content.length ? content : [{ type: 'paragraph', content: [] }],
-  }
-}
+  pageSections.value = lexicalChildrenToPageSections(
+    lexical.root.children,
+    lexicalNodeFaqPlain,
+    convert,
+    connectMagicMergeSeparator,
+  )
+  if (!pageSections.value.length) pageSections.value = [emptyContentSection()]
+  return sectionsToTipTapDoc(pageSections.value)
 
-function tipTapParagraphPlainText(node: any): string {
-  if (!node || node.type !== 'paragraph') return ''
-  const parts: string[] = []
-  const walk = (nodes: any[] | undefined) => {
-    if (!Array.isArray(nodes)) return
-    for (const x of nodes) {
-      if (!x) continue
-      if (x.type === 'text') parts.push(x.text || '')
-      else if (x.type === 'hardBreak') parts.push('\n')
-      else if (Array.isArray(x.content)) walk(x.content)
+  function lexicalNodeFaqPlain(node: any): string | null {
+    if (!node) return null
+    if (node.type === 'code' || node.type === 'paragraph' || node.type === 'inlineCode') {
+      const fromField = typeof node.code === 'string' ? node.code : ''
+      const fromChildren = lexicalPlainFromNodes(node.children || [])
+      return (fromField || fromChildren).replace(/\r\n/g, '\n').trim()
     }
+    return null
   }
-  walk(node.content)
-  return parts.join('')
 }
 
 /** Plain text for @connect-* paragraphs — ignore hardBreaks the editor inserts at wrap points. */
@@ -1711,7 +1791,7 @@ function tipTapToLexical(tipTap: any): any {
 }
 
 const lexicalJsonPretty = computed(() => {
-  const lexical = tipTapToLexical(contentTipTap.value)
+  const lexical = tipTapToLexical(sectionsToTipTapDoc(pageSections.value))
   return JSON.stringify(lexical, null, 2)
 })
 
@@ -1824,8 +1904,7 @@ async function onDocsImageFileInputChange(ev: Event) {
       method: 'POST',
       body,
     })
-    const inst = docsBodyUEditorRef.value as any
-    const ed = inst?.editor != null ? unref(inst.editor) : null
+    const ed = activeSectionEditor.value
     if (ed && !ed.isDestroyed) {
       ed.chain().focus().setImage({
         src: res.url,
@@ -1910,6 +1989,63 @@ async function deletePageAsset(a: any) {
 }
 
 
+function onFaqQuestionInput(item: ConnectFaqItem, event: Event) {
+  const el = event.target as HTMLInputElement
+  if (el.value === '' && item.question && document.activeElement !== el) {
+    el.value = item.question
+    return
+  }
+  item.question = el.value
+}
+
+function pageSectionsHaveBody(sections: ConnectPageSection[]) {
+  return sections.some((section) => {
+    if (section.type === 'faq') {
+      return Boolean(section.header.trim()) || section.items.some((item) => (
+        item.question.trim() || item.answer.trim() || item.answerDoc
+      ))
+    }
+    return tipTapDocHasMeaningfulText(section.doc)
+  })
+}
+
+function addContentSection() {
+  pageSections.value = [...pageSections.value, emptyContentSection()]
+}
+
+function addFaqSection() {
+  pageSections.value = [...pageSections.value, emptyFaqSection()]
+}
+
+function moveSection(index: number, delta: number) {
+  const next = index + delta
+  if (next < 0 || next >= pageSections.value.length) return
+  const copy = [...pageSections.value]
+  const [row] = copy.splice(index, 1)
+  if (!row) return
+  copy.splice(next, 0, row)
+  pageSections.value = copy
+}
+
+function removeSection(index: number) {
+  const removed = pageSections.value[index]
+  pageSections.value = pageSections.value.filter((_, itemIndex) => itemIndex !== index)
+  if (removed?.type === 'content') activeSectionEditor.value = null
+}
+
+function addFaqItem(section: ConnectFaqSection) {
+  section.items.push({
+    question: '',
+    answer: '',
+    id: '',
+    uid: `q-${Math.random().toString(36).slice(2, 10)}`,
+  })
+}
+
+function removeFaqItem(section: ConnectFaqSection, index: number) {
+  section.items.splice(index, 1)
+}
+
 async function savePage() {
   saveError.value = null
   if (!form.value.title.trim()) {
@@ -1922,7 +2058,7 @@ async function savePage() {
   }
 
   const docForSave = collapseConnectMagicBlocksInTipTapDoc(
-    JSON.parse(JSON.stringify(contentTipTap.value)) as any,
+    JSON.parse(JSON.stringify(sectionsToTipTapDoc(pageSections.value))) as any,
   )
   const content = tipTapToLexical(docForSave)
   const parent = form.value.parentId ? Number(form.value.parentId) : null
@@ -1995,46 +2131,6 @@ async function deletePage() {
   }
 }
 
-function syncDocsBodyEditorFromState(): boolean {
-  if (!editorOpen.value || contentTipTap.value == null) return false
-  const inst = docsBodyUEditorRef.value as any
-  const ed = inst?.editor != null ? unref(inst.editor) : null
-  if (!ed || ed.isDestroyed) return false
-  let payload: any
-  try {
-    payload = sanitizeTipTapJsonForProseMirror(plainTipTapJsonClone(contentTipTap.value))
-  } catch {
-    return false
-  }
-  try {
-    ed.commands.setContent(payload, { emitUpdate: false })
-    return true
-  } catch (err) {
-    console.error('[ConnectPageEditSlideover] TipTap setContent failed', err)
-    return false
-  }
-}
-
-watch(
-  () => [editorOpen.value, docsEditorMountKey.value, editingId.value] as const,
-  () => {
-    if (!editorOpen.value) return
-    void nextTick(() => {
-      if (syncDocsBodyEditorFromState()) return
-      void nextTick(() => {
-        if (syncDocsBodyEditorFromState()) return
-        requestAnimationFrame(() => {
-          if (syncDocsBodyEditorFromState()) return
-          setTimeout(() => syncDocsBodyEditorFromState(), 0)
-          setTimeout(() => syncDocsBodyEditorFromState(), 50)
-        })
-      })
-    })
-  },
-  { flush: 'post' },
-)
-
-
 defineExpose({
   openEdit,
   openCreate,
@@ -2045,6 +2141,19 @@ defineExpose({
 </script>
 
 <style>
+
+.connect-docs-editor .ProseMirror {
+  min-height: 16rem;
+  padding: 0.75rem 1rem;
+  outline: none;
+}
+.connect-docs-editor .ProseMirror h2 { font-size: 1.25rem; font-weight: 700; margin: 0.75rem 0 0.35rem; }
+.connect-docs-editor .ProseMirror h3 { font-size: 1.1rem; font-weight: 700; margin: 0.65rem 0 0.3rem; }
+.connect-docs-editor .ProseMirror h4 { font-size: 1rem; font-weight: 700; margin: 0.5rem 0 0.25rem; }
+.connect-docs-editor .ProseMirror p { margin: 0.35rem 0; }
+.connect-docs-editor .ProseMirror ul { list-style: disc; padding-left: 1.25rem; margin: 0.35rem 0; }
+.connect-docs-editor .ProseMirror ol { list-style: decimal; padding-left: 1.25rem; margin: 0.35rem 0; }
+.connect-docs-editor .ProseMirror a { color: rgb(13, 94, 130); text-decoration: underline; }
 
 .connect-docs-editor .tableWrapper {
   margin: 1rem 0;

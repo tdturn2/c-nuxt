@@ -321,6 +321,7 @@ import {
   connectMagicMergeSeparator,
   parseConnectMagicJsonArray,
 } from '~/utils/connectMagicBlocks'
+import { buildConnectFaqHtml } from '~/utils/connectFaq'
 import {
   CONNECT_ACCORDION_BODY_LEXICAL_TYPE,
   CONNECT_ACCORDION_ITEM_LEXICAL_TYPE,
@@ -806,57 +807,6 @@ function lexicalToHtml(node: any): string {
       return '<div class="connect-video-collection connect-video-collection--empty not-prose my-2 text-xs text-gray-500">@connect-videos: no valid items</div>'
     }
     return buildConnectVideosCollectionHtml(rows)
-  }
-
-  /**
-   * Paragraph / code starting with `@connect-faq` + JSON array:
-   * `[{ "question": "…", "answer": "…", "id": "optional-anchor" }]`
-   * Optional `id` becomes a fragment target (`#id`) on the `<details>` element.
-   */
-  const buildConnectFaqHtml = (raw: string): string | null => {
-    const t = raw.trim()
-    if (!t.startsWith('@connect-faq')) return null
-    const jsonStr = t.replace(/^@connect-faq\s*/i, '').trim()
-    if (!jsonStr) {
-      return '<div class="connect-faq-block not-prose my-2 text-xs text-amber-800">@connect-faq: empty JSON</div>'
-    }
-    const parsed = parseConnectMagicJsonArray(t)
-    if (!parsed) {
-      return '<div class="connect-faq-block not-prose my-2 text-xs text-red-600">@connect-faq: invalid JSON</div>'
-    }
-    const items: { question: string; answer: string; id: string }[] = []
-    for (const row of parsed) {
-      if (!row || typeof row !== 'object') continue
-      const o = row as Record<string, unknown>
-      const question = String(o.question ?? '').trim()
-      const answer = String(o.answer ?? '').trim()
-      if (!question || !answer) continue
-      let id = typeof o.id === 'string' ? o.id.trim() : ''
-      id = id.replace(/[^a-zA-Z0-9_-]/g, '')
-      items.push({ question, answer, id })
-    }
-    if (!items.length) {
-      return '<div class="connect-faq-block not-prose my-2 text-xs text-gray-500">@connect-faq: no valid items</div>'
-    }
-    const answerToInnerHtml = (answer: string) => {
-      const paras = answer.split(/\n\n+/).map((p) => p.trim()).filter(Boolean)
-      if (paras.length <= 1) {
-        return escapeHtml(answer).replace(/\n/g, '<br>\n')
-      }
-      return paras
-        .map(
-          (p) =>
-            `<p class="mb-2 last:mb-0">${escapeHtml(p).replace(/\n/g, '<br>\n')}</p>`,
-        )
-        .join('')
-    }
-    const blocks = items
-      .map((item) => {
-        const idAttr = item.id ? ` id="${escapeHtml(item.id)}"` : ''
-        return `<details${idAttr} class="group rounded-lg border border-gray-200 bg-white shadow-sm [&_summary::-webkit-details-marker]:hidden open:shadow-md"><summary class="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-50/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(13,94,130,0.35)] focus-visible:ring-offset-1">${escapeHtml(item.question)}</summary><div class="border-t border-gray-100 px-4 py-3 text-sm leading-relaxed text-gray-700">${answerToInnerHtml(item.answer)}</div></details>`
-      })
-      .join('')
-    return `<section class="connect-faq-block not-prose my-6 space-y-2" aria-label="Frequently asked questions">${blocks}</section>`
   }
 
   const buildConnectVimeoVideoBlockHtml = (raw: string): string | null => {
