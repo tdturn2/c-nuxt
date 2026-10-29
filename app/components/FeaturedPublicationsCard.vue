@@ -39,7 +39,10 @@ const { data } = useFetch<{ books?: FeaturedBook[] }>('/api/books/featured', {
   lazy: true,
 })
 
-const featuredBooks = computed<FeaturedBook[]>(() =>
-  Array.isArray(data.value?.books) ? data.value.books : [],
-)
+const HOMEPAGE_FEATURED_LIMIT = 8
+
+const featuredBooks = computed<FeaturedBook[]>(() => {
+  const books = Array.isArray(data.value?.books) ? data.value.books : []
+  return books.slice(0, HOMEPAGE_FEATURED_LIMIT)
+})
 </script>

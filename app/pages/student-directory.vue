@@ -80,16 +80,8 @@
                   </div>
                   <div class="min-w-0 w-full">
                     <h2 class="font-semibold text-gray-900 truncate hover:text-[rgba(13,94,130,1)]">{{ s.name }}</h2>
-                    <p v-if="s.employeeTitle" class="text-sm text-gray-600 truncate">{{ s.employeeTitle }}</p>
-                    <p v-if="s.department" class="text-xs text-gray-500 mt-0.5">{{ departmentLabel(s.department) }}</p>
-                    <p v-if="s.section" class="text-xs text-gray-500">{{ sectionLabel(s.section) }}</p>
+                    <p v-if="placeLabel(s)" class="mt-1 text-sm text-gray-600 truncate">{{ placeLabel(s) }}</p>
                   </div>
-                  <dl v-if="s.phone" class="mt-3 pt-3 border-t border-gray-100 space-y-1 w-full text-left">
-                    <div class="flex items-center gap-2">
-                      <UIcon name="i-heroicons-phone" class="w-4 h-4 text-gray-400 flex-shrink-0" />
-                      <a :href="`tel:${s.phone}`" class="text-sm text-gray-700" @click.stop>{{ s.phone }}</a>
-                    </div>
-                  </dl>
                 </NuxtLink>
               </div>
 
@@ -124,7 +116,7 @@
 
 <script setup lang="ts">
 import { sortDirectoryByLastName } from '@shared/directoryNameSort'
-import { matchesHomeLocationFilter } from '@shared/geo'
+import { formatHomeLocation, matchesHomeLocationFilter } from '@shared/geo'
 import { mediaDisplayUrl } from '@shared/mediaUrls'
 import DirectoryLocationFilters from '~/components/directory/DirectoryLocationFilters.vue'
 
@@ -132,10 +124,6 @@ type StudentRow = {
   id: number
   name: string
   email: string | null
-  employeeTitle: string | null
-  department: string | null
-  section: string | null
-  phone: string | null
   country: string | null
   region: string | null
   city: string | null
@@ -161,24 +149,12 @@ const error = computed(() => {
 const PAGE_SIZE = 10
 const currentPage = ref(1)
 
-const DEPARTMENT_LABELS: Record<string, string> = {
-  '1': 'Academic Affairs',
-  '2': 'EMT',
-  '3': 'Finance and Operations',
-  '4': 'Office of the President',
-  '5': 'Formation',
-  '6': 'Advancement'
-}
-
-function departmentLabel(id: string | null): string {
-  if (!id) return ''
-  return DEPARTMENT_LABELS[id] ?? id
-}
-
-function sectionLabel(slug: string | null): string {
-  if (!slug) return ''
-  if (slug === 'lits') return 'LITS'
-  return slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+function placeLabel(s: StudentRow): string {
+  return formatHomeLocation({
+    country: s.country,
+    region: s.region,
+    city: s.city,
+  })
 }
 
 /** Username from email (e.g. terry.turner@asburyseminary.edu → terry.turner); fallback to id */

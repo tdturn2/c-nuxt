@@ -8,12 +8,21 @@ export default defineEventHandler(async () => {
   const connectApiUrl = resolveConnectApiUrl()
 
   try {
-    const response = await $fetch(`${connectApiUrl}/api/connect-users`, {
-      headers: { 'Content-Type': 'application/json' },
-      query: { limit: 500, depth: 1 },
-    }) as { docs?: any[] }
+    // The user list is paged. A single page of 500 drops later names before the
+    // student opt-in filter runs (analytics counted 31; the first page held 14).
+    const allDocs: any[] = []
+    let page = 1
+    let totalPages = 1
+    do {
+      const response = await $fetch<{ docs?: any[]; totalPages?: number }>(`${connectApiUrl}/api/connect-users`, {
+        headers: { 'Content-Type': 'application/json' },
+        query: { limit: 500, page, depth: 1 },
+      })
+      allDocs.push(...(response?.docs ?? []))
+      totalPages = Number(response?.totalPages) || 1
+      page += 1
+    } while (page <= totalPages && page <= 20)
 
-    const allDocs = response?.docs ?? []
     const roles = (r: unknown): string[] => (Array.isArray(r) ? r.map(String) : [])
     const docs = allDocs.filter((user: any) => {
       const userRoles = roles(user?.roles)
@@ -27,10 +36,6 @@ export default defineEventHandler(async () => {
       id: user.id,
       name: user.name,
       email: user.email ?? null,
-      employeeTitle: user.employeeTitle ?? null,
-      department: user.department ?? null,
-      section: user.section ?? null,
-      phone: user.phone ?? null,
       country: user.country ?? null,
       region: user.region ?? null,
       city: user.city ?? null,

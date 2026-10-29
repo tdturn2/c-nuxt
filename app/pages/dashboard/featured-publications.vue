@@ -49,7 +49,9 @@
             <section class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
               <div class="border-b border-gray-100 px-4 py-3">
                 <h2 class="text-base font-semibold text-gray-900">Homepage featured</h2>
-                <p class="mt-1 text-xs text-gray-500">Order controls the sequence in the homepage right column.</p>
+                <p class="mt-1 text-xs text-gray-500">
+                  {{ saving ? 'Saving...' : 'Adding, removing, and reordering saves automatically. Order controls the homepage right column.' }}
+                </p>
               </div>
               <div v-if="loading" class="px-4 py-6 text-sm text-gray-500">Loading featured publications...</div>
               <div v-else-if="!featuredRows.length" class="px-4 py-6 text-sm text-gray-500">
@@ -196,28 +198,77 @@ function isFeatured(id: number) {
   return featuredIds.value.includes(id)
 }
 
+let persistRunning = false
+let persistDirty = false
+
+function queueSave() {
+  persistDirty = true
+  if (persistRunning) return
+  persistRunning = true
+  void flushSave()
+}
+
+async function flushSave() {
+  saving.value = true
+  error.value = null
+  success.value = null
+  try {
+    while (persistDirty) {
+      persistDirty = false
+      const featuredBookIds = featuredRows.value.map((book) => book.id)
+      await $fetch('/api/dashboard/featured-publications/settings', {
+        method: 'PATCH',
+        body: { featuredBookIds },
+      })
+    }
+    success.value = 'Featured publications saved.'
+    await Promise.all([
+      clearNuxtData('connect-featured-books'),
+      clearNuxtData('latest-books'),
+    ])
+  } catch (e: any) {
+    persistDirty = false
+    error.value = e?.data?.statusMessage || e?.data?.message || e?.statusMessage || e?.message || 'Failed to save featured publications.'
+    await loadFeatured({ silent: true })
+  } finally {
+    saving.value = false
+    if (persistDirty) {
+      void flushSave()
+    } else {
+      persistRunning = false
+    }
+  }
+}
+
 function moveFeatured(index: number, delta: number) {
   const next = index + delta
   if (next < 0 || next >= featuredRows.value.length) return
   const rows = [...featuredRows.value]
   const [item] = rows.splice(index, 1)
+  if (!item) return
   rows.splice(next, 0, item)
   featuredRows.value = rows
+  queueSave()
 }
 
 function removeFeatured(id: number) {
-  featuredRows.value = featuredRows.value.filter((book) => book.id !== id)
+  const target = Number(id)
+  featuredRows.value = featuredRows.value.filter((book) => Number(book.id) !== target)
+  queueSave()
 }
 
 function addFeatured(book: BookRow) {
   if (!book.imageUrl || isFeatured(book.id)) return
   featuredRows.value = [...featuredRows.value, book]
+  queueSave()
 }
 
-async function loadFeatured() {
+async function loadFeatured(options?: { silent?: boolean }) {
   if (!canManageAdmin.value) return
-  loading.value = true
-  error.value = null
+  if (!options?.silent) {
+    loading.value = true
+    error.value = null
+  }
   try {
     const res: any = await $fetch('/api/dashboard/featured-publications/settings')
     featuredRows.value = (Array.isArray(res?.featuredBooks) ? res.featuredBooks : [])
@@ -256,24 +307,9 @@ async function loadBooks() {
   }
 }
 
-async function saveFeatured() {
+function saveFeatured() {
   if (!canManageAdmin.value) return
-  saving.value = true
-  error.value = null
-  success.value = null
-  try {
-    await $fetch('/api/dashboard/featured-publications/settings', {
-      method: 'PATCH',
-      body: { featuredBookIds: featuredIds.value },
-    })
-    success.value = 'Featured publications saved.'
-    await loadFeatured()
-    await clearNuxtData('connect-featured-books')
-  } catch (e: any) {
-    error.value = e?.message || 'Failed to save featured publications.'
-  } finally {
-    saving.value = false
-  }
+  queueSave()
 }
 
 watch(canManageAdmin, (allowed) => {

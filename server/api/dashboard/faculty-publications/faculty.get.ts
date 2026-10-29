@@ -14,8 +14,9 @@ export default defineEventHandler(async (event) => {
   const auth = await requireDashboardAdmin(event)
 
   const usersParams = new URLSearchParams()
-  usersParams.set('sort', 'name,email')
-  usersParams.set('limit', '500')
+  usersParams.set('sort', 'name')
+  usersParams.set('pagination', 'false')
+  usersParams.set('limit', '2000')
   usersParams.set('depth', '0')
 
   const pubsParams = new URLSearchParams()
