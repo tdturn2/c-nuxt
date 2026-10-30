@@ -58,18 +58,37 @@
             <span class="col-span-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Type</span>
           </div>
           <ul class="divide-y divide-gray-200">
-            <li v-for="row in jobRows" :key="row.job.id">
+            <li
+              v-for="row in jobRows"
+              :key="row.job.id"
+              class="relative"
+              :class="row.job.id ? 'cursor-pointer hover:bg-gray-50' : ''"
+            >
               <NuxtLink
-                :to="row.job.id ? `/jobs/${row.job.id}` : undefined"
-                class="grid grid-cols-1 gap-x-6 gap-y-2 px-4 py-4 transition-colors sm:grid-cols-12 sm:px-6"
-                :class="row.job.id ? 'hover:bg-gray-50 cursor-pointer' : 'pointer-events-none'"
-              >
+                v-if="row.job.id"
+                :to="`/jobs/${row.job.id}`"
+                class="absolute inset-0 z-0"
+                :aria-label="row.title"
+              />
+              <div class="pointer-events-none relative z-10 grid grid-cols-1 gap-x-6 gap-y-2 px-4 py-4 sm:grid-cols-12 sm:px-6">
                 <div class="min-w-0 sm:col-span-6">
                   <h2
                     class="text-base font-bold leading-snug"
                     :class="row.job.id ? 'text-[rgba(13,94,130,1)]' : 'text-gray-900'"
                   >
                     {{ row.title }}
+                    <a
+                      v-if="row.externalHref"
+                      :href="row.externalHref"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="pointer-events-auto ml-1 inline-flex align-middle text-gray-400 hover:text-[rgba(13,94,130,1)]"
+                      :aria-label="`Open external listing for ${row.title}`"
+                      title="Opens external listing in a new tab"
+                      @click.stop
+                    >
+                      <UIcon name="i-heroicons-arrow-top-right-on-square" class="h-4 w-4" aria-hidden="true" />
+                    </a>
                   </h2>
                   <p v-if="row.job.companyName || row.job.companyTagline" class="mt-0.5 text-sm leading-snug text-gray-500">
                     <span v-if="row.job.companyName" class="font-semibold text-gray-600">{{ row.job.companyName }}</span>
@@ -90,7 +109,7 @@
                     {{ row.postedLabel }}
                   </span>
                 </div>
-              </NuxtLink>
+              </div>
             </li>
           </ul>
         </div>
@@ -100,6 +119,8 @@
 </template>
 
 <script setup lang="ts">
+import { externalHttpHref } from '~/utils/externalLinks'
+
 const JOB_TYPES = [
   { label: 'Freelance', value: 'freelance' },
   { label: 'Full Time', value: 'full_time' },
@@ -150,6 +171,7 @@ interface Job {
   companyName?: string
   companyTagline?: string
   companyWebsite?: string
+  applicationEmailOrUrl?: string | null
   createdAt?: string
 }
 
@@ -188,6 +210,7 @@ const jobRows = computed(() =>
     typeLabel: job.jobType ? formatJobType(job.jobType) : '',
     typeClass: job.jobType ? jobTypeClass(job.jobType) : '',
     postedLabel: postedLabel(job.createdAt),
+    externalHref: externalHttpHref(job.applicationEmailOrUrl),
   })),
 )
 

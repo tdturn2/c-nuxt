@@ -1,6 +1,7 @@
 /**
- * Match RSS podcast episodes to YouTube playlist items by same calendar day (US Eastern)
- * and title; if exactly one video dropped that day, use it (titles often differ slightly).
+ * Match RSS podcast episodes to YouTube playlist items by calendar day (US Eastern).
+ * Same day wins. If that day is empty and exactly one video was published the next
+ * Eastern day, use it. Multiple videos on a day fall back to the episode title.
  */
 
 export interface YoutubePlaylistItem {
@@ -31,6 +32,13 @@ function calendarDayEastern(isoOrRss: string): string {
   return `${y}-${m}-${day}`
 }
 
+function shiftEasternDay(day: string, delta: number): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day)
+  if (!match) return ''
+  const utc = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]) + delta))
+  return utc.toISOString().slice(0, 10)
+}
+
 function normalizeTitle(s: string): string {
   let t = s.toLowerCase().replace(/\s+/g, ' ').trim()
   t = t.replace(/[""]/g, '"').replace(/['']/g, "'")
@@ -49,7 +57,15 @@ export function matchYoutubeVideoId(
   if (!day) return undefined
 
   const candidates = items.filter((it) => calendarDayEastern(it.publishedAt) === day)
-  if (candidates.length === 0) return undefined
+  if (candidates.length === 0) {
+    // YouTube sometimes publishes the next Eastern day (episode 1 of both shows).
+    const nextDay = shiftEasternDay(day, 1)
+    const next = nextDay
+      ? items.filter((it) => calendarDayEastern(it.publishedAt) === nextDay)
+      : []
+    if (next.length === 1) return next[0].videoId
+    return undefined
+  }
 
   // One video that release day → podcast is weekly/biweekly; safe default
   if (candidates.length === 1) return candidates[0].videoId

@@ -43,19 +43,23 @@
           <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm space-y-6">
             <section v-if="job.description">
               <h2 class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-2">Description</h2>
-              <div class="job-description text-gray-700" v-html="job.description" />
+              <div class="job-description text-gray-700" v-html="descriptionHtml" />
             </section>
 
             <section v-if="applicationLink">
               <h2 class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-2">Apply</h2>
               <a
                 :href="applicationLink"
-                target="_blank"
-                rel="noopener noreferrer"
+                :target="applicationIsExternal ? '_blank' : undefined"
+                :rel="applicationIsExternal ? 'noopener noreferrer' : undefined"
                 class="inline-flex items-center gap-2 rounded-md bg-[rgba(13,94,130,1)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgba(10,69,92,1)]"
               >
                 {{ applicationLinkLabel }}
-                <UIcon name="i-heroicons-arrow-top-right-on-square" class="w-4 h-4" />
+                <UIcon
+                  v-if="applicationIsExternal"
+                  name="i-heroicons-arrow-top-right-on-square"
+                  class="w-4 h-4"
+                />
               </a>
             </section>
           </div>
@@ -70,9 +74,10 @@
                   :href="normalizeUrl(job.companyWebsite)"
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="text-[rgba(13,94,130,1)] hover:underline"
+                  class="inline-flex items-center gap-1 text-[rgba(13,94,130,1)] hover:underline"
                 >
                   {{ job.companyWebsite }}
+                  <UIcon name="i-heroicons-arrow-top-right-on-square" class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 </a>
               </div>
               <div v-if="job.companyTwitterUsername" class="flex items-center gap-2">
@@ -81,9 +86,10 @@
                   :href="`https://twitter.com/${job.companyTwitterUsername.replace(/^@/, '')}`"
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="text-[rgba(13,94,130,1)] hover:underline"
+                  class="inline-flex items-center gap-1 text-[rgba(13,94,130,1)] hover:underline"
                 >
                   @{{ job.companyTwitterUsername.replace(/^@/, '') }}
+                  <UIcon name="i-heroicons-arrow-top-right-on-square" class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 </a>
               </div>
             </dl>
@@ -96,6 +102,7 @@
               >
                 <UIcon name="i-heroicons-play-circle" class="w-5 h-5" />
                 Watch company video
+                <UIcon name="i-heroicons-arrow-top-right-on-square" class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               </a>
             </div>
           </div>
@@ -106,6 +113,8 @@
 </template>
 
 <script setup lang="ts">
+import { decorateExternalAnchors, externalHttpHref } from '~/utils/externalLinks'
+
 const route = useRoute()
 const id = computed(() => route.params.id as string)
 
@@ -130,18 +139,24 @@ const hasCompanyDetails = computed(() => {
   )
 })
 
+const descriptionHtml = computed(() => decorateExternalAnchors(job.value?.description || ''))
+
+const applicationIsExternal = computed(() => Boolean(externalHttpHref(job.value?.applicationEmailOrUrl)))
+
 const applicationLink = computed(() => {
   const raw = job.value?.applicationEmailOrUrl?.trim()
   if (!raw) return ''
-  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw
-  if (raw.includes('@')) return `mailto:${raw}`
-  return `https://${raw}`
+  const external = externalHttpHref(raw)
+  if (external) return external
+  const email = raw.replace(/^(?:mailto:|https?:\/\/)/i, '')
+  if (email.includes('@')) return `mailto:${email}`
+  return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
 })
 
 const applicationLinkLabel = computed(() => {
   const raw = job.value?.applicationEmailOrUrl?.trim()
   if (!raw) return 'Apply'
-  if (raw.startsWith('http')) return 'Apply online'
+  if (applicationIsExternal.value) return 'Apply online'
   if (raw.includes('@')) return 'Apply by email'
   return 'Apply'
 })
@@ -239,6 +254,23 @@ function normalizeUrl(url: string): string {
   color: rgba(13, 94, 130, 1);
   text-decoration: underline;
   text-underline-offset: 0.15em;
+}
+
+.job-description :deep(a[data-external-link="true"]) {
+  text-decoration: none;
+}
+
+.job-description :deep(a[data-external-link="true"] .connect-external-link-text) {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.job-description :deep(a[data-external-link="true"]::after) {
+  content: ' \2197';
+  margin-left: 0.15em;
+  color: #6b7280;
+  font-size: 0.85em;
+  text-decoration: none;
 }
 
 .job-description :deep(blockquote) {
