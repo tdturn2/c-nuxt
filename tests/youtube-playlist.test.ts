@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { matchYoutubeVideoId } from '../shared/matchPodcastYoutube'
 import {
   continuationTokens,
+  mergePlaylistDates,
   parseInnertubeConfig,
   parsePlaylistLockups,
   readPublishDate,
@@ -57,6 +58,37 @@ describe('continuationTokens', () => {
   it('collects browse continuation tokens once', () => {
     const token = { continuationCommand: { token: 'abc' } }
     expect(continuationTokens({ a: token, b: token, c: { continuationCommand: { token: 'def' } } })).toEqual(['abc', 'def'])
+  })
+})
+
+describe('mergePlaylistDates', () => {
+  const saved = {
+    videoId: 'XXEZ5zSStuw',
+    title: 'Saved title',
+    publishedAt: '2026-05-26T06:30:20-07:00',
+  }
+
+  it('reuses a saved date and skips a new video that has no date yet', () => {
+    expect(mergePlaylistDates(
+      [saved],
+      [
+        { videoId: 'XXEZ5zSStuw', title: 'Live title' },
+        { videoId: 'abcdefghijk', title: 'New episode' },
+      ],
+      [],
+    )).toEqual([{ ...saved, title: 'Live title' }])
+  })
+
+  it('adds a new video only after its publish date is known', () => {
+    const fresh = {
+      videoId: 'abcdefghijk',
+      title: 'New episode',
+      publishedAt: '2026-10-27T04:30:39-07:00',
+    }
+    expect(mergePlaylistDates([saved], [
+      { videoId: fresh.videoId, title: fresh.title },
+      { videoId: saved.videoId, title: saved.title },
+    ], [fresh])).toEqual([fresh, saved])
   })
 })
 

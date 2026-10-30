@@ -1,4 +1,5 @@
 import type { YoutubePlaylistItem } from '@shared/matchPodcastYoutube'
+import catalogJson from '../data/youtube-playlist-dates.json' with { type: 'json' }
 
 const BROWSER_UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
@@ -107,11 +108,46 @@ async function mapPool<T, R>(items: T[], limit: number, fn: (item: T) => Promise
   return results
 }
 
+const playlistCatalog = catalogJson as Record<string, YoutubePlaylistItem[]>
+
+export function catalogForPlaylist(playlistId: string): YoutubePlaylistItem[] {
+  return playlistCatalog[playlistId] ?? []
+}
+
 /**
- * Full public playlist, then each video's publish timestamp.
- * No YouTube Data API key. Dates match RSS episodes on the US Eastern calendar day.
+ * Keep saved dates for videos already seen. A live playlist list can add new ids;
+ * only those need a publish-date lookup. Saved episodes stay even if that lookup fails.
  */
-export async function fetchYoutubePlaylist(playlistId: string, defaultTitle: string): Promise<YoutubePlaylistItem[]> {
+export function mergePlaylistDates(
+  catalog: YoutubePlaylistItem[],
+  refs: PlaylistVideoRef[],
+  fresh: YoutubePlaylistItem[],
+): YoutubePlaylistItem[] {
+  const byId = new Map<string, YoutubePlaylistItem>()
+  for (const item of catalog) byId.set(item.videoId, item)
+  for (const item of fresh) byId.set(item.videoId, item)
+
+  if (!refs.length) return [...byId.values()]
+
+  const ordered: YoutubePlaylistItem[] = []
+  const seen = new Set<string>()
+  for (const ref of refs) {
+    const known = byId.get(ref.videoId)
+    if (!known) continue
+    seen.add(ref.videoId)
+    ordered.push({
+      videoId: ref.videoId,
+      title: ref.title || known.title,
+      publishedAt: known.publishedAt,
+    })
+  }
+  for (const item of catalog) {
+    if (!seen.has(item.videoId)) ordered.push(item)
+  }
+  return ordered
+}
+
+async function listPlaylistRefs(playlistId: string): Promise<{ config: InnertubeConfig, refs: PlaylistVideoRef[] }> {
   const pageRes = await fetch(`https://www.youtube.com/playlist?list=${encodeURIComponent(playlistId)}`, {
     headers: {
       Accept: 'text/html',
@@ -145,6 +181,8 @@ export async function fetchYoutubePlaylist(playlistId: string, defaultTitle: str
       seen.add(ref.videoId)
       refs.push(ref)
     }
+    // A short page is the whole playlist. The leftover token is not another page of videos.
+    if (refs.length < 100) break
     const token = continuationTokens(payload).find((item) => !seenTokens.has(item))
     if (!token) break
     seenTokens.add(token)
@@ -154,7 +192,22 @@ export async function fetchYoutubePlaylist(playlistId: string, defaultTitle: str
   }
 
   if (!refs.length) throw new Error('YouTube playlist did not include any videos')
+  return { config, refs }
+}
 
+async function publishDatesForNewVideos(
+  config: InnertubeConfig,
+  refs: PlaylistVideoRef[],
+  defaultTitle: string,
+): Promise<YoutubePlaylistItem[]> {
+  const context = {
+    client: {
+      clientName: 'WEB',
+      clientVersion: config.clientVersion,
+      hl: 'en',
+      gl: 'US',
+    },
+  }
   const dated = await mapPool(refs, PLAYER_CONCURRENCY, async (ref) => {
     try {
       const player = await innertube(config.apiKey, 'player', { context, videoId: ref.videoId })
@@ -169,8 +222,27 @@ export async function fetchYoutubePlaylist(playlistId: string, defaultTitle: str
       return null
     }
   })
+  return dated.filter((item): item is YoutubePlaylistItem => item !== null)
+}
 
-  const items = dated.filter((item): item is YoutubePlaylistItem => item !== null)
-  if (!items.length) throw new Error('YouTube playlist videos did not include publish dates')
-  return items
+/**
+ * Saved publish dates for episodes already on the playlist, plus a short live check
+ * for ids that are not saved yet. Past episodes do not call YouTube again.
+ */
+export async function fetchYoutubePlaylist(playlistId: string, defaultTitle: string): Promise<YoutubePlaylistItem[]> {
+  const catalog = catalogForPlaylist(playlistId)
+  try {
+    const { config, refs } = await listPlaylistRefs(playlistId)
+    const known = new Set(catalog.map((item) => item.videoId))
+    const missing = refs.filter((ref) => !known.has(ref.videoId))
+    const fresh = missing.length
+      ? await publishDatesForNewVideos(config, missing, defaultTitle)
+      : []
+    const items = mergePlaylistDates(catalog, refs, fresh)
+    if (!items.length) throw new Error('YouTube playlist videos did not include publish dates')
+    return items
+  } catch (err) {
+    if (catalog.length) return catalog
+    throw err
+  }
 }

@@ -5,6 +5,7 @@ import { fetchYoutubePlaylist } from '../../utils/youtubePlaylist'
 const PLAYLIST_ID = 'PL-KmdD8ZVhX--hb2y5Ki5aiJaa7w6MWGU'
 
 const CACHE_MAX_AGE = 24 * 60 * 60 // 24 hours
+const STALE_MAX_AGE = 7 * 24 * 60 * 60 // keep the last good list through a YouTube outage
 
 export default defineCachedEventHandler(
   async () => {
@@ -24,6 +25,8 @@ export default defineCachedEventHandler(
   },
   {
     maxAge: CACHE_MAX_AGE,
+    swr: true,
+    staleMaxAge: STALE_MAX_AGE,
     name: 'youtube-elementary-playlist',
     getKey: () => 'elementary-playlist',
   }

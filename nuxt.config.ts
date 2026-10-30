@@ -163,6 +163,13 @@ export default defineNuxtConfig({
           'Cache-Control': 'public, max-age=604800, s-maxage=2592000, stale-while-revalidate=86400',
         },
       },
+      '/api/youtube/**': {
+        cors: true,
+        headers: {
+          'Access-Control-Allow-Methods': 'GET,HEAD,PUT,PATCH,POST,DELETE',
+          'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=604800',
+        },
+      },
       '/api/**': { cors: true, headers: { 'Access-Control-Allow-Methods': 'GET,HEAD,PUT,PATCH,POST,DELETE' } },
     }
   },
