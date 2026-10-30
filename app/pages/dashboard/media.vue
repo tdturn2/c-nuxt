@@ -235,12 +235,9 @@ import {
   userMediaKindLabel,
   type DashboardMediaDoc,
 } from '~/utils/dashboardMedia'
+import { PAGE_ASSET_MAX_BYTES, uploadConnectPageAsset } from '~/utils/uploadPageAsset'
 
 const PAGE_SIZE = 48
-/** Stay under the ~4.5 MB Vercel/Nitro request-body limit. Larger files PUT directly to S3. */
-const PROXY_UPLOAD_MAX_BYTES = 3 * 1024 * 1024
-/** Keep in sync with connect-api PAGE_ASSET_MAX_BYTES. */
-const PAGE_ASSET_MAX_BYTES = 200 * 1024 * 1024
 
 const { mePending, canAccessSection } = useDashboardAccess()
 const canManageDashboard = computed(() => canAccessSection('media'))
@@ -341,49 +338,6 @@ function uploadErrorMessage(err: any, fallback: string) {
   return err?.data?.statusMessage || err?.data?.error || err?.statusMessage || err?.message || fallback
 }
 
-async function uploadPageAssetDirect(file: File, alt: string) {
-  const signed = await $fetch<{ uploadUrl?: string; filename?: string; contentType?: string }>(
-    '/api/connect-pages-media/presign',
-    {
-      method: 'POST',
-      body: {
-        filename: file.name,
-        contentType: file.type || 'application/octet-stream',
-        filesize: file.size,
-        ...(alt ? { alt } : {}),
-      },
-    },
-  )
-  if (!signed?.uploadUrl || !signed?.filename) {
-    throw new Error('Upload URL was not returned')
-  }
-
-  const contentType = signed.contentType || file.type || 'application/octet-stream'
-  const putRes = await fetch(signed.uploadUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': contentType },
-    body: file,
-  })
-  if (!putRes.ok) {
-    const detail = await putRes.text().catch(() => '')
-    throw new Error(
-      detail
-        ? `Storage upload failed (${putRes.status}): ${detail.slice(0, 200)}`
-        : `Storage upload failed (${putRes.status})`,
-    )
-  }
-
-  return $fetch<{ filename?: string; url?: string }>('/api/connect-pages-media/complete', {
-    method: 'POST',
-    body: {
-      filename: signed.filename,
-      originalFilename: file.name,
-      contentType,
-      ...(alt ? { alt } : {}),
-    },
-  })
-}
-
 async function uploadPageAsset() {
   const file = uploadInputRef.value?.files?.[0]
   if (!file) {
@@ -399,18 +353,7 @@ async function uploadPageAsset() {
   success.value = ''
   try {
     const alt = uploadAlt.value.trim()
-    let res: { filename?: string; url?: string }
-    if (file.size > PROXY_UPLOAD_MAX_BYTES) {
-      res = await uploadPageAssetDirect(file, alt)
-    } else {
-      const body = new FormData()
-      body.append('file', file)
-      if (alt) body.append('alt', alt)
-      res = await $fetch<{ filename?: string; url?: string }>('/api/connect-pages-media/upload', {
-        method: 'POST',
-        body,
-      })
-    }
+    const res = await uploadConnectPageAsset(file, alt)
     if (res.url) await navigator.clipboard.writeText(res.url).catch(() => undefined)
     uploadAlt.value = ''
     if (uploadInputRef.value) uploadInputRef.value.value = ''

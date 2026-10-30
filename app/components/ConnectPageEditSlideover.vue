@@ -630,6 +630,7 @@ import { fetchAllConnectPages, getConnectPageBreadcrumbLabel } from '~/composabl
 import { CONNECT_PAGE_CATEGORIES, type ConnectPageCategory } from '~/composables/useConnectPagesTree'
 import { buildPagePathMap } from '~/composables/useConnectPagesTree'
 import { humanizeFilename } from '@shared/humanizeFilename'
+import { uploadConnectPageAsset } from '~/utils/uploadPageAsset'
 import { lexicalUploadNodeToTipTapImage, tipTapImageToLexicalUploadNode } from '~/utils/connectPagesDocImage'
 import {
   connectMagicBlockJsonParses,
@@ -1896,14 +1897,8 @@ async function onDocsImageFileInputChange(ev: Event) {
   docsImageUploadPending.value = true
   assetUploadError.value = null
   try {
-    const body = new FormData()
-    body.append('file', file)
     const alt = humanizeFilename(file.name)
-    body.append('alt', alt)
-    const res = await $fetch<{ id: unknown; filename: string; url: string }>('/api/connect-pages-media/upload', {
-      method: 'POST',
-      body,
-    })
+    const res = await uploadConnectPageAsset(file, alt)
     const ed = activeSectionEditor.value
     if (ed && !ed.isDestroyed) {
       ed.chain().focus().setImage({
@@ -1933,14 +1928,8 @@ async function uploadPageAsset() {
   }
   assetUploadPending.value = true
   try {
-    const body = new FormData()
-    body.append('file', file)
     const alt = assetUploadAlt.value.trim()
-    if (alt) body.append('alt', alt)
-    const res = await $fetch<{ id: unknown; filename: string; url: string }>('/api/connect-pages-media/upload', {
-      method: 'POST',
-      body,
-    })
+    const res = await uploadConnectPageAsset(file, alt)
     await navigator.clipboard.writeText(res.url)
     highlightedAssetId.value = res.id != null ? String(res.id) : null
     await refreshConnectPagesMedia()
