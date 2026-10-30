@@ -69,6 +69,8 @@
       </UCarousel>
     </section>
 
+    <ProfileNudgeCard />
+
     <div class="relative z-10">
       <div v-if="initialLoading" class="text-center py-8">
         <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
