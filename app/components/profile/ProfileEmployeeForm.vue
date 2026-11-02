@@ -138,7 +138,7 @@ const departmentSections: Record<string, string[]> = {
     'lits',
     'institutional-effectiveness-and-assessment',
   ],
-  '2': ['admissions', 'financial-aid', 'registrar', 'student-success'],
+  '2': ['admissions', 'financial-aid', 'registrar', 'student-success', 'marketing'],
   '3': [
     'asbury-inn',
     'auxiliary-services',

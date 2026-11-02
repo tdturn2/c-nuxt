@@ -80,6 +80,32 @@ const isStudentsActive = computed(() => {
   )
 })
 
+const { data: activityCounts, refresh: refreshActivityCounts } = useLazyFetch<{
+  marketplace: number
+  jobs: number
+}>('/api/sidebar/activity-counts', {
+  server: false,
+  default: () => ({ marketplace: 0, jobs: 0 }),
+})
+
+function postCountBadge(count: number): NavigationMenuItem['badge'] {
+  if (!Number.isFinite(count) || count <= 0) return undefined
+  return {
+    label: String(count),
+    color: 'neutral',
+    variant: 'solid',
+    size: 'sm',
+    class: 'connect-nav-count',
+  }
+}
+
+const isBoardPath = (path?: string) =>
+  !!path && (path === '/marketplace' || path.startsWith('/marketplace/') || path === '/jobs' || path.startsWith('/jobs/'))
+
+watch(() => route.path, (path, previous) => {
+  if (isBoardPath(path) || isBoardPath(previous)) refreshActivityCounts()
+})
+
 const mainNavItems = computed<NavigationMenuItem[]>(() => [
   {
     label: 'Home',
@@ -176,12 +202,14 @@ const mainNavItems = computed<NavigationMenuItem[]>(() => [
   {
     label: 'Jobs Board',
     icon: 'i-heroicons-briefcase',
-    to: '/jobs'
+    to: '/jobs',
+    badge: postCountBadge(activityCounts.value?.jobs ?? 0),
   },
   {
     label: 'Marketplace',
     icon: 'i-heroicons-shopping-bag',
-    to: '/marketplace'
+    to: '/marketplace',
+    badge: postCountBadge(activityCounts.value?.marketplace ?? 0),
   },
 ])
 
@@ -431,13 +459,14 @@ watch(() => route.path, () => {
 
 .connect-left-nav :deep(.connect-left-nav__link) {
   min-width: 0;
+  overflow: hidden;
 }
 
-.connect-left-nav :deep(.connect-left-nav__link span:last-child),
-.connect-left-nav :deep(.connect-left-nav__link) {
+.connect-left-nav :deep(.connect-left-nav__link [data-slot="linkLabel"]) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
 /* Tighter nesting under Departments and Offices */
@@ -456,6 +485,20 @@ watch(() => route.path, () => {
 
 .connect-left-nav :deep(.connect-left-nav__child-item) {
   margin-top: 0.0625rem;
+}
+</style>
+
+<style>
+/* Unscoped: the nav root does not receive this component's scope id, so :deep() never matches the badge. */
+.connect-left-nav .connect-nav-count {
+  min-width: 1.35rem;
+  justify-content: center;
+  border-radius: 9999px;
+  background-color: var(--color-gold) !important;
+  color: #fff !important;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-gold) 45%, white);
 }
 </style>
 
