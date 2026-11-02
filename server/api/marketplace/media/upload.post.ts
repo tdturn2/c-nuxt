@@ -1,13 +1,26 @@
 import { createError, defineEventHandler, readMultipartFormData } from 'h3'
-import { authenticateWithPayloadCMS } from '../../../utils/payloadAuth'
+import { authenticateWithConnectApi, getConnectApiProxyHeaders } from '../../../utils/payloadAuth'
 import { getUserIdFromEmail } from '../../../utils/getUserIdFromEmail'
+import { resolveConnectApiUrl } from '../../../utils/connectApi'
+
+function upstreamMessage(uploadJson: any, fallback: string): string {
+  if (typeof uploadJson?.error === 'string' && uploadJson.error.trim()) return uploadJson.error
+  if (typeof uploadJson?.message === 'string' && uploadJson.message.trim()) return uploadJson.message
+  if (typeof uploadJson?.errors?.[0]?.message === 'string' && uploadJson.errors[0].message.trim()) {
+    return uploadJson.errors[0].message
+  }
+  return fallback
+}
 
 export default defineEventHandler(async (event) => {
-  const config = useRuntimeConfig()
-  const payloadBaseUrl = config.public.connectApi || 'http://localhost:3003'
+  const connectApiUrl = resolveConnectApiUrl()
+  if (!connectApiUrl) {
+    throw createError({ statusCode: 500, statusMessage: 'Missing CONNECT_API' })
+  }
 
   try {
-    const { token, email } = await authenticateWithPayloadCMS(event)
+    const auth = await authenticateWithConnectApi(event)
+    const { email } = auth
     if (!email) {
       throw createError({
         statusCode: 401,
@@ -15,7 +28,6 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const ownerId = await getUserIdFromEmail(email, payloadBaseUrl)
     const formData = await readMultipartFormData(event)
     const file = formData?.find((field) => field.name === 'file')
     const alt = formData?.find((field) => field.name === 'alt')?.data?.toString('utf-8')?.trim()
@@ -27,15 +39,22 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    const ownerId = await getUserIdFromEmail(email, connectApiUrl)
     const outgoing = new FormData()
     const blob = new Blob([file.data], { type: file.type || 'application/octet-stream' })
     outgoing.append('file', blob, file.filename || 'upload')
-    outgoing.append('_payload', JSON.stringify({ owner: ownerId, alt: alt || undefined }))
+    // SSO fallback: connect-api accepts a session email when no JWT is present.
+    outgoing.append('email', email)
+    outgoing.append(
+      '_payload',
+      JSON.stringify({ owner: ownerId, alt: alt || undefined, email }),
+    )
 
-    const headers: Record<string, string> = {}
-    if (token) headers.Authorization = `Bearer ${token}`
+    // Multipart must set its own boundary, so drop the JSON content type.
+    const headers = getConnectApiProxyHeaders(event, auth)
+    delete headers['Content-Type']
 
-    const uploadRes = await fetch(`${payloadBaseUrl}/api/connect-marketplace-media`, {
+    const uploadRes = await fetch(`${connectApiUrl}/api/connect-marketplace-media`, {
       method: 'POST',
       headers,
       body: outgoing,
@@ -44,7 +63,7 @@ export default defineEventHandler(async (event) => {
     if (!uploadRes.ok) {
       throw createError({
         statusCode: uploadRes.status,
-        statusMessage: uploadRes.statusText || 'Failed to upload marketplace media',
+        statusMessage: upstreamMessage(uploadJson, uploadRes.statusText || 'Failed to upload marketplace media'),
         data: uploadJson,
       })
     }
@@ -64,8 +83,8 @@ export default defineEventHandler(async (event) => {
         ? url.startsWith('http')
           ? url
           : url.startsWith('/')
-            ? `${payloadBaseUrl}${url}`
-            : `${payloadBaseUrl}/${url}`
+            ? `${connectApiUrl}${url}`
+            : `${connectApiUrl}/${url}`
         : null
 
     return {

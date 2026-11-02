@@ -17,9 +17,14 @@ export default defineEventHandler(async (event) => {
       body: { ...body, email },
     })
   } catch (error: any) {
+    const upstream =
+      (typeof error?.data?.error === 'string' && error.data.error) ||
+      (typeof error?.data?.message === 'string' && error.data.message) ||
+      error?.statusMessage ||
+      'Failed to create marketplace post'
     throw createError({
-      statusCode: error.statusCode || 500,
-      statusMessage: error.statusMessage || 'Failed to create marketplace post',
+      statusCode: error.statusCode || error.status || 500,
+      statusMessage: upstream,
       data: error.data,
     })
   }

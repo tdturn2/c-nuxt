@@ -1,6 +1,7 @@
 import { toBrowserMediaUrl } from '../../utils/connectApi'
 import { extractFirstPreviewUrlFromLexical, fetchAndCacheLinkPreview } from '../../utils/linkPreview'
 import { verifyMobileAccessToken } from '../../utils/mobileAuth'
+import { readOfetchJson } from '../../utils/payloadAuth'
 
 async function readSetCookieHeaders(res: { headers: Headers }): Promise<string[]> {
   const h = res.headers as Headers & { getSetCookie?: () => string[] }
@@ -32,7 +33,7 @@ async function resolveMobilePayloadAuth(authHeader: string, payloadBaseUrl: stri
         name: claims.name ?? undefined,
       },
     })
-    const syncData: any = await res.json().catch(() => null)
+    const syncData: any = await readOfetchJson(res)
     return {
       isMobileBearer: true,
       payloadToken: typeof syncData?.token === 'string' ? syncData.token : null,

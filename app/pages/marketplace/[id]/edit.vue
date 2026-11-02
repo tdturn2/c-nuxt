@@ -100,7 +100,7 @@
                 <UIcon name="i-heroicons-photo" class="h-4 w-4" />
                 Choose images
               </label>
-              <p class="mt-2 text-xs text-gray-500">Add up to 10 total images.</p>
+              <p class="mt-2 text-xs text-gray-500">Add up to 10 total images. New images start uploading as soon as you choose them.</p>
             </div>
 
             <div v-if="selectedFiles.length" class="space-y-2">
@@ -114,15 +114,20 @@
                   <button type="button" class="text-gray-600 hover:text-gray-800 disabled:opacity-40 text-xs" :disabled="index === 0" @click="moveSelectedFile(index, -1)">Up</button>
                   <button type="button" class="text-gray-600 hover:text-gray-800 disabled:opacity-40 text-xs" :disabled="index === selectedFiles.length - 1" @click="moveSelectedFile(index, 1)">Down</button>
                   <button type="button" class="text-red-600 hover:text-red-700 text-xs" @click="removeSelectedFile(entry.id)">Remove</button>
-                  <span class="text-xs text-gray-500">{{ fileStatus(index) }}</span>
+                  <span
+                    class="text-xs"
+                    :class="entry.status === 'failed' ? 'text-red-600' : entry.status === 'uploaded' ? 'text-green-700' : 'text-gray-500'"
+                  >
+                    {{ fileStatus(entry) }}
+                  </span>
                 </div>
               </div>
             </div>
           </div>
 
           <div class="flex gap-3">
-            <button type="submit" :disabled="submitting" class="rounded-md bg-[rgba(13,94,130,1)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgba(10,69,92,1)] disabled:opacity-50">
-              {{ submitting ? 'Saving...' : 'Save Changes' }}
+            <button type="submit" :disabled="submitting || imagesBusy" class="rounded-md bg-[rgba(13,94,130,1)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgba(10,69,92,1)] disabled:opacity-50">
+              {{ submitting ? 'Saving...' : imagesBusy ? 'Uploading images...' : 'Save Changes' }}
             </button>
           </div>
         </form>
@@ -171,9 +176,16 @@ const descriptionReady = ref(false)
 const descriptionKey = ref(0)
 
 const showListingType = computed(() => form.value.category === 'housing')
+type SelectedImage = {
+  id: string
+  file: File
+  status: 'uploading' | 'uploaded' | 'failed'
+  mediaId?: number
+}
+
 const mediaDraft = ref<Array<{ id: number; filename?: string; url?: string }>>([])
-const selectedFiles = ref<Array<{ id: string; file: File }>>([])
-const uploadedMediaIds = ref<number[]>([])
+const selectedFiles = ref<SelectedImage[]>([])
+const uploadTasks = new Map<string, Promise<void>>()
 
 watch(data, (doc) => {
   if (!doc) return
@@ -199,11 +211,12 @@ watch(data, (doc) => {
   descriptionKey.value += 1
   descriptionReady.value = true
   mediaDraft.value = existingMedia
+  uploadTasks.clear()
   selectedFiles.value = []
-  uploadedMediaIds.value = []
 }, { immediate: true })
 
 const submitting = ref(false)
+const imagesBusy = computed(() => selectedFiles.value.some((entry) => entry.status === 'uploading'))
 const submitError = ref<string | null>(null)
 
 watch(
@@ -226,15 +239,32 @@ function moveExistingImage(index: number, direction: -1 | 1) {
   mediaDraft.value = copy
 }
 
+function apiErrorMessage(source: any, fallback: string): string {
+  return (
+    source?.data?.error ||
+    source?.data?.message ||
+    source?.statusMessage ||
+    source?.message ||
+    fallback
+  )
+}
+
+function patchFile(id: string, patch: Partial<SelectedImage>) {
+  selectedFiles.value = selectedFiles.value.map((entry) => (entry.id === id ? { ...entry, ...patch } : entry))
+}
+
 function onFilesSelected(event: Event) {
   const input = event.target as HTMLInputElement
   const files = Array.from(input.files || [])
   const remainingSlots = Math.max(0, 10 - mediaDraft.value.length)
+  uploadTasks.clear()
+  submitError.value = null
   selectedFiles.value = files.slice(0, remainingSlots).map((file) => ({
     id: `${file.name}-${file.size}-${Math.random().toString(36).slice(2, 8)}`,
     file,
+    status: 'uploading' as const,
   }))
-  uploadedMediaIds.value = []
+  for (const entry of selectedFiles.value) startUpload(entry)
   input.value = ''
 }
 
@@ -248,13 +278,27 @@ function moveSelectedFile(index: number, direction: -1 | 1) {
 }
 
 function removeSelectedFile(id: string) {
+  uploadTasks.delete(id)
   selectedFiles.value = selectedFiles.value.filter((file) => file.id !== id)
 }
 
-function fileStatus(index: number): string {
-  if (uploadedMediaIds.value[index]) return 'Uploaded'
-  if (submitting.value) return 'Uploading...'
-  return 'Pending'
+function fileStatus(entry: SelectedImage): string {
+  if (entry.status === 'uploaded') return 'Uploaded'
+  if (entry.status === 'failed') return 'Failed'
+  return 'Uploading...'
+}
+
+function startUpload(entry: SelectedImage) {
+  const task = (async () => {
+    try {
+      const mediaId = await uploadMarketplaceMedia(entry.file)
+      patchFile(entry.id, { status: 'uploaded', mediaId })
+    } catch (err: any) {
+      patchFile(entry.id, { status: 'failed' })
+      submitError.value = apiErrorMessage(err, 'Failed to upload image')
+    }
+  })()
+  uploadTasks.set(entry.id, task)
 }
 
 async function uploadMarketplaceMedia(file: File): Promise<number> {
@@ -269,7 +313,7 @@ async function uploadMarketplaceMedia(file: File): Promise<number> {
   })
   const json = await response.json().catch(() => ({}))
   if (!response.ok) {
-    throw new Error(json?.message || json?.statusMessage || 'Failed to upload image')
+    throw new Error(apiErrorMessage(json, 'Failed to upload image'))
   }
   if (!json?.id) {
     throw new Error('Upload succeeded but no media ID was returned')
@@ -281,12 +325,21 @@ async function onSubmit() {
   submitError.value = null
   submitting.value = true
   try {
-    const newMediaIds: number[] = []
-    for (const entry of selectedFiles.value) {
-      const mediaId = await uploadMarketplaceMedia(entry.file)
-      newMediaIds.push(mediaId)
-      uploadedMediaIds.value = [...newMediaIds]
+    await Promise.all([...uploadTasks.values()])
+    for (const entry of [...selectedFiles.value]) {
+      if (entry.status === 'uploaded' && entry.mediaId) continue
+      patchFile(entry.id, { status: 'uploading' })
+      try {
+        const mediaId = await uploadMarketplaceMedia(entry.file)
+        patchFile(entry.id, { status: 'uploaded', mediaId })
+      } catch (err: any) {
+        patchFile(entry.id, { status: 'failed' })
+        throw new Error(apiErrorMessage(err, 'Images failed to upload. Try again before saving the listing.'))
+      }
     }
+    const newMediaIds = selectedFiles.value
+      .map((entry) => entry.mediaId)
+      .filter((mediaId): mediaId is number => typeof mediaId === 'number')
 
     const mergedMediaIds = [...mediaDraft.value.map((item) => item.id), ...newMediaIds]
 
@@ -303,13 +356,13 @@ async function onSubmit() {
     })
     router.push(`/marketplace/${id.value}`)
   } catch (err: any) {
-    submitError.value = err?.data?.message || err?.message || 'Failed to save listing'
+    submitError.value = apiErrorMessage(err, 'Failed to save listing')
   } finally {
     submitting.value = false
   }
 }
 
 watch(error, (e) => {
-  if (e) submitError.value = (e as any)?.data?.message || (e as any)?.statusMessage || 'Failed to load listing'
+  if (e) submitError.value = apiErrorMessage(e, 'Failed to load listing')
 })
 </script>

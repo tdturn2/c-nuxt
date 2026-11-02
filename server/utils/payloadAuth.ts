@@ -38,6 +38,13 @@ export function getPayloadProxyHeaders(
   return headers
 }
 
+/** `$fetch.raw` parses JSON into `_data` and leaves the body stream unusable. */
+export async function readOfetchJson(res: { _data?: unknown; json?: () => Promise<unknown> }): Promise<any> {
+  if (res._data != null) return res._data
+  if (typeof res.json !== 'function') return null
+  return await res.json().catch(() => null)
+}
+
 function setCookieLinesToCookieHeader(setCookieLines: string[]): string | null {
   if (!setCookieLines.length) return null
   const pairs = setCookieLines
@@ -85,7 +92,9 @@ export async function authenticateWithPayloadCMS(event: any): Promise<PayloadAut
             },
           })
 
-          const syncResponse: any = await res.json().catch(() => null)
+          // ofetch already consumed the body into `_data`. Calling `res.json()` throws
+          // "Body has already been read", which was swallowed and dropped the JWT.
+          const syncResponse: any = await readOfetchJson(res)
           const token = typeof syncResponse?.token === 'string' ? syncResponse.token : null
           const payloadSessionCookie = setCookieLinesToCookieHeader(readSetCookieHeaders(res))
           return { token, payloadSessionCookie }

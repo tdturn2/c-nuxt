@@ -94,7 +94,7 @@
                 <UIcon name="i-heroicons-photo" class="h-4 w-4" />
                 Choose images
               </label>
-              <p class="mt-2 text-xs text-gray-500">Upload up to 10 images.</p>
+              <p class="mt-2 text-xs text-gray-500">Upload up to 10 images. They start uploading as soon as you choose them.</p>
             </div>
 
             <div v-if="selectedFiles.length" class="space-y-2">
@@ -104,7 +104,12 @@
                 class="flex items-center justify-between gap-2 rounded border border-gray-200 px-3 py-2 text-sm"
               >
                 <span class="truncate">{{ entry.file.name }}</span>
-                <span class="text-xs text-gray-500">{{ fileStatus(index) }}</span>
+                <span
+                  class="text-xs"
+                  :class="entry.status === 'failed' ? 'text-red-600' : entry.status === 'uploaded' ? 'text-green-700' : 'text-gray-500'"
+                >
+                  {{ fileStatus(entry) }}
+                </span>
               </div>
             </div>
           </div>
@@ -112,10 +117,10 @@
           <div class="flex gap-3">
             <button
               type="submit"
-              :disabled="submitting"
+              :disabled="submitting || imagesBusy"
               class="rounded-md bg-[rgba(13,94,130,1)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgba(10,69,92,1)] disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {{ submitting ? 'Creating...' : 'Create Listing' }}
+              {{ submitting ? 'Creating...' : imagesBusy ? 'Uploading images...' : 'Create Listing' }}
             </button>
           </div>
         </form>
@@ -142,10 +147,18 @@ const form = ref({
 })
 const descriptionDoc = ref(emptyMarketplaceDescriptionDoc())
 
-const selectedFiles = ref<Array<{ id: string; file: File }>>([])
-const uploadedMediaIds = ref<number[]>([])
+type SelectedImage = {
+  id: string
+  file: File
+  status: 'uploading' | 'uploaded' | 'failed'
+  mediaId?: number
+}
+
+const selectedFiles = ref<SelectedImage[]>([])
+const uploadTasks = new Map<string, Promise<void>>()
 
 const submitting = ref(false)
+const imagesBusy = computed(() => selectedFiles.value.some((entry) => entry.status === 'uploading'))
 const submitError = ref<string | null>(null)
 const submitSuccess = ref(false)
 const showListingType = computed(() => form.value.category === 'housing')
@@ -157,21 +170,51 @@ watch(
   },
 )
 
+function apiErrorMessage(source: any, fallback: string): string {
+  return (
+    source?.data?.error ||
+    source?.data?.message ||
+    source?.statusMessage ||
+    source?.message ||
+    fallback
+  )
+}
+
+function patchFile(id: string, patch: Partial<SelectedImage>) {
+  selectedFiles.value = selectedFiles.value.map((entry) => (entry.id === id ? { ...entry, ...patch } : entry))
+}
+
 function onFilesSelected(event: Event) {
   const input = event.target as HTMLInputElement
   const files = Array.from(input.files || [])
+  uploadTasks.clear()
+  submitError.value = null
   selectedFiles.value = files.slice(0, 10).map((file) => ({
     id: `${file.name}-${file.size}-${Math.random().toString(36).slice(2, 8)}`,
     file,
+    status: 'uploading' as const,
   }))
-  uploadedMediaIds.value = []
+  for (const entry of selectedFiles.value) startUpload(entry)
   input.value = ''
 }
 
-function fileStatus(index: number): string {
-  if (uploadedMediaIds.value[index]) return 'Uploaded'
-  if (submitting.value) return 'Uploading...'
-  return 'Pending'
+function fileStatus(entry: SelectedImage): string {
+  if (entry.status === 'uploaded') return 'Uploaded'
+  if (entry.status === 'failed') return 'Failed'
+  return 'Uploading...'
+}
+
+function startUpload(entry: SelectedImage) {
+  const task = (async () => {
+    try {
+      const mediaId = await uploadMarketplaceMedia(entry.file)
+      patchFile(entry.id, { status: 'uploaded', mediaId })
+    } catch (err: any) {
+      patchFile(entry.id, { status: 'failed' })
+      submitError.value = apiErrorMessage(err, 'Failed to upload image')
+    }
+  })()
+  uploadTasks.set(entry.id, task)
 }
 
 async function uploadMarketplaceMedia(file: File): Promise<number> {
@@ -186,7 +229,7 @@ async function uploadMarketplaceMedia(file: File): Promise<number> {
   })
   const json = await response.json().catch(() => ({}))
   if (!response.ok) {
-    throw new Error(json?.message || json?.statusMessage || 'Failed to upload image')
+    throw new Error(apiErrorMessage(json, 'Failed to upload image'))
   }
   if (!json?.id) {
     throw new Error('Upload succeeded but no media ID was returned')
@@ -208,12 +251,21 @@ async function onSubmit() {
       throw new Error('Please select a listing type.')
     }
 
-    const mediaIds: number[] = []
-    for (const entry of selectedFiles.value) {
-      const id = await uploadMarketplaceMedia(entry.file)
-      mediaIds.push(id)
-      uploadedMediaIds.value = [...mediaIds]
+    await Promise.all([...uploadTasks.values()])
+    for (const entry of [...selectedFiles.value]) {
+      if (entry.status === 'uploaded' && entry.mediaId) continue
+      patchFile(entry.id, { status: 'uploading' })
+      try {
+        const mediaId = await uploadMarketplaceMedia(entry.file)
+        patchFile(entry.id, { status: 'uploaded', mediaId })
+      } catch (err: any) {
+        patchFile(entry.id, { status: 'failed' })
+        throw new Error(apiErrorMessage(err, 'Images failed to upload. Try again before creating the listing.'))
+      }
     }
+    const mediaIds = selectedFiles.value
+      .map((entry) => entry.mediaId)
+      .filter((id): id is number => typeof id === 'number')
 
     const payload: Record<string, unknown> = {
       title: form.value.title.trim(),
@@ -237,7 +289,7 @@ async function onSubmit() {
       router.push('/marketplace')
     }, 500)
   } catch (err: any) {
-    submitError.value = err?.data?.message ?? err?.message ?? 'Failed to create listing.'
+    submitError.value = apiErrorMessage(err, 'Failed to create listing.')
   } finally {
     submitting.value = false
   }
