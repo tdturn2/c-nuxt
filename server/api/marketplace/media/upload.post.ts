@@ -2,6 +2,7 @@ import { createError, defineEventHandler, readMultipartFormData } from 'h3'
 import { authenticateWithConnectApi, getConnectApiProxyHeaders } from '../../../utils/payloadAuth'
 import { getUserIdFromEmail } from '../../../utils/getUserIdFromEmail'
 import { resolveConnectApiUrl } from '../../../utils/connectApi'
+import { compressMarketplaceUpload } from '../../../utils/compressMarketplaceImage'
 
 function upstreamMessage(uploadJson: any, fallback: string): string {
   if (typeof uploadJson?.error === 'string' && uploadJson.error.trim()) return uploadJson.error
@@ -40,9 +41,14 @@ export default defineEventHandler(async (event) => {
     }
 
     const ownerId = await getUserIdFromEmail(email, connectApiUrl)
+    const compressed = await compressMarketplaceUpload({
+      data: file.data,
+      filename: file.filename || 'upload',
+      mimeType: file.type || 'application/octet-stream',
+    })
     const outgoing = new FormData()
-    const blob = new Blob([file.data], { type: file.type || 'application/octet-stream' })
-    outgoing.append('file', blob, file.filename || 'upload')
+    const blob = new Blob([compressed.data], { type: compressed.mimeType })
+    outgoing.append('file', blob, compressed.filename)
     // SSO fallback: connect-api accepts a session email when no JWT is present.
     outgoing.append('email', email)
     outgoing.append(

@@ -94,22 +94,42 @@
                 <UIcon name="i-heroicons-photo" class="h-4 w-4" />
                 Choose images
               </label>
-              <p class="mt-2 text-xs text-gray-500">Upload up to 10 images. They start uploading as soon as you choose them.</p>
+              <p class="mt-2 text-xs text-gray-500">Upload up to 10 images. Phone photos are resized automatically, then uploaded.</p>
             </div>
 
             <div v-if="selectedFiles.length" class="space-y-2">
               <div
-                v-for="(entry, index) in selectedFiles"
+                v-for="entry in selectedFiles"
                 :key="entry.id"
-                class="flex items-center justify-between gap-2 rounded border border-gray-200 px-3 py-2 text-sm"
+                class="flex items-start justify-between gap-3 rounded border px-3 py-2 text-sm"
+                :class="entry.status === 'failed' ? 'border-red-200 bg-red-50' : 'border-gray-200'"
               >
-                <span class="truncate">{{ entry.file.name }}</span>
-                <span
-                  class="text-xs"
-                  :class="entry.status === 'failed' ? 'text-red-600' : entry.status === 'uploaded' ? 'text-green-700' : 'text-gray-500'"
-                >
-                  {{ fileStatus(entry) }}
-                </span>
+                <div class="min-w-0">
+                  <p class="truncate text-gray-900">{{ entry.file.name }}</p>
+                  <p
+                    class="text-xs"
+                    :class="entry.status === 'failed' ? 'text-red-600' : entry.status === 'uploaded' ? 'text-green-700' : 'text-gray-500'"
+                  >
+                    {{ entry.status === 'failed' && entry.error ? entry.error : fileStatus(entry) }}
+                  </p>
+                </div>
+                <div class="flex shrink-0 items-center gap-3">
+                  <button
+                    v-if="entry.status === 'failed'"
+                    type="button"
+                    class="text-xs font-medium text-[rgba(13,94,130,1)] hover:underline"
+                    @click="retryUpload(entry.id)"
+                  >
+                    Retry
+                  </button>
+                  <button
+                    type="button"
+                    class="text-xs font-medium text-red-600 hover:text-red-700"
+                    @click="removeSelectedFile(entry.id)"
+                  >
+                    Remove
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -130,6 +150,7 @@
 </template>
 
 <script setup lang="ts">
+import { compressMarketplaceImage } from '~/utils/compressMarketplaceImage'
 import {
   emptyMarketplaceDescriptionDoc,
   marketplaceDescriptionText,
@@ -152,10 +173,12 @@ type SelectedImage = {
   file: File
   status: 'uploading' | 'uploaded' | 'failed'
   mediaId?: number
+  error?: string
 }
 
 const selectedFiles = ref<SelectedImage[]>([])
 const uploadTasks = new Map<string, Promise<void>>()
+const uploadControllers = new Map<string, AbortController>()
 
 const submitting = ref(false)
 const imagesBusy = computed(() => selectedFiles.value.some((entry) => entry.status === 'uploading'))
@@ -186,16 +209,33 @@ function patchFile(id: string, patch: Partial<SelectedImage>) {
 
 function onFilesSelected(event: Event) {
   const input = event.target as HTMLInputElement
-  const files = Array.from(input.files || [])
-  uploadTasks.clear()
+  const room = Math.max(0, 10 - selectedFiles.value.length)
+  const files = Array.from(input.files || []).slice(0, room)
   submitError.value = null
-  selectedFiles.value = files.slice(0, 10).map((file) => ({
+  const next = files.map((file) => ({
     id: `${file.name}-${file.size}-${Math.random().toString(36).slice(2, 8)}`,
     file,
     status: 'uploading' as const,
   }))
-  for (const entry of selectedFiles.value) startUpload(entry)
+  selectedFiles.value = [...selectedFiles.value, ...next]
+  for (const entry of next) startUpload(entry)
   input.value = ''
+}
+
+function removeSelectedFile(id: string) {
+  uploadControllers.get(id)?.abort()
+  uploadControllers.delete(id)
+  uploadTasks.delete(id)
+  selectedFiles.value = selectedFiles.value.filter((file) => file.id !== id)
+  if (!selectedFiles.value.some((file) => file.status === 'failed')) submitError.value = null
+}
+
+function retryUpload(id: string) {
+  const entry = selectedFiles.value.find((file) => file.id === id)
+  if (!entry || entry.status === 'uploading') return
+  submitError.value = null
+  patchFile(id, { status: 'uploading', error: undefined, mediaId: undefined })
+  startUpload({ ...entry, status: 'uploading', error: undefined, mediaId: undefined })
 }
 
 function fileStatus(entry: SelectedImage): string {
@@ -205,27 +245,39 @@ function fileStatus(entry: SelectedImage): string {
 }
 
 function startUpload(entry: SelectedImage) {
+  uploadControllers.get(entry.id)?.abort()
+  const controller = new AbortController()
+  uploadControllers.set(entry.id, controller)
   const task = (async () => {
     try {
-      const mediaId = await uploadMarketplaceMedia(entry.file)
-      patchFile(entry.id, { status: 'uploaded', mediaId })
+      const mediaId = await uploadMarketplaceMedia(entry.file, controller.signal)
+      if (!selectedFiles.value.some((file) => file.id === entry.id)) return
+      patchFile(entry.id, { status: 'uploaded', mediaId, error: undefined })
     } catch (err: any) {
-      patchFile(entry.id, { status: 'failed' })
-      submitError.value = apiErrorMessage(err, 'Failed to upload image')
+      if (controller.signal.aborted || !selectedFiles.value.some((file) => file.id === entry.id)) return
+      const message = apiErrorMessage(err, 'Failed to upload image')
+      patchFile(entry.id, { status: 'failed', error: message })
+      submitError.value = `${entry.file.name} failed to upload. Remove it, or retry, then create the listing.`
+    } finally {
+      if (uploadControllers.get(entry.id) === controller) uploadControllers.delete(entry.id)
+      if (uploadTasks.get(entry.id) === task) uploadTasks.delete(entry.id)
     }
   })()
   uploadTasks.set(entry.id, task)
 }
 
-async function uploadMarketplaceMedia(file: File): Promise<number> {
+async function uploadMarketplaceMedia(file: File, signal?: AbortSignal): Promise<number> {
+  const prepared = await compressMarketplaceImage(file)
+  if (signal?.aborted) throw new DOMException('The upload was cancelled.', 'AbortError')
   const formData = new FormData()
-  formData.append('file', file)
-  formData.append('alt', form.value.title || file.name)
+  formData.append('file', prepared)
+  formData.append('alt', form.value.title || prepared.name)
 
   const response = await fetch('/api/marketplace/media/upload', {
     method: 'POST',
     body: formData,
     credentials: 'include',
+    signal,
   })
   const json = await response.json().catch(() => ({}))
   if (!response.ok) {
@@ -252,16 +304,9 @@ async function onSubmit() {
     }
 
     await Promise.all([...uploadTasks.values()])
-    for (const entry of [...selectedFiles.value]) {
-      if (entry.status === 'uploaded' && entry.mediaId) continue
-      patchFile(entry.id, { status: 'uploading' })
-      try {
-        const mediaId = await uploadMarketplaceMedia(entry.file)
-        patchFile(entry.id, { status: 'uploaded', mediaId })
-      } catch (err: any) {
-        patchFile(entry.id, { status: 'failed' })
-        throw new Error(apiErrorMessage(err, 'Images failed to upload. Try again before creating the listing.'))
-      }
+    const failed = selectedFiles.value.filter((entry) => entry.status === 'failed')
+    if (failed.length) {
+      throw new Error('Remove the image that failed to upload, or retry it, then create the listing.')
     }
     const mediaIds = selectedFiles.value
       .map((entry) => entry.mediaId)
