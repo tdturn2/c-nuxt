@@ -56,25 +56,16 @@
           <div
             class="mt-4 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 justify-items-center"
           >
-            <template v-for="item in shelfItems" :key="shelfKey(item)">
-            <h2
-              v-if="item.kind === 'heading'"
-              class="col-span-full justify-self-stretch text-left text-xl font-semibold tracking-tight text-[rgba(13,94,130,1)]"
-            >
-              {{ item.label }}
-            </h2>
-            <div v-else-if="item.kind === 'rule'" class="col-span-full justify-self-stretch py-4">
-              <hr class="w-full border-gray-300">
-            </div>
             <article
-              v-else
+              v-for="book in chronologicalBooks"
+              :key="book.id"
               class="flex h-full w-full max-w-[11rem] flex-col justify-self-stretch"
             >
               <component
-                :is="bookExternalHref(item.book) ? 'a' : 'div'"
-                v-bind="bookExternalHref(item.book)
+                :is="bookExternalHref(book) ? 'a' : 'div'"
+                v-bind="bookExternalHref(book)
                   ? {
-                      href: bookExternalHref(item.book)!,
+                      href: bookExternalHref(book)!,
                       target: '_blank',
                       rel: 'noopener noreferrer',
                     }
@@ -85,9 +76,9 @@
                   class="aspect-[2/3] w-full overflow-hidden rounded-lg border border-gray-200 bg-[#eceff3] p-3 shadow-sm transition-shadow group-hover:shadow-md"
                 >
                   <img
-                    v-if="item.book.image"
-                    :src="item.book.image"
-                    :alt="item.book.title || 'Book cover'"
+                    v-if="book.image"
+                    :src="book.image"
+                    :alt="book.title || 'Book cover'"
                     class="mx-auto h-full w-full object-contain"
                   >
                   <div
@@ -98,37 +89,36 @@
                   </div>
                 </div>
                 <h3 class="mt-3 line-clamp-3 h-[calc(0.875rem*1.375*3)] text-center text-sm font-semibold leading-snug text-gray-900 group-hover:text-[rgba(13,94,130,1)]">
-                  {{ item.book.title || 'Untitled' }}
+                  {{ book.title || 'Untitled' }}
                 </h3>
               </component>
 
               <NuxtLink
-                v-if="item.book.author"
-                :to="userProfilePath(item.book)"
+                v-if="book.author"
+                :to="userProfilePath(book)"
                 class="mt-3 flex h-8 min-w-0 items-center gap-2 rounded-md px-1 hover:bg-gray-100"
               >
                 <div class="h-8 w-8 shrink-0 overflow-hidden rounded-full bg-gray-200 flex items-center justify-center">
                   <img
-                    v-if="item.book.authorAvatar"
-                    :src="item.book.authorAvatar"
-                    :alt="item.book.author"
+                    v-if="book.authorAvatar"
+                    :src="book.authorAvatar"
+                    :alt="book.author"
                     class="h-full w-full object-cover"
                   >
                   <span v-else class="text-xs font-semibold text-gray-600">
-                    {{ item.book.author.charAt(0).toUpperCase() }}
+                    {{ book.author.charAt(0).toUpperCase() }}
                   </span>
                 </div>
                 <span class="min-w-0 truncate text-sm text-gray-700 hover:text-[rgba(13,94,130,1)]">
-                  {{ item.book.author }}
+                  {{ book.author }}
                 </span>
               </NuxtLink>
               <div v-else class="mt-3 h-8" />
 
               <p class="mt-1 h-4 text-center text-xs text-gray-500">
-                {{ item.book.releaseDate ? formatDate(item.book.releaseDate) : '' }}
+                {{ book.releaseDate ? formatDate(book.releaseDate) : '' }}
               </p>
             </article>
-            </template>
           </div>
         </template>
       </div>
@@ -147,13 +137,7 @@ type LatestBook = {
   authorId?: number | null
   authorEmail?: string | null
   authorAvatar?: string | null
-  homepageFeatured?: boolean
 }
-
-type ShelfItem =
-  | { kind: 'heading'; id: string; label: string }
-  | { kind: 'book'; book: LatestBook }
-  | { kind: 'rule' }
 
 useSeoMeta({
   title: 'Faculty Publications',
@@ -197,27 +181,15 @@ const filteredBooks = computed(() => {
   })
 })
 
-const shelfItems = computed<ShelfItem[]>(() => {
-  const featured = filteredBooks.value.filter((book) => book.homepageFeatured)
-  const rest = filteredBooks.value.filter((book) => !book.homepageFeatured)
-  const items: ShelfItem[] = []
-  if (featured.length) {
-    items.push({ kind: 'heading', id: 'latest', label: 'Latest Publications' })
-    for (const book of featured) items.push({ kind: 'book', book })
-  }
-  if (featured.length && rest.length) items.push({ kind: 'rule' })
-  if (rest.length) {
-    items.push({ kind: 'heading', id: 'archive', label: 'Publication Archive' })
-    for (const book of rest) items.push({ kind: 'book', book })
-  }
-  return items
-})
-
-function shelfKey(item: ShelfItem): string {
-  if (item.kind === 'heading') return `heading:${item.id}`
-  if (item.kind === 'rule') return 'rule'
-  return String(item.book.id)
+function releaseDateSortValue(raw: string | null | undefined): number {
+  if (!raw) return Number.NEGATIVE_INFINITY
+  const time = Date.parse(`${String(raw).slice(0, 10)}T12:00:00Z`)
+  return Number.isFinite(time) ? time : Number.NEGATIVE_INFINITY
 }
+
+const chronologicalBooks = computed(() =>
+  [...filteredBooks.value].sort((a, b) => releaseDateSortValue(b.releaseDate) - releaseDateSortValue(a.releaseDate)),
+)
 
 function bookExternalHref(book: LatestBook): string | null {
   const raw = typeof book.link === 'string' ? book.link.trim() : ''
