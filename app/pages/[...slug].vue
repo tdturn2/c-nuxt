@@ -306,6 +306,7 @@ import {
   useConnectPagesTreeData,
 } from '~/composables/useConnectPagesTree'
 import ConnectInlineForm from '~/components/forms/ConnectInlineForm.vue'
+import { toBrowserMediaUrl } from '@shared/mediaUrls'
 import {
   CONNECT_PAGES_MEDIA_RELATION,
   normalizePayloadMediaUrl,
@@ -1140,12 +1141,12 @@ function lexicalToHtml(node: any): string {
   }
   if (node.type === 'upload') {
     if (node.relationTo !== CONNECT_PAGES_MEDIA_RELATION) return ''
-    const { url, alt } = resolveConnectPagesMediaFromLexicalValue(node.value)
-    const src = normalizeConnectPageMediaUrl(url)
+    const { url, alt, align, size } = resolveConnectPagesMediaFromLexicalValue(node.value)
+    const src = toBrowserMediaUrl(url) || normalizeConnectPageMediaUrl(url)
     if (!src) return ''
     const safeSrc = escapeHtml(src)
     const safeAlt = escapeHtml(alt || '')
-    return `<figure class="connect-page-media-figure not-prose my-6"><img src="${safeSrc}" alt="${safeAlt}" class="max-w-full h-auto rounded-lg border border-gray-200 shadow-sm" loading="lazy" decoding="async" /></figure>`
+    return `<figure class="connect-page-media-figure connect-page-media-figure--${size} connect-page-media-figure--${align} not-prose"><img src="${safeSrc}" alt="${safeAlt}" loading="lazy" decoding="async" /></figure>`
   }
   if (node.type === CONNECT_ACCORDION_LEXICAL_TYPE) {
     const items = (Array.isArray(node.children) ? node.children : [])
@@ -1361,6 +1362,46 @@ article .connect-html-page h4 {
 article .connect-page-body.prose :is(h1, h2, h3, h4):first-child,
 article .connect-html-page :is(h1, h2, h3, h4):first-child {
   margin-top: 0;
+}
+
+article .connect-page-body::after {
+  content: '';
+  display: table;
+  clear: both;
+}
+
+article .connect-page-media-figure {
+  margin: 1.25rem 0;
+  max-width: 100%;
+}
+
+article .connect-page-media-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 0;
+  border-radius: 0.5rem;
+  box-shadow: none;
+}
+
+article .connect-page-media-figure--small { width: 10rem; max-width: 42%; }
+article .connect-page-media-figure--medium { width: 16rem; max-width: 55%; }
+article .connect-page-media-figure--large { width: 24rem; max-width: 80%; }
+article .connect-page-media-figure--full { width: 100%; }
+
+article .connect-page-media-figure--left {
+  float: left;
+  margin: 0.2rem 1.25rem 0.75rem 0;
+}
+
+article .connect-page-media-figure--right {
+  float: right;
+  margin: 0.2rem 0 0.75rem 1.25rem;
+}
+
+article .connect-page-media-figure--none {
+  float: none;
+  clear: both;
 }
 
 article .connect-page-body.prose a {

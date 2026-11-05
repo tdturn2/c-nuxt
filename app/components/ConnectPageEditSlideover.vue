@@ -256,7 +256,7 @@
           >
             <span class="text-sm font-semibold text-gray-900">Page media library</span>
             <p class="text-xs text-gray-500 mt-0.5">
-              Upload PDFs, images, and Excel files (.xls, .xlsx). For <strong class="font-semibold text-gray-800">inline photos</strong>, use the image button in the content toolbar (uploads here and inserts the image). You can still copy a file URL to use as a regular link.
+              Upload PDFs, images, and Excel files. For a photo already in this list, click Insert. It is placed on its own line in the content. The image button in the content toolbar uploads a new photo and inserts it.
             </p>
           </summary>
           <div class="border-t border-gray-100 px-4 pb-4 pt-3">
@@ -356,6 +356,14 @@
                   </div>
                 </div>
                 <div class="flex shrink-0 flex-wrap gap-1.5">
+                  <button
+                    v-if="mediaAssetIsImage(a)"
+                    type="button"
+                    class="rounded border border-[rgba(13,94,130,0.35)] bg-[rgba(13,94,130,0.08)] px-2 py-1 text-xs font-semibold text-[rgba(13,94,130,1)] hover:bg-[rgba(13,94,130,0.14)]"
+                    @click="insertLibraryImage(a)"
+                  >
+                    Insert
+                  </button>
                   <button
                     type="button"
                     class="rounded border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-800 hover:bg-gray-50"
@@ -806,8 +814,38 @@ function mediaDisplayName(a: any): string {
 }
 
 function mediaUrlForDoc(a: any): string | null {
-  const u = a?._normalizedUrl || a?.file?.url
+  const u = a?._normalizedUrl || a?.url || a?.file?.url
   return typeof u === 'string' && u.length > 0 ? u : null
+}
+
+function mediaAssetIsImage(a: any): boolean {
+  const mime = String(a?.mimeType || a?.file?.mimeType || '').toLowerCase()
+  if (mime.startsWith('image/')) return true
+  const name = `${mediaFilenameForDoc(a) || ''} ${mediaUrlForDoc(a) || ''}`.toLowerCase()
+  return /\.(avif|gif|jpe?g|png|svg|webp)(\?|#|$)/i.test(name)
+}
+
+function insertLibraryImage(asset: any) {
+  assetUploadError.value = null
+  assetLibrarySuccess.value = null
+  const src = mediaUrlForDoc(asset)
+  if (!src || !mediaAssetIsImage(asset)) {
+    assetUploadError.value = 'That file is not an image.'
+    return
+  }
+  const ed = activeSectionEditor.value
+  if (!ed || ed.isDestroyed) {
+    assetUploadError.value = 'Open the content section, click into it, then insert the image.'
+    return
+  }
+  const alt = mediaDisplayName(asset)
+  const inserted = ed.chain().focus().setImage({ src, alt }).run()
+  if (!inserted) {
+    assetUploadError.value = 'Could not place the image. Click into the content and try again.'
+    return
+  }
+  assetLibrarySuccess.value = `Inserted “${alt}”. Save the page to keep it.`
+  clearAssetLibrarySuccessSoon(4000)
 }
 
 function mediaFilenameForDoc(a: any): string | null {
@@ -1900,11 +1938,19 @@ async function onDocsImageFileInputChange(ev: Event) {
     const alt = humanizeFilename(file.name)
     const res = await uploadConnectPageAsset(file, alt)
     const ed = activeSectionEditor.value
-    if (ed && !ed.isDestroyed) {
-      ed.chain().focus().setImage({
-        src: res.url,
-        alt,
-      }).run()
+    if (!ed || ed.isDestroyed) {
+      assetUploadError.value = 'Click into the content section, then use the image button again.'
+      await refreshConnectPagesMedia()
+      return
+    }
+    const inserted = ed.chain().focus().setImage({
+      src: res.url,
+      alt,
+    }).run()
+    if (!inserted) {
+      assetUploadError.value = 'The image uploaded, but it could not be placed in the content. Click into the section and try again.'
+      await refreshConnectPagesMedia()
+      return
     }
     await refreshConnectPagesMedia()
     assetLibrarySuccess.value = `Inserted image “${res.filename || file.name}”.`
@@ -2140,6 +2186,25 @@ defineExpose({
 .connect-docs-editor .ProseMirror h2 { font-size: 1.5rem; font-weight: 700; line-height: 1.25; margin: 1.25rem 0 0.5rem; }
 .connect-docs-editor .ProseMirror h3 { font-size: 1.25rem; font-weight: 600; line-height: 1.375; margin: 1rem 0 0.4rem; }
 .connect-docs-editor .ProseMirror h4 { font-size: 1.125rem; font-weight: 600; line-height: 1.375; margin: 0.85rem 0 0.35rem; }
+.connect-docs-editor .ProseMirror img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 0;
+  border-radius: 0.5rem;
+  box-shadow: none;
+}
+.connect-docs-editor .ProseMirror img[data-size="small"] { width: 10rem; }
+.connect-docs-editor .ProseMirror img[data-size="medium"] { width: 16rem; }
+.connect-docs-editor .ProseMirror img[data-size="large"] { width: 24rem; }
+.connect-docs-editor .ProseMirror img[data-size="full"] { width: 100%; }
+.connect-docs-editor .ProseMirror img[data-align="left"] { float: left; margin: 0.2rem 1rem 0.6rem 0; }
+.connect-docs-editor .ProseMirror img[data-align="right"] { float: right; margin: 0.2rem 0 0.6rem 1rem; }
+.connect-docs-editor .ProseMirror img[data-align="none"] { float: none; clear: both; margin-top: 0.75rem; margin-bottom: 0.75rem; }
+.connect-docs-editor .ProseMirror img.ProseMirror-selectednode {
+  outline: 2px solid rgba(13, 94, 130, 0.45);
+  outline-offset: 2px;
+}
 .connect-docs-editor .ProseMirror p { margin: 0.35rem 0; }
 .connect-docs-editor .ProseMirror ul { list-style: disc; padding-left: 1.25rem; margin: 0.35rem 0; }
 .connect-docs-editor .ProseMirror ol { list-style: decimal; padding-left: 1.25rem; margin: 0.35rem 0; }

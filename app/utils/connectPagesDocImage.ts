@@ -1,3 +1,5 @@
+import { toBrowserMediaUrl } from '../../shared/mediaUrls'
+
 /** Payload Lexical upload feature uses this collection slug for connect page assets. */
 export const CONNECT_PAGES_MEDIA_RELATION = 'connect-pages-media'
 
@@ -16,41 +18,73 @@ export function normalizePayloadMediaUrl(url: string, payloadBaseUrl: string): s
   return t.startsWith('/') ? `${base}${t}` : `${base}/${t}`
 }
 
-/**
- * Recover a connect-pages-media document id from a served file URL when `connectMediaId` is missing.
- */
-export function parseConnectPagesMediaIdFromUrl(urlRaw: string): string | number | null {
+/** Filename in `/api/connect-pages-media/file/:filename`, if this URL is one of ours. */
+export function parseConnectPagesMediaFilenameFromUrl(urlRaw: string): string | null {
   const url = String(urlRaw || '').trim()
   if (!url) return null
   const m = url.match(/\/api\/connect-pages-media\/file\/([^/?#]+)/i)
   if (!m?.[1]) return null
-  const id = decodeURIComponent(m[1])
-  const n = Number(id)
-  if (String(n) === id && Number.isFinite(n)) return n
-  return id
+  try {
+    return decodeURIComponent(m[1])
+  } catch {
+    return m[1]
+  }
+}
+
+export function connectPagesMediaFileUrl(filename: string): string {
+  const name = String(filename || '').trim()
+  if (!name) return ''
+  return `/api/connect-pages-media/file/${encodeURIComponent(name)}`
+}
+
+export type PageImageAlign = 'none' | 'left' | 'right'
+export type PageImageSize = 'small' | 'medium' | 'large' | 'full'
+
+export function normalizePageImageAlign(value: unknown): PageImageAlign {
+  const align = String(value || '').trim().toLowerCase()
+  if (align === 'left' || align === 'right') return align
+  return 'none'
+}
+
+export function normalizePageImageSize(value: unknown): PageImageSize {
+  const size = String(value || '').trim().toLowerCase()
+  if (size === 'small' || size === 'medium' || size === 'large') return size
+  return 'full'
 }
 
 export function resolveConnectPagesMediaFromLexicalValue(value: unknown): {
   mediaId: string | number | null
   url: string
   alt: string
+  align: PageImageAlign
+  size: PageImageSize
 } {
   let mediaId: string | number | null = null
   let url = ''
   let alt = ''
+  let align: PageImageAlign = 'none'
+  let size: PageImageSize = 'full'
 
-  if (value == null) return { mediaId: null, url: '', alt: '' }
+  const result = () => ({ mediaId, url, alt, align, size })
+
+  if (value == null) return result()
 
   if (typeof value === 'number') {
-    return { mediaId: value, url: '', alt: '' }
+    mediaId = value
+    return result()
   }
 
   if (typeof value === 'string') {
     const t = value.trim()
-    if (!t) return { mediaId: null, url: '', alt: '' }
+    if (!t) return result()
     const n = Number(t)
-    if (String(n) === t && Number.isFinite(n)) return { mediaId: n, url: '', alt: '' }
-    return { mediaId: t, url: '', alt: '' }
+    if (String(n) === t && Number.isFinite(n)) {
+      mediaId = n
+      return result()
+    }
+    // Older saves stored the filename in place of the media id, so the page had no URL to render.
+    url = connectPagesMediaFileUrl(t)
+    return result()
   }
 
   if (typeof value === 'object') {
@@ -63,32 +97,35 @@ export function resolveConnectPagesMediaFromLexicalValue(value: unknown): {
       if (typeof f.alt === 'string') alt = f.alt
     }
     if (!url && typeof o.url === 'string') url = o.url
+    if (!url && typeof o.filename === 'string') url = connectPagesMediaFileUrl(o.filename)
     if (!alt && typeof o.alt === 'string') alt = o.alt
+    align = normalizePageImageAlign(o.align)
+    size = normalizePageImageSize(o.size)
   }
 
-  return { mediaId, url, alt }
-}
-
-function coerceLexicalUploadValue(id: string | number): string | number {
-  if (typeof id === 'number') return id
-  const n = Number(id)
-  if (String(n) === String(id).trim() && Number.isFinite(n)) return n
-  return String(id)
+  return result()
 }
 
 /**
- * Serialize a TipTap image to Payload Lexical `upload` v3.
- * Media id is taken from the image URL path when possible (same graph as Nuxt UI's Image extension).
+ * Serialize a TipTap image to a Lexical `upload` node.
+ * The file URL has to travel with the node. A bare media id or filename cannot be rendered later.
  */
 export function tipTapImageToLexicalUploadNode(node: {
-  attrs?: { src?: string; alt?: string; title?: string }
+  attrs?: { src?: string; alt?: string; title?: string; align?: string; size?: string }
 }): Record<string, unknown> | null {
   const src = typeof node.attrs?.src === 'string' ? node.attrs.src.trim() : ''
-  let mediaId: string | number | null = null
-  if (src) {
-    mediaId = parseConnectPagesMediaIdFromUrl(src)
+  const alt = typeof node.attrs?.alt === 'string' ? node.attrs.alt : ''
+  const browserUrl = toBrowserMediaUrl(src) || src
+  if (!browserUrl) return null
+
+  const filename = parseConnectPagesMediaFilenameFromUrl(browserUrl)
+  const value: Record<string, unknown> = {
+    url: browserUrl,
+    alt,
+    align: normalizePageImageAlign(node.attrs?.align),
+    size: normalizePageImageSize(node.attrs?.size),
   }
-  if (mediaId == null) return null
+  if (filename) value.filename = filename
 
   return {
     type: 'upload',
@@ -97,7 +134,7 @@ export function tipTapImageToLexicalUploadNode(node: {
     id: newLexicalUploadBlockId(),
     fields: null,
     relationTo: CONNECT_PAGES_MEDIA_RELATION,
-    value: coerceLexicalUploadValue(mediaId),
+    value,
   }
 }
 
@@ -107,8 +144,8 @@ export function lexicalUploadNodeToTipTapImage(
   payloadBaseUrl: string,
 ): any[] {
   if (node.relationTo !== CONNECT_PAGES_MEDIA_RELATION) return []
-  const { url, alt, mediaId } = resolveConnectPagesMediaFromLexicalValue(node.value)
-  const src = normalizePayloadMediaUrl(url, payloadBaseUrl)
+  const { url, alt, align, size } = resolveConnectPagesMediaFromLexicalValue(node.value)
+  const src = toBrowserMediaUrl(url) || normalizePayloadMediaUrl(url, payloadBaseUrl)
   if (!src) return []
   return [
     {
@@ -116,6 +153,8 @@ export function lexicalUploadNodeToTipTapImage(
       attrs: {
         src,
         alt: alt || '',
+        align,
+        size,
       },
     },
   ]
