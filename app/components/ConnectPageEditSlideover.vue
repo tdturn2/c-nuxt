@@ -2136,9 +2136,10 @@ defineExpose({
   padding: 0.75rem 1rem;
   outline: none;
 }
-.connect-docs-editor .ProseMirror h2 { font-size: 1.25rem; font-weight: 700; margin: 0.75rem 0 0.35rem; }
-.connect-docs-editor .ProseMirror h3 { font-size: 1.1rem; font-weight: 700; margin: 0.65rem 0 0.3rem; }
-.connect-docs-editor .ProseMirror h4 { font-size: 1rem; font-weight: 700; margin: 0.5rem 0 0.25rem; }
+.connect-docs-editor .ProseMirror h1 { font-size: 1.875rem; font-weight: 700; line-height: 1.25; margin: 1rem 0 0.65rem; }
+.connect-docs-editor .ProseMirror h2 { font-size: 1.5rem; font-weight: 700; line-height: 1.25; margin: 1.25rem 0 0.5rem; }
+.connect-docs-editor .ProseMirror h3 { font-size: 1.25rem; font-weight: 600; line-height: 1.375; margin: 1rem 0 0.4rem; }
+.connect-docs-editor .ProseMirror h4 { font-size: 1.125rem; font-weight: 600; line-height: 1.375; margin: 0.85rem 0 0.35rem; }
 .connect-docs-editor .ProseMirror p { margin: 0.35rem 0; }
 .connect-docs-editor .ProseMirror ul { list-style: disc; padding-left: 1.25rem; margin: 0.35rem 0; }
 .connect-docs-editor .ProseMirror ol { list-style: decimal; padding-left: 1.25rem; margin: 0.35rem 0; }

@@ -1023,7 +1023,14 @@ function lexicalToHtml(node: any): string {
   if (node.type === 'heading') {
     const tag = node.tag || 'h2'
     const inner = (node.children || []).map(lexicalToHtml).join('')
-    return inner ? `<${tag} class="mt-8 mb-3 font-semibold">${inner}</${tag}>` : ''
+    const headingClass = tag === 'h1'
+      ? 'mt-6 mb-4 text-3xl font-bold leading-tight text-gray-900'
+      : tag === 'h2'
+        ? 'mt-8 mb-3 text-2xl font-bold leading-tight text-gray-900'
+        : tag === 'h3'
+          ? 'mt-6 mb-2 text-xl font-semibold leading-snug text-gray-900'
+          : 'mt-5 mb-2 text-lg font-semibold leading-snug text-gray-900'
+    return inner ? `<${tag} class="${headingClass}">${inner}</${tag}>` : ''
   }
   if (node.type === 'quote') {
     const inner = (node.children || []).map(lexicalToHtml).join('')
@@ -1313,6 +1320,49 @@ useHead({
 
 <style>
 /* Prose often wins over utilities for `a { text-decoration }` — force subtle underlines here. */
+/* Page title is text-3xl (1.875rem). Body copy is 15px, and preflight
+   makes headings inherit that unless these sizes are set. */
+article .connect-page-body.prose h1,
+article .connect-html-page h1 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #111827;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+}
+article .connect-page-body.prose h2,
+article .connect-html-page h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #111827;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+}
+article .connect-page-body.prose h3,
+article .connect-html-page h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.375;
+  color: #111827;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+article .connect-page-body.prose h4,
+article .connect-html-page h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.375;
+  color: #111827;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+article .connect-page-body.prose :is(h1, h2, h3, h4):first-child,
+article .connect-html-page :is(h1, h2, h3, h4):first-child {
+  margin-top: 0;
+}
+
 article .connect-page-body.prose a {
   text-decoration: underline;
   text-decoration-color: rgba(13, 94, 130, 0.38);
