@@ -42,6 +42,12 @@ describe('canEditPageByGroups', () => {
     expect(canEditPageByGroups({ isAdmin: false, groupSlugs: ['hr'], pagePath: '/registrar' })).toBe(false)
     expect(canEditPageByGroups({ isAdmin: false, groupSlugs: ['registrar'], pagePath: '/registrar/forms' })).toBe(true)
     expect(canEditPageByGroups({ isAdmin: false, groupSlugs: ['registrar'], pagePath: '/hr' })).toBe(false)
+
+    const thetaPhi = { isAdmin: false, groupSlugs: ['theta-phi'] }
+    expect(canEditPageByGroups({ ...thetaPhi, pagePath: '/students/theta-phi' })).toBe(true)
+    expect(canEditPageByGroups({ ...thetaPhi, pagePath: '/students/theta-phi/student-forums' })).toBe(true)
+    expect(canEditPageByGroups({ ...thetaPhi, pagePath: '/students' })).toBe(false)
+    expect(canEditPageByGroups({ ...thetaPhi, pagePath: '/students/theta-phi-extra' })).toBe(false)
   })
 
   it('denies staff without a mapped group', () => {
@@ -71,10 +77,11 @@ describe('path helpers', () => {
   })
 
   it('maps group slugs to prefixes', () => {
-    expect(editorPrefixesForGroups(['arp', 'hr', 'registrar', 'unknown'])).toEqual([
+    expect(editorPrefixesForGroups(['arp', 'hr', 'registrar', 'theta-phi', 'unknown'])).toEqual([
       '/arp',
       '/hr',
       '/registrar',
+      '/students/theta-phi',
     ])
   })
 })

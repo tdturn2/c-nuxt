@@ -10,6 +10,7 @@ export const PAGE_EDITOR_GROUPS: Record<string, string[]> = {
   arp: ['/arp'],
   hr: ['/hr'],
   registrar: ['/registrar'],
+  'theta-phi': ['/students/theta-phi'],
 }
 
 export function normalizeEditorPath(path: string): string {
