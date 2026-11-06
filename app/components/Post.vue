@@ -44,7 +44,7 @@
             >
               <div class="flex items-center gap-2 min-w-0">
                 <h3 class="font-semibold text-gray-900 truncate">{{ displayUser.name }}</h3>
-                <div v-if="displayRoleBadges.length" class="flex items-center gap-1 shrink-0">
+                <div v-if="SHOW_ROLE_BADGES && displayRoleBadges.length" class="flex items-center gap-1 shrink-0">
                   <span
                     v-for="role in displayRoleBadges"
                     :key="role"
@@ -1560,6 +1560,9 @@ const handleRemoveReaction = async () => {
 }
 
 const displayUser = computed(() => props.user || props.post.author)
+
+/** Colored role pills next to author names. Keep the markup; flip this to show them again. */
+const SHOW_ROLE_BADGES = false
 
 const badgeRoleOrder = ['student', 'staff', 'faculty', 'alumni'] as const
 type BadgeRole = typeof badgeRoleOrder[number]

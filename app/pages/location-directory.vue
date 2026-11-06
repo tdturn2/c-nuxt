@@ -130,6 +130,13 @@
                     <p v-if="placeLabel(person)" class="mt-1 text-xs text-gray-500">
                       {{ placeLabel(person) }}
                     </p>
+                    <p v-if="officeEmail(person)" class="mt-2 truncate text-sm">
+                      <a
+                        :href="`mailto:${officeEmail(person)}`"
+                        class="text-[rgba(13,94,130,1)] hover:underline"
+                        @click.stop
+                      >{{ officeEmail(person) }}</a>
+                    </p>
                   </div>
                 </NuxtLink>
               </div>
@@ -143,6 +150,7 @@
 
 <script setup lang="ts">
 import { formatHomeLocation } from '@shared/geo'
+import { publicContactEmail } from '@shared/publicContactEmail'
 import { mediaDisplayUrl } from '@shared/mediaUrls'
 import LocationGlobe from '~/components/directory/LocationGlobe.vue'
 import LocationUsMap from '~/components/directory/LocationUsMap.vue'
@@ -151,6 +159,7 @@ type PersonRow = {
   id: number
   name: string
   email: string | null
+  preferredEmail?: string | null
   employeeTitle: string | null
   country: string
   region: string | null
@@ -288,6 +297,11 @@ function onStateSelect(payload: { code: string; name: string }) {
   filterCity.value = ''
   searchQuery.value = ''
   view.value = 'people'
+}
+
+function officeEmail(person: PersonRow): string | null {
+  if (!String(person.preferredEmail ?? '').trim()) return null
+  return publicContactEmail(person)
 }
 
 function userProfilePath(person: { id: number; email: string | null }): string {

@@ -48,6 +48,7 @@ export default defineEventHandler(async (event) => {
     name,
     employeeTitle: toTrimmed(body.employeeTitle),
     phone: toTrimmed(body.phone),
+    preferredEmail: toTrimmed(body.preferredEmail).toLowerCase(),
     password,
     roles: toRoleArray(body.roles),
     groups: toIdArray(body.groups),

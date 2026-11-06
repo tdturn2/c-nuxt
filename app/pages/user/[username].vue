@@ -40,6 +40,9 @@
                 <p v-if="user.employeeTitle" class="mt-1 text-sm leading-snug text-gray-600">
                   {{ user.employeeTitle }}
                 </p>
+                <p v-if="profileContactEmail" class="mt-1 text-sm">
+                  <a :href="`mailto:${profileContactEmail}`" class="text-[rgba(13,94,130,1)] hover:underline">{{ profileContactEmail }}</a>
+                </p>
                 <div v-if="alumniSocialLinks.length" class="mt-3 flex items-center gap-2">
                   <a
                     v-for="link in alumniSocialLinks"
@@ -91,6 +94,14 @@
                 @click="activeTab = 'publications'"
               >
                 Publications
+              </button>
+              <button
+                type="button"
+                class="-mb-px border-b-2 pb-2.5 text-sm font-medium transition-colors"
+                :class="tabClass('chapel-messages')"
+                @click="activeTab = 'chapel-messages'"
+              >
+                Chapel Messages
               </button>
               <button
                 type="button"
@@ -212,6 +223,11 @@
               </div>
             </div>
 
+            <ProfileChapelMessages
+              v-else-if="activeTab === 'chapel-messages' && user.id"
+              :user-id="user.id"
+            />
+
             <div v-else-if="activeTab === 'teaching-schedule'" class="mt-5 space-y-4">
               <div v-if="scheduleLoading" class="text-sm text-gray-500">Loading teaching schedule…</div>
               <div
@@ -272,13 +288,15 @@
 <script setup lang="ts">
 import { isPublicFaculty } from '@shared/facultyDirectory'
 import { formatHomeLocation } from '@shared/geo'
+import { publicContactEmail } from '@shared/publicContactEmail'
+import ProfileChapelMessages from '~/components/profile/ProfileChapelMessages.vue'
 
 const route = useRoute()
 const username = computed(() => route.params.username as string)
 
 const loading = ref(true)
 const error = ref<string | null>(null)
-type ProfileTab = 'overview' | 'expertise' | 'education' | 'publications' | 'teaching-schedule'
+type ProfileTab = 'overview' | 'expertise' | 'education' | 'publications' | 'chapel-messages' | 'teaching-schedule'
 const activeTab = ref<ProfileTab>('overview')
 type ScheduleClass = {
   fullClassId: string | null
@@ -307,6 +325,7 @@ const user = ref<{
   id: number
   name: string
   email: string
+  preferredEmail?: string | null
   bio: string | null
   facultyBio?: unknown
   expertise?: Array<{ id?: string; item?: string | null }> | null
@@ -344,6 +363,12 @@ const user = ref<{
     releaseDate?: string | null
   }>
 } | null>(null)
+
+const profileContactEmail = computed(() => {
+  const preferred = String(user.value?.preferredEmail ?? '').trim()
+  if (!preferred) return null
+  return publicContactEmail(user.value)
+})
 
 const studentProfile = ref<{ answers: Record<string, unknown>; updatedAt: string } | null>(null)
 
@@ -706,7 +731,10 @@ const loadUser = async () => {
     scheduleLoadedForId.value = null
     scheduleError.value = null
     const allowedTabs = new Set<string>(['overview'])
-    if (isFaculty.value) allowedTabs.add('teaching-schedule')
+    if (isFaculty.value) {
+      allowedTabs.add('teaching-schedule')
+      allowedTabs.add('chapel-messages')
+    }
     if (expertiseItems.value.length) allowedTabs.add('expertise')
     if (educationItems.value.length) allowedTabs.add('education')
     if (showPublicationsTab.value) allowedTabs.add('publications')

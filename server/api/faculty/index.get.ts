@@ -26,6 +26,7 @@ export default defineEventHandler(async () => {
       id: user.id,
       name: user.name,
       email: user.email ?? null,
+      preferredEmail: user.preferredEmail ?? null,
       employeeTitle: user.employeeTitle ?? null,
       department: user.department ?? null,
       section: user.section ?? null,

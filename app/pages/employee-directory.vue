@@ -85,9 +85,9 @@
                   <p v-if="emp.employeeTitle" class="text-sm text-gray-600 truncate">{{ emp.employeeTitle }}</p>
                 </div>
                 <dl class="mt-3 pt-3 border-t border-gray-100 space-y-1 w-full text-left">
-                  <div v-if="emp.email" class="flex items-center gap-2 min-w-0">
+                  <div v-if="publicContactEmail(emp)" class="flex items-center gap-2 min-w-0">
                     <UIcon name="i-heroicons-envelope" class="w-4 h-4 text-gray-400 flex-shrink-0" />
-                    <a :href="`mailto:${emp.email}`" class="text-sm text-[rgba(13,94,130,1)] hover:underline truncate" @click.stop>{{ emp.email }}</a>
+                    <a :href="`mailto:${publicContactEmail(emp)}`" class="text-sm text-[rgba(13,94,130,1)] hover:underline truncate" @click.stop>{{ publicContactEmail(emp) }}</a>
                   </div>
                   <div v-if="emp.phone" class="flex items-center gap-2">
                     <UIcon name="i-heroicons-phone" class="w-4 h-4 text-gray-400 flex-shrink-0" />
@@ -105,6 +105,7 @@
 
 <script setup lang="ts">
 import { sortDirectoryByLastName } from '@shared/directoryNameSort'
+import { publicContactEmail } from '@shared/publicContactEmail'
 import { mediaDisplayUrl } from '@shared/mediaUrls'
 import { watchDebounced } from '@vueuse/core'
 
@@ -112,6 +113,7 @@ type EmployeeRow = {
   id: number
   name: string
   email: string | null
+  preferredEmail?: string | null
   employeeTitle: string | null
   department: string | null
   section: string | null

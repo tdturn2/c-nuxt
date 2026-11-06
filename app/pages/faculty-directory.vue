@@ -3,7 +3,7 @@
     <LeftColumn />
     <main class="flex-1 min-w-0 overflow-y-auto">
       <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 class="text-2xl font-bold text-gray-900 mb-6">Faculty Directory</h1>
+        <h1 class="text-2xl font-bold text-gray-900 mb-4">Faculty Directory</h1>
 
         <template v-if="loading">
           <p class="sr-only">Loading faculty directory…</p>
@@ -20,7 +20,52 @@
           </div>
 
           <template v-else>
+            <div class="mb-6 -mx-4 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
+              <div
+                class="grid min-w-[52rem] grid-cols-6 gap-px overflow-hidden rounded-xl border border-gray-200 bg-gray-200 shadow-sm sm:min-w-0"
+                role="group"
+                aria-label="Faculty totals"
+              >
+              <button
+                v-for="stat in facultyTypeTotals"
+                :key="stat.value || 'all'"
+                type="button"
+                class="border-b-2 px-3 py-3.5 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[rgba(13,94,130,0.45)] sm:px-4"
+                :class="activeFacultyType === stat.value
+                  ? 'border-b-[rgba(13,94,130,1)] bg-[rgba(13,94,130,0.07)]'
+                  : 'border-b-transparent bg-white hover:bg-gray-50'"
+                :aria-pressed="activeFacultyType === stat.value"
+                @click="selectFacultyType(stat.value)"
+              >
+                <span
+                  class="block text-[11px] font-semibold uppercase tracking-wider"
+                  :class="activeFacultyType === stat.value ? 'text-[rgba(13,94,130,1)]' : 'text-gray-500'"
+                >
+                  {{ stat.label }}
+                </span>
+                <span
+                  class="mt-1.5 block text-3xl font-semibold tabular-nums leading-none tracking-tight"
+                  :class="activeFacultyType === stat.value ? 'text-[rgba(13,94,130,1)]' : 'text-gray-900'"
+                >
+                  {{ stat.count }}
+                </span>
+              </button>
+              </div>
+            </div>
+
             <div class="mb-6 flex flex-wrap items-end gap-3 sm:gap-4">
+              <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+                <label for="faculty-type" class="text-sm font-medium text-gray-700">Type</label>
+                <USelectMenu
+                  id="faculty-type"
+                  v-model="selectedType"
+                  :items="typeOptions"
+                  value-attribute="value"
+                  label-attribute="label"
+                  class="w-full min-w-[14rem] sm:w-64"
+                  placeholder="All"
+                />
+              </div>
               <div class="flex flex-wrap items-center gap-2 sm:gap-3">
                 <label for="faculty-school" class="text-sm font-medium text-gray-700">School</label>
                 <USelectMenu
@@ -73,9 +118,9 @@
                   <p v-if="person.employeeTitle" class="text-sm text-gray-600 truncate">{{ person.employeeTitle }}</p>
                 </div>
                 <dl class="mt-3 pt-3 border-t border-gray-100 space-y-1 w-full text-left">
-                  <div v-if="person.email" class="flex items-center gap-2 min-w-0">
+                  <div v-if="publicContactEmail(person)" class="flex items-center gap-2 min-w-0">
                     <UIcon name="i-heroicons-envelope" class="w-4 h-4 text-gray-400 flex-shrink-0" />
-                    <a :href="`mailto:${person.email}`" class="text-sm text-[rgba(13,94,130,1)] hover:underline truncate" @click.stop>{{ person.email }}</a>
+                    <a :href="`mailto:${publicContactEmail(person)}`" class="text-sm text-[rgba(13,94,130,1)] hover:underline truncate" @click.stop>{{ publicContactEmail(person) }}</a>
                   </div>
                   <div v-if="person.phone" class="flex items-center gap-2">
                     <UIcon name="i-heroicons-phone" class="w-4 h-4 text-gray-400 flex-shrink-0" />
@@ -93,12 +138,15 @@
 
 <script setup lang="ts">
 import { sortDirectoryByLastName } from '@shared/directoryNameSort'
+import { publicContactEmail } from '@shared/publicContactEmail'
+import { FACULTY_TYPES, facultyTypeFromTitle } from '@shared/facultyDirectory'
 import { mediaDisplayUrl } from '@shared/mediaUrls'
 
 type FacultyRow = {
   id: number
   name: string
   email: string | null
+  preferredEmail?: string | null
   employeeTitle: string | null
   phone: string | null
   section: string | null
@@ -113,12 +161,14 @@ const SCHOOLS = [
 ] as const
 
 const ALL_SCHOOLS = { label: 'All schools', value: '' } as const
+const ALL_TYPES = { label: 'All', value: '' } as const
 
 const route = useRoute()
 const router = useRouter()
 
 const searchQuery = ref('')
 const selectedSchool = ref<{ label: string; value: string }>({ ...ALL_SCHOOLS })
+const selectedType = ref<{ label: string; value: string }>({ ...ALL_TYPES })
 
 const { data: facultyPayload, pending: loading, error: fetchError } = useLazyFetch<{ faculty: FacultyRow[] }>(
   '/api/faculty',
@@ -142,17 +192,65 @@ function userProfilePath(person: { id: number; email: string | null }): string {
 }
 
 const schoolOptions = computed(() => [{ ...ALL_SCHOOLS }, ...SCHOOLS])
+const typeOptions = computed(() => [{ ...ALL_TYPES }, ...FACULTY_TYPES])
 
 function schoolFromQuery(value: string) {
   if (!value) return { ...ALL_SCHOOLS }
   return schoolOptions.value.find((option) => option.value === value) ?? { ...ALL_SCHOOLS }
 }
 
-const filteredFaculty = computed(() => {
+function typeFromQuery(value: string) {
+  if (!value) return { ...ALL_TYPES }
+  return typeOptions.value.find((option) => option.value === value) ?? { ...ALL_TYPES }
+}
+
+const facultyInSchool = computed(() => {
   const school = selectedSchool.value?.value ?? ''
-  let list = faculty.value
-  if (school) {
-    list = list.filter((person) => (person.section ?? '').trim() === school)
+  if (!school) return faculty.value
+  return faculty.value.filter((person) => (person.section ?? '').trim() === school)
+})
+
+const facultyTypeTotals = computed(() => {
+  const counts: Record<string, number> = Object.fromEntries(FACULTY_TYPES.map((type) => [type.value, 0]))
+  for (const person of facultyInSchool.value) {
+    counts[facultyTypeFromTitle(person.employeeTitle)] += 1
+  }
+  return [
+    { label: 'All', value: '', count: facultyInSchool.value.length },
+    ...FACULTY_TYPES.map((type) => ({ label: type.label, value: type.value, count: counts[type.value] ?? 0 })),
+  ]
+})
+
+const activeFacultyType = computed(() => selectedType.value?.value ?? '')
+
+function scrollActiveTotalIntoView() {
+  if (!import.meta.client) return
+  const attempt = (tries: number) => {
+    const selected = document.querySelector<HTMLElement>('[aria-label="Faculty totals"] [aria-pressed="true"]')
+    const scroller = selected?.parentElement?.parentElement
+    if (!selected || !scroller) return
+    if (scroller.scrollWidth <= scroller.clientWidth) {
+      if (tries > 0) requestAnimationFrame(() => attempt(tries - 1))
+      return
+    }
+    const left = selected.offsetLeft - (scroller.clientWidth - selected.offsetWidth) / 2
+    scroller.scrollTo({ left: Math.max(0, left) })
+  }
+  nextTick(() => requestAnimationFrame(() => attempt(6)))
+}
+
+function selectFacultyType(value: string) {
+  selectedType.value = typeFromQuery(value)
+  scrollActiveTotalIntoView()
+}
+
+watch([activeFacultyType, () => faculty.value.length], scrollActiveTotalIntoView, { flush: 'post' })
+
+const filteredFaculty = computed(() => {
+  const type = selectedType.value?.value ?? ''
+  let list = facultyInSchool.value
+  if (type) {
+    list = list.filter((person) => facultyTypeFromTitle(person.employeeTitle) === type)
   }
   const words = searchQuery.value
     .trim()
@@ -173,25 +271,38 @@ function parseSchool(query: typeof route.query) {
   return school
 }
 
-function applyQueryToFilters() {
-  const school = parseSchool(route.query)
-  const next = schoolFromQuery(school)
-  if (selectedSchool.value.value !== next.value) selectedSchool.value = next
+function parseType(query: typeof route.query) {
+  const type = typeof query.type === 'string' ? query.type.trim() : ''
+  return type
 }
 
-watch(() => route.query.school, applyQueryToFilters, { immediate: true })
+function applyQueryToFilters() {
+  const school = parseSchool(route.query)
+  const nextSchool = schoolFromQuery(school)
+  if (selectedSchool.value.value !== nextSchool.value) selectedSchool.value = nextSchool
+
+  const type = parseType(route.query)
+  const nextType = typeFromQuery(type)
+  if (selectedType.value.value !== nextType.value) selectedType.value = nextType
+}
+
+watch(() => [route.query.school, route.query.type], applyQueryToFilters, { immediate: true })
 
 function syncRouteFromFilters() {
   const school = selectedSchool.value?.value ?? ''
-  const current = parseSchool(route.query)
-  if (school === current) return
+  const type = selectedType.value?.value ?? ''
+  const currentSchool = parseSchool(route.query)
+  const currentType = parseType(route.query)
+  if (school === currentSchool && type === currentType) return
   const query = { ...route.query }
   if (school) query.school = school
   else delete query.school
+  if (type) query.type = type
+  else delete query.type
   router.replace({ path: route.path, query })
 }
 
-watch(selectedSchool, syncRouteFromFilters)
+watch([selectedSchool, selectedType], syncRouteFromFilters)
 
 watch(fetchError, (e) => {
   if (e) console.error('Error loading faculty:', e)

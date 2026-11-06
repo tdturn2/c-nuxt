@@ -5,7 +5,7 @@
       <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="mb-6">
           <h1 class="text-2xl font-bold text-gray-900">User Management</h1>
-          <p class="mt-1 text-sm text-gray-600">Create accounts, assign roles/groups, and update profile details including title and phone.</p>
+          <p class="mt-1 text-sm text-gray-600">Create accounts, assign roles/groups, and update profile details including title, phone, and preferred email.</p>
         </div>
 
         <div v-if="mePending" class="py-8 text-gray-500">Checking access...</div>
@@ -40,7 +40,7 @@
               <UInput
                 v-model="userSearch"
                 type="search"
-                placeholder="Search name, email, title, phone..."
+                placeholder="Search name, email, preferred email, title, phone..."
                 icon="i-lucide-search"
                 color="neutral"
                 variant="outline"
@@ -136,6 +136,12 @@
             <input v-model="userForm.employeeTitle" type="text" placeholder="Job title" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
             <input v-model="userForm.phone" type="tel" placeholder="Phone" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
           </div>
+          <input
+            v-model="userForm.preferredEmail"
+            type="email"
+            placeholder="Preferred email (shown instead of the login email)"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+          >
           <input
             v-model="userForm.password"
             type="text"
@@ -254,6 +260,7 @@ type UserItem = {
   id: string | number
   name?: string
   email?: string
+  preferredEmail?: string | null
   employeeTitle?: string | null
   phone?: string | null
   roles?: string[]
@@ -283,6 +290,7 @@ const avatarUploadInputRef = ref<HTMLInputElement | null>(null)
 const userForm = ref({
   name: '',
   email: '',
+  preferredEmail: '',
   employeeTitle: '',
   phone: '',
   password: '',
@@ -324,6 +332,7 @@ function resetUserForm() {
   userForm.value = {
     name: '',
     email: '',
+    preferredEmail: '',
     employeeTitle: '',
     phone: '',
     password: '',
@@ -389,6 +398,7 @@ const filteredUsers = computed(() => {
     const haystack = [
       user.name,
       user.email,
+      user.preferredEmail,
       user.employeeTitle,
       user.phone,
       formatRoles(user.roles),
@@ -438,6 +448,7 @@ async function openEditUserModal(user: UserItem) {
   userForm.value = {
     name: user.name || '',
     email: user.email || '',
+    preferredEmail: user.preferredEmail || '',
     employeeTitle: user.employeeTitle || '',
     phone: user.phone || '',
     password: '',
@@ -502,6 +513,7 @@ async function saveUser() {
   const payload = {
     name: userForm.value.name.trim(),
     email: userForm.value.email.trim(),
+    preferredEmail: userForm.value.preferredEmail.trim(),
     employeeTitle: userForm.value.employeeTitle.trim(),
     phone: userForm.value.phone.trim(),
     password: userForm.value.password.trim(),

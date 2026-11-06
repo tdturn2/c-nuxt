@@ -46,6 +46,7 @@ export default defineEventHandler(async (event) => {
   if (body.email !== undefined) payloadBody.email = toTrimmed(body.email).toLowerCase()
   if (body.employeeTitle !== undefined) payloadBody.employeeTitle = toTrimmed(body.employeeTitle)
   if (body.phone !== undefined) payloadBody.phone = toTrimmed(body.phone)
+  if (body.preferredEmail !== undefined) payloadBody.preferredEmail = toTrimmed(body.preferredEmail).toLowerCase()
   if (body.hideFromFacultyDirectory !== undefined) {
     payloadBody.hideFromFacultyDirectory = Boolean(body.hideFromFacultyDirectory)
   }

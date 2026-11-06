@@ -64,6 +64,7 @@ export default defineEventHandler(async () => {
         id: user.id,
         name: user.name,
         email: user.email ?? null,
+        preferredEmail: user.preferredEmail ?? null,
         employeeTitle: user.employeeTitle ?? null,
         country: String(user.country).trim().toUpperCase(),
         region: user.region ? String(user.region).trim().toUpperCase() : null,

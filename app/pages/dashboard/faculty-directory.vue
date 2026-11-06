@@ -67,7 +67,7 @@
                 </tr>
                 <tr v-for="person in filteredFaculty" :key="String(person.id)" class="border-t border-gray-200">
                   <td class="px-4 py-3 font-medium text-gray-900">{{ person.name || '—' }}</td>
-                  <td class="px-4 py-3 text-gray-700">{{ person.email || '—' }}</td>
+                  <td class="px-4 py-3 text-gray-700">{{ publicContactEmail(person) || '—' }}</td>
                   <td class="px-4 py-3 text-gray-700">{{ person.employeeTitle || '—' }}</td>
                   <td class="px-4 py-3">
                     <span
@@ -99,11 +99,13 @@
 
 <script setup lang="ts">
 import { sortDirectoryByLastName } from '@shared/directoryNameSort'
+import { publicContactEmail } from '@shared/publicContactEmail'
 
 type FacultyPerson = {
   id: string | number
   name?: string | null
   email?: string | null
+  preferredEmail?: string | null
   employeeTitle?: string | null
   roles?: string[]
   hideFromFacultyDirectory?: boolean
@@ -126,7 +128,7 @@ const filteredFaculty = computed(() => {
     if (visibilityFilter.value === 'listed' && hidden) return false
     if (visibilityFilter.value === 'hidden' && !hidden) return false
     if (!words.length) return true
-    const haystack = [person.name, person.email, person.employeeTitle].filter(Boolean).join(' ').toLowerCase()
+    const haystack = [person.name, person.email, person.preferredEmail, person.employeeTitle].filter(Boolean).join(' ').toLowerCase()
     return words.every((word) => haystack.includes(word))
   })
 })
