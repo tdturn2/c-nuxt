@@ -192,16 +192,16 @@
                   </div>
                 </div>
                 <div
-                  v-if="c.email || c.phone"
+                  v-if="c.publicEmail || c.phone"
                   class="flex shrink-0 items-center justify-end gap-3"
                 >
                   <UTooltip
-                    v-if="c.email"
-                    :text="c.email"
+                    v-if="c.publicEmail"
+                    :text="c.publicEmail"
                     :delay-duration="0"
                   >
                     <a
-                      :href="`mailto:${c.email}`"
+                      :href="`mailto:${c.publicEmail}`"
                       class="inline-flex h-8 w-8 items-center justify-center rounded-md text-[rgba(13,94,130,1)] hover:bg-[rgba(13,94,130,0.08)]"
                       :aria-label="`Email ${c.name || 'contact'}`"
                     >
@@ -307,6 +307,7 @@ import {
 } from '~/composables/useConnectPagesTree'
 import ConnectInlineForm from '~/components/forms/ConnectInlineForm.vue'
 import { toBrowserMediaUrl } from '@shared/mediaUrls'
+import { publicContactEmail } from '@shared/publicContactEmail'
 import {
   CONNECT_PAGES_MEDIA_RELATION,
   normalizePayloadMediaUrl,
@@ -361,6 +362,9 @@ type ConnectUser = {
   name?: string | null
   employeeTitle?: string | null
   email?: string | null
+  preferredEmail?: string | null
+  /** Address shown on the page. Login email stays the profile slug. */
+  publicEmail?: string | null
   phone?: string | null
   avatar?: { url: string } | null
   profilePath?: string | null
@@ -595,6 +599,7 @@ function normalizeContactRef(raw: unknown): ResolvedContactRef | null {
         name: typeof obj.name === 'string' ? obj.name : null,
         employeeTitle: typeof obj.employeeTitle === 'string' ? obj.employeeTitle : null,
         email: typeof obj.email === 'string' ? obj.email : null,
+        preferredEmail: typeof obj.preferredEmail === 'string' ? obj.preferredEmail : null,
         phone: typeof obj.phone === 'string' ? obj.phone : null,
         avatar: avatarUrl ? { url: avatarUrl } : null,
       },
@@ -644,6 +649,7 @@ const { data: hydratedContacts } = useAsyncData<Record<string, ConnectUser>>(
           name: user?.name ?? null,
           employeeTitle: user?.employeeTitle ?? null,
           email: user?.email ?? null,
+          preferredEmail: user?.preferredEmail ?? null,
           phone: user?.phone ?? null,
           avatar: avatarUrl ? { url: avatarUrl } : null,
         }
@@ -668,11 +674,13 @@ const contacts = computed<ConnectUser[]>(() => {
       name: hydrated?.name ?? seeded.name ?? null,
       employeeTitle: hydrated?.employeeTitle ?? seeded.employeeTitle ?? null,
       email: hydrated?.email ?? seeded.email ?? null,
+      preferredEmail: hydrated?.preferredEmail ?? seeded.preferredEmail ?? null,
       phone: hydrated?.phone ?? seeded.phone ?? null,
       avatar: avatarUrl ? { url: avatarUrl } : null,
     }
     return {
       ...contact,
+      publicEmail: publicContactEmail(contact),
       profilePath: contactProfilePath(contact),
     }
   })

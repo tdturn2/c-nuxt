@@ -62,38 +62,63 @@
               No employees match your filters.
             </div>
 
-            <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               <NuxtLink
                 v-for="emp in filteredEmployees"
                 :key="emp.id"
                 :to="userProfilePath(emp)"
-                class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col items-center text-center hover:border-gray-300 transition-colors"
+                class="group flex h-full flex-col rounded-xl border border-gray-200 bg-white p-5 text-center shadow-sm transition-shadow hover:border-[rgba(13,94,130,0.35)] hover:shadow-md"
               >
-                <div class="w-30 h-30 rounded-full bg-gray-200 flex-shrink-0 overflow-hidden flex items-center justify-center mb-3">
+                <div class="mx-auto mb-4 flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 ring-4 ring-[rgba(13,94,130,0.08)]">
                   <img
                     v-if="emp.avatar?.url"
                     :src="mediaDisplayUrl(emp.avatar.url, 256) || emp.avatar.url"
                     :alt="emp.name"
-                    class="w-full h-full object-cover"
+                    class="h-full w-full object-cover"
                   />
-                  <span v-else class="text-gray-500 font-semibold text-2xl">
+                  <span v-else class="text-2xl font-semibold text-gray-500">
                     {{ emp.name?.charAt(0).toUpperCase() }}
                   </span>
                 </div>
-                <div class="min-w-0 w-full">
-                  <h2 class="font-semibold text-gray-900 truncate hover:text-[rgba(13,94,130,1)]">{{ emp.name }}</h2>
-                  <p v-if="emp.employeeTitle" class="text-sm text-gray-600 truncate">{{ emp.employeeTitle }}</p>
+                <h2 class="text-base font-semibold leading-snug text-gray-900 group-hover:text-[rgba(13,94,130,1)]">
+                  {{ emp.name }}
+                </h2>
+                <p class="mt-1 line-clamp-3 min-h-10 text-sm leading-snug text-gray-600">
+                  {{ emp.employeeTitle }}
+                </p>
+                <div
+                  v-if="publicContactEmail(emp) || emp.phone"
+                  class="mt-auto flex items-center justify-center gap-1 pt-4"
+                >
+                  <UTooltip
+                    v-if="publicContactEmail(emp)"
+                    :text="publicContactEmail(emp) || ''"
+                    :delay-duration="0"
+                  >
+                    <a
+                      :href="`mailto:${publicContactEmail(emp)}`"
+                      class="inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgba(13,94,130,1)] hover:bg-[rgba(13,94,130,0.08)]"
+                      :aria-label="`Email ${emp.name}`"
+                      @click.stop
+                    >
+                      <UIcon name="i-lucide-mail" class="h-4 w-4" />
+                    </a>
+                  </UTooltip>
+                  <UTooltip
+                    v-if="emp.phone"
+                    :text="emp.phone"
+                    :delay-duration="0"
+                  >
+                    <a
+                      :href="`tel:${emp.phone}`"
+                      class="inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgba(13,94,130,1)] hover:bg-[rgba(13,94,130,0.08)]"
+                      :aria-label="`Call ${emp.name}`"
+                      @click.stop
+                    >
+                      <UIcon name="i-lucide-phone" class="h-4 w-4" />
+                    </a>
+                  </UTooltip>
                 </div>
-                <dl class="mt-3 pt-3 border-t border-gray-100 space-y-1 w-full text-left">
-                  <div v-if="publicContactEmail(emp)" class="flex items-center gap-2 min-w-0">
-                    <UIcon name="i-heroicons-envelope" class="w-4 h-4 text-gray-400 flex-shrink-0" />
-                    <a :href="`mailto:${publicContactEmail(emp)}`" class="text-sm text-[rgba(13,94,130,1)] hover:underline truncate" @click.stop>{{ publicContactEmail(emp) }}</a>
-                  </div>
-                  <div v-if="emp.phone" class="flex items-center gap-2">
-                    <UIcon name="i-heroicons-phone" class="w-4 h-4 text-gray-400 flex-shrink-0" />
-                    <a :href="`tel:${emp.phone}`" class="text-sm text-gray-700" @click.stop>{{ emp.phone }}</a>
-                  </div>
-                </dl>
               </NuxtLink>
             </div>
           </template>
