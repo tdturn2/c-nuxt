@@ -141,38 +141,11 @@ function userProfilePath(person: { id: number; email: string | null }): string {
   return `/user/${person.id}`
 }
 
-function sectionLabel(slug: string): string {
-  const known = SCHOOLS.find((school) => school.value === slug)
-  if (known) return known.label
-  return slug.split('-').map((word) => {
-    if (word.toLowerCase() === 'esj') return 'ESJ'
-    if (word.toLowerCase() === 'lits') return 'LITS'
-    return word.charAt(0).toUpperCase() + word.slice(1)
-  }).join(' ')
-}
-
-const schoolOptions = computed(() => {
-  const opts: { label: string; value: string }[] = [{ ...ALL_SCHOOLS }, ...SCHOOLS]
-  const known = new Set<string>(SCHOOLS.map((school) => school.value))
-  const extra: { label: string; value: string }[] = []
-  for (const person of faculty.value) {
-    const slug = person.section?.trim()
-    if (!slug || known.has(slug)) continue
-    known.add(slug)
-    extra.push({ label: sectionLabel(slug), value: slug })
-  }
-  const selected = selectedSchool.value?.value
-  if (selected && !known.has(selected)) {
-    extra.push({ label: sectionLabel(selected), value: selected })
-  }
-  extra.sort((a, b) => a.label.localeCompare(b.label))
-  opts.push(...extra)
-  return opts
-})
+const schoolOptions = computed(() => [{ ...ALL_SCHOOLS }, ...SCHOOLS])
 
 function schoolFromQuery(value: string) {
   if (!value) return { ...ALL_SCHOOLS }
-  return schoolOptions.value.find((option) => option.value === value) ?? { label: sectionLabel(value), value }
+  return schoolOptions.value.find((option) => option.value === value) ?? { ...ALL_SCHOOLS }
 }
 
 const filteredFaculty = computed(() => {
