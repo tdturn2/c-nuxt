@@ -35,6 +35,7 @@ export type DashboardSection =
   | 'toasts'
   | 'analytics'
   | 'community-news'
+  | 'messages'
   | 'student-degree-maps'
 
 /** Sections a non-admin group may use. Unlisted sections are admin-only. */

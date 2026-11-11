@@ -1,5 +1,5 @@
 <template>
-  <div class="flex min-h-0 bg-gray-50">
+  <div ref="directoryRoot" class="flex min-h-0 bg-gray-50">
     <LeftColumn />
     <main class="flex-1 min-w-0 overflow-y-auto">
       <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -133,14 +133,20 @@ type AlumniRow = {
   avatar: { url: string } | null
 }
 
-const searchQuery = ref('')
-const filterCountry = ref('')
-const filterRegion = ref('')
-const filterCity = ref('')
+const directoryRoot = ref<HTMLElement | null>(null)
+const {
+  searchQuery,
+  filterCountry,
+  filterRegion,
+  filterCity,
+  currentPage,
+} = useDirectoryListQuery()
 
 const { data: alumniPayload, pending: loading, error: fetchError } = useLazyFetch<{ alumni: AlumniRow[] }>(
   '/api/alumni',
 )
+
+useDirectoryScrollRestore(directoryRoot, () => !loading.value)
 
 const alumni = computed(() => alumniPayload.value?.alumni ?? [])
 
@@ -151,7 +157,6 @@ const error = computed(() => {
 })
 
 const PAGE_SIZE = 10
-const currentPage = ref(1)
 
 function userProfilePath(a: { id: number; email: string | null }): string {
   if (a.email?.includes('@')) {
@@ -239,13 +244,10 @@ const rangeEnd = computed(() =>
   Math.min(currentPage.value * PAGE_SIZE, filteredAlumni.value.length),
 )
 
-watch([searchQuery, filterCountry, filterRegion, filterCity], () => {
-  currentPage.value = 1
-})
-
-watch(totalPages, (max) => {
-  if (currentPage.value > max) currentPage.value = max
-})
+watch([totalPages, () => alumniPayload.value], () => {
+  if (!alumniPayload.value) return
+  if (currentPage.value > totalPages.value) currentPage.value = totalPages.value
+}, { immediate: true })
 
 watch(fetchError, (e) => {
   if (e) console.error('Error loading alumni directory:', e)

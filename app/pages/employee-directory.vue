@@ -1,5 +1,5 @@
 <template>
-  <div class="flex min-h-0 bg-gray-50">
+  <div ref="directoryRoot" class="flex min-h-0 bg-gray-50">
     <LeftColumn />
     <main class="flex-1 min-w-0 overflow-y-auto">
       <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -133,6 +133,7 @@ import { sortDirectoryByLastName } from '@shared/directoryNameSort'
 import { publicContactEmail } from '@shared/publicContactEmail'
 import { mediaDisplayUrl } from '@shared/mediaUrls'
 import { watchDebounced } from '@vueuse/core'
+import { keepDirectoryReturn, readDirectoryReturn } from '~/composables/useDirectoryReturnState'
 
 type EmployeeRow = {
   id: number
@@ -148,14 +149,23 @@ type EmployeeRow = {
 
 const route = useRoute()
 const router = useRouter()
+const directoryRoot = ref<HTMLElement | null>(null)
 
-const searchQuery = ref('')
+const rememberedSearch = readDirectoryReturn(
+  route.path,
+  (value): value is string => typeof value === 'string',
+)
+let holdSearch = rememberedSearch != null
+const searchQuery = ref(rememberedSearch != null ? rememberedSearch.trim() : '')
+keepDirectoryReturn(route.path, () => searchQuery.value.trim())
 
 const { data: employeesPayload, pending: loading, error: fetchError } = useLazyFetch<{ employees: EmployeeRow[] }>(
   '/api/employees',
 )
 
 const employees = computed(() => employeesPayload.value?.employees ?? [])
+
+useDirectoryScrollRestore(directoryRoot, () => !loading.value)
 
 const error = computed(() => {
   const e = fetchError.value as any
@@ -317,6 +327,7 @@ function applyQueryToFilters() {
   if (selectedSection.value.value !== secOpt.value) {
     selectedSection.value = secOpt
   }
+  if (holdSearch) return
   if (searchQuery.value !== name) {
     searchQuery.value = name
   }
@@ -331,14 +342,8 @@ watch(
 )
 
 onMounted(() => {
-  const q = route.query
-  if (!q.country && !q.region && !q.city) return
-  const next: Record<string, string> = {}
-  for (const [key, value] of Object.entries(q)) {
-    if (key === 'country' || key === 'region' || key === 'city') continue
-    if (typeof value === 'string' && value) next[key] = value
-  }
-  router.replace({ path: route.path, query: next })
+  holdSearch = false
+  syncRouteFromFilters()
 })
 
 function syncRouteFromFilters() {

@@ -113,12 +113,12 @@ watch(country, (next, prev) => {
   if (prev === undefined || next === prev) return
   region.value = ''
   city.value = ''
-})
+}, { flush: 'sync' })
 
 watch(region, (next, prev) => {
   if (prev === undefined || next === prev) return
   city.value = ''
-})
+}, { flush: 'sync' })
 
 /** State/city-only mode implies US when a state or city filter is active. */
 watch(

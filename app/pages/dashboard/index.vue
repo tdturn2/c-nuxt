@@ -120,6 +120,13 @@ const sections: Array<{
     section: 'posts',
   },
   {
+    title: 'Official Messages',
+    description: 'Choose office accounts, such as Communications and the Registrar, that appear under Official in Messages.',
+    to: '/dashboard/messages',
+    icon: 'i-lucide-megaphone',
+    section: 'messages',
+  },
+  {
     title: 'Users & Groups',
     description: 'Manage user accounts, roles, and permission groups.',
     to: '/dashboard/users',

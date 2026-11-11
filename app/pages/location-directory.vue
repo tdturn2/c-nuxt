@@ -1,5 +1,5 @@
 <template>
-  <div class="flex min-h-0 bg-gray-50">
+  <div ref="directoryRoot" class="flex min-h-0 bg-gray-50">
     <LeftColumn />
     <main class="min-w-0 flex-1 overflow-y-auto">
       <div class="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -149,7 +149,14 @@
 </template>
 
 <script setup lang="ts">
-import { formatHomeLocation } from '@shared/geo'
+import { watchDebounced } from '@vueuse/core'
+import { countryLabel, formatHomeLocation, usStateLabel } from '@shared/geo'
+import {
+  directoryListSearchParams,
+  parseDirectoryListQuery,
+  sameDirectoryListQuery,
+} from '@shared/directoryListQuery'
+import { isDirectoryListState, keepDirectoryReturn, readDirectoryReturn } from '~/composables/useDirectoryReturnState'
 import { publicContactEmail } from '@shared/publicContactEmail'
 import { mediaDisplayUrl } from '@shared/mediaUrls'
 import LocationGlobe from '~/components/directory/LocationGlobe.vue'
@@ -170,19 +177,76 @@ type PersonRow = {
 
 type View = 'world' | 'usa' | 'people'
 
-const view = ref<View>('world')
-const selectedCountry = ref('')
-const selectedCountryName = ref('')
-const selectedRegion = ref('')
-const selectedRegionName = ref('')
-const filterCity = ref('')
-const searchQuery = ref('')
+const route = useRoute()
+const router = useRouter()
+const directoryRoot = ref<HTMLElement | null>(null)
+
+const rememberedPlace = readDirectoryReturn(route.path, isDirectoryListState)
+const initialPlace = rememberedPlace ?? parseDirectoryListQuery(route.query)
+const selectedCountry = ref(initialPlace.country)
+const selectedCountryName = ref(initialPlace.country ? countryLabel(initialPlace.country) : '')
+const selectedRegion = ref(initialPlace.region)
+const selectedRegionName = ref(initialPlace.region ? usStateLabel(initialPlace.region) : '')
+const filterCity = ref(initialPlace.city)
+const searchQuery = ref(initialPlace.q)
+keepDirectoryReturn(route.path, () => ({
+  page: 1,
+  q: searchQuery.value,
+  country: selectedCountry.value,
+  region: selectedRegion.value,
+  city: filterCity.value,
+}))
+
+const view = computed<View>(() => {
+  if (!selectedCountry.value) return 'world'
+  if (selectedCountry.value === 'US' && !selectedRegion.value) return 'usa'
+  return 'people'
+})
+
+let applyingPlace = false
+
+function currentPlaceParams() {
+  return directoryListSearchParams({
+    page: 1,
+    q: searchQuery.value,
+    country: selectedCountry.value,
+    region: selectedRegion.value,
+    city: filterCity.value,
+  })
+}
+
+function applyPlaceQuery(query: typeof route.query) {
+  const next = parseDirectoryListQuery(query)
+  if (sameDirectoryListQuery(currentPlaceParams(), directoryListSearchParams(next))) return
+  applyingPlace = true
+  if (selectedCountry.value !== next.country) {
+    selectedCountry.value = next.country
+    selectedCountryName.value = next.country ? countryLabel(next.country) : ''
+  }
+  if (selectedRegion.value !== next.region) {
+    selectedRegion.value = next.region
+    selectedRegionName.value = next.region ? usStateLabel(next.region) : ''
+  }
+  filterCity.value = next.city
+  searchQuery.value = next.q
+  applyingPlace = false
+}
+
+function syncPlaceRoute() {
+  if (applyingPlace) return
+  const next = currentPlaceParams()
+  const current = directoryListSearchParams(parseDirectoryListQuery(route.query))
+  if (sameDirectoryListQuery(next, current)) return
+  router.replace({ path: route.path, query: next })
+}
 
 const { data: payload, pending: loading, error: fetchError } = useLazyFetch<{ people: PersonRow[] }>(
   '/api/directory/by-location',
 )
 
 const people = computed(() => payload.value?.people ?? [])
+
+useDirectoryScrollRestore(directoryRoot, () => !loading.value)
 
 const error = computed(() => {
   const e = fetchError.value as any
@@ -258,7 +322,6 @@ const crumbs = computed(() => {
 })
 
 function goWorld() {
-  view.value = 'world'
   selectedCountry.value = ''
   selectedCountryName.value = ''
   selectedRegion.value = ''
@@ -268,35 +331,28 @@ function goWorld() {
 }
 
 function goUsa() {
-  view.value = 'usa'
   selectedRegion.value = ''
   selectedRegionName.value = ''
   filterCity.value = ''
   searchQuery.value = ''
   selectedCountry.value = 'US'
-  if (!selectedCountryName.value) selectedCountryName.value = 'United States'
+  selectedCountryName.value = countryLabel('US') || 'United States'
 }
 
 function onCountrySelect(payload: { code: string; name: string }) {
-  selectedCountry.value = payload.code
   selectedCountryName.value = payload.name
+  selectedCountry.value = payload.code
   selectedRegion.value = ''
   selectedRegionName.value = ''
   filterCity.value = ''
   searchQuery.value = ''
-  if (payload.code === 'US') {
-    view.value = 'usa'
-  } else {
-    view.value = 'people'
-  }
 }
 
 function onStateSelect(payload: { code: string; name: string }) {
-  selectedRegion.value = payload.code
   selectedRegionName.value = payload.name
+  selectedRegion.value = payload.code
   filterCity.value = ''
   searchQuery.value = ''
-  view.value = 'people'
 }
 
 function officeEmail(person: PersonRow): string | null {
@@ -319,6 +375,17 @@ function placeLabel(person: PersonRow): string {
     city: person.city,
   })
 }
+
+watch([selectedCountry, selectedRegion, filterCity], () => {
+  if (applyingPlace) return
+  syncPlaceRoute()
+})
+watchDebounced(searchQuery, () => {
+  if (applyingPlace) return
+  syncPlaceRoute()
+}, { debounce: 400 })
+watch(() => route.query, query => applyPlaceQuery(query), { deep: true })
+onMounted(() => syncPlaceRoute())
 
 watch(fetchError, (e) => {
   if (e) console.error('Error loading location directory:', e)

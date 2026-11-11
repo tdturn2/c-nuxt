@@ -1,5 +1,5 @@
 <template>
-  <div class="flex min-h-0 bg-gray-50">
+  <div ref="directoryRoot" class="flex min-h-0 bg-gray-50">
     <LeftColumn />
     <main class="flex-1 min-w-0 overflow-y-auto">
       <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -162,7 +162,10 @@
 </template>
 
 <script setup lang="ts">
+import { watchDebounced } from '@vueuse/core'
 import { sortDirectoryByLastName } from '@shared/directoryNameSort'
+import { queryValue } from '@shared/directoryListQuery'
+import { keepDirectoryReturn, readDirectoryReturn } from '~/composables/useDirectoryReturnState'
 import { publicContactEmail } from '@shared/publicContactEmail'
 import { FACULTY_TYPES, facultyTypeFromTitle } from '@shared/facultyDirectory'
 import { mediaDisplayUrl } from '@shared/mediaUrls'
@@ -190,8 +193,15 @@ const ALL_TYPES = { label: 'All', value: '' } as const
 
 const route = useRoute()
 const router = useRouter()
+const directoryRoot = ref<HTMLElement | null>(null)
 
-const searchQuery = ref('')
+const rememberedSearch = readDirectoryReturn(
+  route.path,
+  (value): value is string => typeof value === 'string',
+)
+let holdSearch = rememberedSearch != null
+const searchQuery = ref(rememberedSearch != null ? rememberedSearch.trim() : queryValue(route.query.q).trim())
+keepDirectoryReturn(route.path, () => searchQuery.value.trim())
 const selectedSchool = ref<{ label: string; value: string }>({ ...ALL_SCHOOLS })
 const selectedType = ref<{ label: string; value: string }>({ ...ALL_TYPES })
 
@@ -200,6 +210,8 @@ const { data: facultyPayload, pending: loading, error: fetchError } = useLazyFet
 )
 
 const faculty = computed(() => facultyPayload.value?.faculty ?? [])
+
+useDirectoryScrollRestore(directoryRoot, () => !loading.value)
 
 const error = computed(() => {
   const e = fetchError.value as any
@@ -301,6 +313,10 @@ function parseType(query: typeof route.query) {
   return type
 }
 
+function parseSearch(query: typeof route.query) {
+  return queryValue(query.q).trim()
+}
+
 function applyQueryToFilters() {
   const school = parseSchool(route.query)
   const nextSchool = schoolFromQuery(school)
@@ -309,25 +325,38 @@ function applyQueryToFilters() {
   const type = parseType(route.query)
   const nextType = typeFromQuery(type)
   if (selectedType.value.value !== nextType.value) selectedType.value = nextType
+
+  if (holdSearch) return
+  const q = parseSearch(route.query)
+  if (searchQuery.value !== q) searchQuery.value = q
 }
 
-watch(() => [route.query.school, route.query.type], applyQueryToFilters, { immediate: true })
+watch(() => [route.query.school, route.query.type, route.query.q], applyQueryToFilters, { immediate: true })
 
 function syncRouteFromFilters() {
   const school = selectedSchool.value?.value ?? ''
   const type = selectedType.value?.value ?? ''
+  const q = searchQuery.value.trim()
   const currentSchool = parseSchool(route.query)
   const currentType = parseType(route.query)
-  if (school === currentSchool && type === currentType) return
+  const currentSearch = parseSearch(route.query)
+  if (school === currentSchool && type === currentType && q === currentSearch) return
   const query = { ...route.query }
   if (school) query.school = school
   else delete query.school
   if (type) query.type = type
   else delete query.type
+  if (q) query.q = q
+  else delete query.q
   router.replace({ path: route.path, query })
 }
 
 watch([selectedSchool, selectedType], syncRouteFromFilters)
+watchDebounced(searchQuery, syncRouteFromFilters, { debounce: 400 })
+onMounted(() => {
+  holdSearch = false
+  syncRouteFromFilters()
+})
 
 watch(fetchError, (e) => {
   if (e) console.error('Error loading faculty:', e)

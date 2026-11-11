@@ -55,6 +55,46 @@
           </div>
         </section>
 
+        <section class="rounded-lg border border-gray-200 bg-gray-50 p-5 sm:p-6">
+          <h2 class="text-lg font-semibold text-gray-900">Active Directory groups</h2>
+          <p class="mt-1 text-sm text-gray-600">
+            Groups from your Microsoft sign-in. Search to narrow the list.
+          </p>
+
+          <p v-if="directoryGroups === null" class="mt-4 text-sm text-gray-600">
+            Sign out and sign in with Microsoft again to load these groups.
+          </p>
+          <p v-else-if="!directoryGroups.length" class="mt-4 text-sm text-gray-600">
+            No Active Directory groups were returned for this sign-in.
+          </p>
+          <template v-else>
+            <div class="mt-4 flex flex-wrap items-center gap-3">
+              <label for="ad-group-filter" class="sr-only">Filter groups</label>
+              <input
+                id="ad-group-filter"
+                v-model="groupQuery"
+                type="search"
+                placeholder="Filter groups..."
+                class="w-full max-w-md rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-gray-400 focus:border-[rgba(13,94,130,1)] focus:outline-none focus:ring-1 focus:ring-[rgba(13,94,130,1)]"
+                autocomplete="off"
+              />
+              <p class="text-sm text-gray-500">
+                {{ visibleGroups.length }} of {{ directoryGroups.length }}
+              </p>
+            </div>
+            <ul v-if="visibleGroups.length" class="mt-4 grid gap-2 sm:grid-cols-2">
+              <li
+                v-for="name in visibleGroups"
+                :key="name"
+                class="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800"
+              >
+                {{ name }}
+              </li>
+            </ul>
+            <p v-else class="mt-4 text-sm text-gray-600">No groups match that filter.</p>
+          </template>
+        </section>
+
         <section
           v-if="!hasStudentRole"
           class="rounded-lg border border-gray-200 bg-gray-50 p-5 sm:p-6"
@@ -126,7 +166,22 @@ import ProfileFacultyForm from '~/components/profile/ProfileFacultyForm.vue'
 import ProfileLocationFields from '~/components/profile/ProfileLocationFields.vue'
 import ProfileStudentForm from '~/components/profile/ProfileStudentForm.vue'
 
+const { data: session } = useAuth()
 const { user: meUser, loading: authLoading, refresh } = useMe()
+const groupQuery = ref('')
+
+const directoryGroups = computed<string[] | null>(() => {
+  const groups = (session.value as { groups?: unknown } | null)?.groups
+  if (!Array.isArray(groups)) return null
+  return groups.filter((group): group is string => typeof group === 'string' && group.trim().length > 0)
+})
+
+const visibleGroups = computed(() => {
+  const list = directoryGroups.value ?? []
+  const query = groupQuery.value.trim().toLowerCase()
+  if (!query) return list
+  return list.filter((name) => name.toLowerCase().includes(query))
+})
 
 const uploadingAvatar = ref(false)
 const error = ref<string | null>(null)

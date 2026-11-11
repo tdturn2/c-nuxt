@@ -69,6 +69,22 @@
           }"
         />
 
+        <NuxtLink
+          v-if="showMessages"
+          to="/messages"
+          class="relative mt-0.5 flex h-9 w-9 items-center justify-center rounded-md text-white/90 transition-colors hover:bg-white/10 hover:text-white"
+          aria-label="Messages"
+          no-prefetch
+        >
+          <UIcon name="i-lucide-message-circle" class="h-5 w-5" />
+          <span
+            v-if="messageUnreadCount > 0"
+            class="absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white"
+          >
+            {{ messageUnreadCount > 99 ? '99+' : messageUnreadCount }}
+          </span>
+        </NuxtLink>
+
         <UPopover :popper="{ placement: 'bottom-end' }">
           <button
             type="button"
@@ -179,6 +195,7 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import { isConnectAdminUser, type ConnectUserAccessLike } from '@shared/connectUserAccess'
+import { canAccessMessagesDev } from '@shared/messagesDevAccess'
 import PostModal from './PostModal.vue'
 import connectLogoWide from '../../assets/connect-logo.svg'
 
@@ -212,12 +229,18 @@ const {
   markAsRead,
   markPostAsRead,
 } = useNotifications()
+const { count: messageUnreadCount, start: startMessageUnread, stop: stopMessageUnread } = useMessageUnread()
 const { fetchUser } = useUsers()
 const { data: session, getCsrfToken } = useAuth()
 const { user: meUser } = useMe()
 const { canAccessFacultyPublications, facultyHubAccessReady } = useAudienceHubAccess()
 const { startRolePreview, pending: impersonationPending } = useImpersonation()
 const isSignedIn = computed(() => Boolean(session.value?.user?.email))
+const showMessages = computed(() => canAccessMessagesDev({
+  email: session.value?.user?.email,
+  directoryGroups: (session.value as { groups?: unknown } | null)?.groups,
+  connectUser: meUser.value,
+}))
 const showRolePreviewMenu = computed(
   () => isConnectAdminUser(meUser.value as ConnectUserAccessLike | null) && !meUser.value?.impersonation?.active,
 )
@@ -524,6 +547,12 @@ const formatNotificationTime = (dateString: string): string => {
 // Fetch notifications on mount and set up polling (client-side only)
 let notificationInterval: ReturnType<typeof setInterval> | null = null
 
+watch(showMessages, (allowed) => {
+  if (!import.meta.client) return
+  if (allowed) startMessageUnread()
+  else stopMessageUnread()
+}, { immediate: true })
+
 onMounted(async () => {
   if (import.meta.client) {
     await fetchNotifications()
@@ -536,6 +565,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  stopMessageUnread()
   if (notificationInterval) {
     clearInterval(notificationInterval)
   }

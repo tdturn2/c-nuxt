@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
+import { canAccessMessagesDev } from '@shared/messagesDevAccess'
 import {
   buildDepartmentsSidebarNavItems,
   isConnectDepartmentsPath,
@@ -80,37 +81,127 @@ const isStudentsActive = computed(() => {
   )
 })
 
+const SEEN_KEYS = {
+  jobs: 'connect-nav-jobs-opened-at',
+  marketplace: 'connect-nav-marketplace-opened-at',
+} as const
+
+type BoardKey = keyof typeof SEEN_KEYS
+
+function boardKey(path?: string): BoardKey | null {
+  if (!path) return null
+  if (path === '/jobs' || path.startsWith('/jobs/')) return 'jobs'
+  if (path === '/marketplace' || path.startsWith('/marketplace/')) return 'marketplace'
+  return null
+}
+
+function readSeenAt(key: string): string | null {
+  try {
+    const stored = localStorage.getItem(key)
+    if (stored && Number.isFinite(Date.parse(stored))) return stored
+  } catch {
+    /* private mode */
+  }
+  return null
+}
+
+function writeSeenAt(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    /* private mode */
+  }
+}
+
+/** No recorded open yet: every listing still on the board counts as new. */
+function initialSeenAt(board: BoardKey): string {
+  if (!import.meta.client) return ''
+  if (boardKey(route.path) === board) {
+    const now = new Date().toISOString()
+    writeSeenAt(SEEN_KEYS[board], now)
+    return now
+  }
+  return readSeenAt(SEEN_KEYS[board]) ?? new Date(0).toISOString()
+}
+
+const jobsSeenAt = ref(initialSeenAt('jobs'))
+const marketplaceSeenAt = ref(initialSeenAt('marketplace'))
+
+function markBoardSeen(board: BoardKey) {
+  const now = new Date().toISOString()
+  writeSeenAt(SEEN_KEYS[board], now)
+  if (board === 'jobs') jobsSeenAt.value = now
+  else marketplaceSeenAt.value = now
+}
+
+const activityQuery = computed(() => ({
+  jobsSince: jobsSeenAt.value || undefined,
+  marketplaceSince: marketplaceSeenAt.value || undefined,
+}))
+
 const { data: activityCounts, refresh: refreshActivityCounts } = useLazyFetch<{
   marketplace: number
   jobs: number
 }>('/api/sidebar/activity-counts', {
   server: false,
+  query: activityQuery,
+  watch: false,
   default: () => ({ marketplace: 0, jobs: 0 }),
 })
 
-function postCountBadge(count: number): NavigationMenuItem['badge'] {
+function postCountBadge(count: number, board: BoardKey, boardLabel: string): NavigationMenuItem['badge'] {
   if (!Number.isFinite(count) || count <= 0) return undefined
+  const amount = count > 99 ? '99+' : String(count)
+  const label = `${amount} new`
+  const opened = import.meta.client && readSeenAt(SEEN_KEYS[board])
   return {
-    label: String(count),
+    label,
+    title: opened ? `${label} since you last opened ${boardLabel}` : `${label} on ${boardLabel}`,
     color: 'neutral',
-    variant: 'solid',
+    variant: 'outline',
     size: 'sm',
     class: 'connect-nav-count',
-  }
+  } as NavigationMenuItem['badge']
 }
 
-const isBoardPath = (path?: string) =>
-  !!path && (path === '/marketplace' || path.startsWith('/marketplace/') || path === '/jobs' || path.startsWith('/jobs/'))
-
 watch(() => route.path, (path, previous) => {
-  if (isBoardPath(path) || isBoardPath(previous)) refreshActivityCounts()
+  if (!import.meta.client) return
+  const current = boardKey(path)
+  const prev = boardKey(previous)
+  if (current) markBoardSeen(current)
+  if (prev && prev !== current) markBoardSeen(prev)
+  refreshActivityCounts()
 })
 
-const mainNavItems = computed<NavigationMenuItem[]>(() => [
+const { data: session } = useAuth()
+const { user: meUser } = useMe()
+const showMessages = computed(() => canAccessMessagesDev({
+  email: session.value?.user?.email,
+  directoryGroups: (session.value as { groups?: unknown } | null)?.groups,
+  connectUser: meUser.value,
+}))
+const { count: messageUnreadCount } = useMessageUnread()
+
+const mainNavItems = computed<NavigationMenuItem[]>(() => {
+  const items: NavigationMenuItem[] = [
   {
     label: 'Home',
     icon: 'i-lucide-house',
     to: '/',
+  },
+  {
+    label: 'Messages',
+    icon: 'i-lucide-message-circle',
+    to: '/messages',
+    active: route.path === '/messages' || route.path.startsWith('/messages/'),
+    badge: messageUnreadCount.value > 0
+      ? {
+          label: messageUnreadCount.value > 99 ? '99+' : String(messageUnreadCount.value),
+          color: 'error',
+          variant: 'solid',
+          size: 'sm',
+        }
+      : undefined,
   },
   {
     label: 'Departments and Offices',
@@ -203,15 +294,17 @@ const mainNavItems = computed<NavigationMenuItem[]>(() => [
     label: 'Jobs Board',
     icon: 'i-heroicons-briefcase',
     to: '/jobs',
-    badge: postCountBadge(activityCounts.value?.jobs ?? 0),
+    badge: postCountBadge(activityCounts.value?.jobs ?? 0, 'jobs', 'Jobs Board'),
   },
   {
     label: 'Marketplace',
     icon: 'i-heroicons-shopping-bag',
     to: '/marketplace',
-    badge: postCountBadge(activityCounts.value?.marketplace ?? 0),
+    badge: postCountBadge(activityCounts.value?.marketplace ?? 0, 'marketplace', 'Marketplace'),
   },
-])
+  ]
+  return showMessages.value ? items : items.filter((item) => item.to !== '/messages')
+})
 
 const filteredMainNavItems = computed(() =>
   mainNavItems.value
@@ -491,14 +584,16 @@ watch(() => route.path, () => {
 <style>
 /* Unscoped: the nav root does not receive this component's scope id, so :deep() never matches the badge. */
 .connect-left-nav .connect-nav-count {
-  min-width: 1.35rem;
   justify-content: center;
   border-radius: 9999px;
-  background-color: var(--color-gold) !important;
-  color: #fff !important;
-  font-weight: 700;
+  background-color: transparent !important;
+  color: var(--color-gold) !important;
+  font-weight: 600;
+  font-size: 0.6875rem;
+  letter-spacing: 0.01em;
   font-variant-numeric: tabular-nums;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-gold) 45%, white);
+  box-shadow: inset 0 0 0 1px var(--color-gold) !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
 }
 </style>
 

@@ -72,6 +72,8 @@ describe('dashboard section access', () => {
     expect(canAccessDashboardSection(chapelEditor, 'campus-hours')).toBe(false)
     expect(canAccessDashboardSection(chapelEditor, 'analytics')).toBe(false)
     expect(canAccessDashboardSection(admin, 'analytics')).toBe(true)
+    expect(canAccessDashboardSection(admin, 'messages')).toBe(true)
+    expect(canAccessDashboardSection(staff, 'messages')).toBe(false)
   })
 
   it('lets jobs-manager members open the dashboard and Jobs Manager', () => {

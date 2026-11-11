@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { isChapelLiveWindow } from '../shared/chapelLive'
+import { CHAPEL_LIVE_EMBED_URL, isChapelLiveWindow } from '../shared/chapelLive'
 
 describe('chapel live window', () => {
+  it('starts the Resi player muted so autoplay does not play audio', () => {
+    expect(new URL(CHAPEL_LIVE_EMBED_URL).searchParams.get('mute')).toBe('1')
+  })
+
   it('is open Tue–Thu from 10:55 a.m. until noon Eastern', () => {
     // 2026-10-06 Tue, 10-07 Wed, 10-08 Thu, 10-09 Fri. October is EDT (UTC-4).
     expect(isChapelLiveWindow(new Date('2026-10-06T14:55:00Z'))).toBe(true)

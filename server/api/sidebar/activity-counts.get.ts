@@ -1,5 +1,10 @@
-import { defineEventHandler } from 'h3'
+import { defineEventHandler, getQuery } from 'h3'
 import { resolveConnectApiUrl } from '../../utils/connectApi'
+
+function sinceParam(value: unknown): string | undefined {
+  if (typeof value !== 'string' || !value) return undefined
+  return Number.isNaN(Date.parse(value)) ? undefined : value
+}
 
 function totalDocs(payload: unknown): number {
   if (!payload || typeof payload !== 'object') return 0
@@ -9,17 +14,21 @@ function totalDocs(payload: unknown): number {
   return Array.isArray(docs) ? docs.length : 0
 }
 
-/** Public listing totals for the sidebar. A failed upstream call hides that badge. */
-export default defineEventHandler(async () => {
+/** Listings posted after the sidebar link was last opened. A failed upstream call hides that badge. */
+export default defineEventHandler(async (event) => {
   const connectApiUrl = resolveConnectApiUrl()
   if (!connectApiUrl) return { marketplace: 0, jobs: 0 }
 
+  const query = getQuery(event)
+  const marketplaceSince = sinceParam(query.marketplaceSince)
+  const jobsSince = sinceParam(query.jobsSince)
+
   const [marketplaceResult, jobsResult] = await Promise.allSettled([
     $fetch(`${connectApiUrl}/api/connect-marketplace-posts/list`, {
-      query: { count: '1', limit: '1' },
+      query: { count: '1', limit: '1', since: marketplaceSince },
     }),
     $fetch(`${connectApiUrl}/api/connect-jobs/list`, {
-      query: { count: '1' },
+      query: { count: '1', since: jobsSince },
     }),
   ])
 

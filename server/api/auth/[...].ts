@@ -1,5 +1,13 @@
 import { NuxtAuthHandler } from '#auth'
-import { canvasLoginIdFromEntra, canvasLoginIdFromProfile, fetchEntraDirectoryIdentity } from '../../utils/entra'
+import {
+  canvasLoginIdFromEntra,
+  canvasLoginIdFromProfile,
+  fetchEntraDirectoryGroups,
+  fetchEntraDirectoryIdentity,
+  filterableDirectoryGroupNames,
+  groupNamesFromLoginClaims,
+  type GraphDirectoryGroup,
+} from '../../utils/entra'
 import { syncUserToPayload } from '../../utils/syncUser'
 
 const authSecret = useRuntimeConfig().authSecret
@@ -51,6 +59,7 @@ export default NuxtAuthHandler({
     },
     async jwt({ token, account, profile, user }) {
       const tokenAny = token as any
+      let graphGroups: GraphDirectoryGroup[] = []
 
       if (account?.access_token) {
         try {
@@ -63,9 +72,14 @@ export default NuxtAuthHandler({
         } catch (error) {
           console.error('[Auth] Failed to load Entra mail nickname / SAM account name:', error)
         }
+
+        try {
+          graphGroups = await fetchEntraDirectoryGroups(account.access_token)
+        } catch (error) {
+          console.error('[Auth] Failed to load Entra directory groups:', error)
+        }
       }
 
-      // Extract groups from profile if available
       let groups: string[] | null = null
       if (profile) {
         const profileAny = profile as any
@@ -73,42 +87,19 @@ export default NuxtAuthHandler({
         if (profileLoginId && !tokenAny.canvasLoginId) {
           tokenAny.canvasLoginId = profileLoginId
         }
-        
-        // Log all profile keys to see what's available
-        console.log('[Auth] Profile keys:', Object.keys(profileAny))
-        console.log('[Auth] Profile data:', JSON.stringify(profileAny, null, 2))
-        
-        // Check for groups in various formats
-        if (profileAny.groups) {
-          groups = Array.isArray(profileAny.groups) ? profileAny.groups : [profileAny.groups]
-          console.log('[Auth] Found groups in profile.groups:', groups)
-          token.groups = groups
-        }
-        if (profileAny.memberOf) {
-          groups = Array.isArray(profileAny.memberOf) ? profileAny.memberOf : [profileAny.memberOf]
-          console.log('[Auth] Found groups in profile.memberOf:', groups)
-          token.groups = groups
-        }
-        
-        // Check for sAMAccountName and related group fields
-        if (profileAny.sAMAccountName) {
-          console.log('[Auth] Found sAMAccountName:', profileAny.sAMAccountName)
-        }
-        
-        // Check for groups passed via sAMAccountName or other Azure AD specific fields
-        if (profileAny['http://schemas.microsoft.com/ws/2008/06/identity/claims/groups']) {
-          const claimGroups = profileAny['http://schemas.microsoft.com/ws/2008/06/identity/claims/groups']
-          groups = Array.isArray(claimGroups) ? claimGroups : [claimGroups]
-          console.log('[Auth] Found groups in claims/groups:', groups)
-          token.groups = groups
-        }
-        
-        // Log final groups value
-        if (groups) {
-          console.log('[Auth] Final groups extracted:', groups)
-        } else {
-          console.log('[Auth] No groups found in profile')
-        }
+      }
+
+      // Groups are resolved on sign-in. Later JWT refreshes keep token.groups.
+      if (account) {
+        const userGroups = Array.isArray((user as { groups?: unknown } | undefined)?.groups)
+          ? ((user as { groups: unknown[] }).groups.filter((group) => typeof group === 'string') as string[])
+          : []
+        groups = filterableDirectoryGroupNames({
+          graphGroups,
+          claimGroups: [...groupNamesFromLoginClaims(profile as Record<string, unknown> | undefined), ...userGroups],
+        })
+        token.groups = groups
+        console.log(`[Auth] Active Directory groups (${groups.length}):`, groups)
       }
       
       // Store user info in token (this is essential)
@@ -169,9 +160,9 @@ export default NuxtAuthHandler({
         }
       }
       
-      // Include groups in session if available
+      // Include groups in session if available. An empty list means sign-in found none.
       const tokenAny = token as any
-      if (tokenAny.groups) {
+      if (Array.isArray(tokenAny.groups)) {
         (session as any).groups = tokenAny.groups
       }
       ;(session as any).canvasLoginId = tokenAny.canvasLoginId || null

@@ -53,6 +53,15 @@ const allItems: NavItem[] = [
   { label: 'Dashboard Home', to: '/dashboard', icon: 'i-lucide-layout-dashboard', section: 'home' },
   { label: 'Analytics', to: '/dashboard/analytics', icon: 'i-lucide-chart-column', section: 'analytics' },
   { label: 'Posts', to: '/dashboard/posts', icon: 'i-lucide-newspaper', section: 'posts' },
+  {
+    label: 'Official Messages',
+    to: '/dashboard/messages',
+    icon: 'i-lucide-megaphone',
+    section: 'messages',
+    children: [
+      { label: 'All Messages', to: '/dashboard/all-messages', icon: 'i-lucide-messages-square', section: 'messages' },
+    ],
+  },
   { label: 'Users & Groups', to: '/dashboard/users', icon: 'i-lucide-users-round', section: 'users' },
   { label: 'Docs / Pages', to: '/dashboard/docs', icon: 'i-lucide-file-text', section: 'docs' },
   { label: 'Media', to: '/dashboard/media', icon: 'i-lucide-folder-open', section: 'media' },

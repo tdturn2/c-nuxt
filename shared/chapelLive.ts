@@ -1,8 +1,8 @@
 import { DEFAULT_TOAST_TIMEZONE, zonedDateParts } from './connectToasts'
 
-/** Resi web player for the Estes Chapel live stream. */
+/** Resi web player for the Estes Chapel live stream. `mute=1` starts playback silent. */
 export const CHAPEL_LIVE_EMBED_URL =
-  'https://control.resi.io/webplayer/video.html?id=b0ca676a-beff-4ed5-9e67-4b14787a67fc'
+  'https://control.resi.io/webplayer/video.html?id=b0ca676a-beff-4ed5-9e67-4b14787a67fc&mute=1'
 
 export const CHAPEL_LIVE_TITLE = 'Chapel Live'
 
